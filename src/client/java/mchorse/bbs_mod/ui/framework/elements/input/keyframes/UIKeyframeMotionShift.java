@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Midpoint controls shared by film, state and camera timelines; hidden when the keys are too close. */
+/** Midpoint controls shared by film, state and camera timelines: on selected keys only, hidden when the keys are too close. */
 public class UIKeyframeMotionShift
 {
     private final UIKeyframes view;
@@ -111,10 +111,14 @@ public class UIKeyframeMotionShift
         return hit;
     }
 
-    /** Drawing and picking use exactly the same screen-space visibility rules. */
+    /**
+     * Drawing and picking use exactly the same screen-space visibility rules. A handle shows only on
+     * a selected key's interval: one between every pair of keys crowds the rows, and the shift is a
+     * thing you tune on the keys you are working on.
+     */
     private Hit visibleHandle(UIKeyframeSheet sheet, Keyframe<?> key, Keyframe<?> next)
     {
-        if (!key.isEnabled() || !key.supportsMotionShift() || next == null) return null;
+        if (!key.isEnabled() || !key.supportsMotionShift() || next == null || !sheet.selection.has(key)) return null;
         float start = key.getTick();
         float duration = key.getDuration() > 0F ? key.getDuration() : next.getTick() - start;
         int left = this.view.toGraphX(start), right = this.view.toGraphX(Math.min(start + duration, next.getTick()));
