@@ -3,6 +3,7 @@ package mchorse.bbs_mod.mixin.client;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import net.minecraft.client.render.RenderTickCounter;
 import org.spongepowered.asm.mixin.Mixin;
@@ -47,6 +48,8 @@ public class RenderTickCounterMixin
 
         if (videoRecorder.isRecording())
         {
+            VideoExportSettings settings = videoRecorder.getSettings();
+
             /* The recording starts on the first frame's first render - its frames are taken
              * once all of their held renders are done */
             if (videoRecorder.getCounter() == 0 && this.heldFrames == 0)
@@ -54,7 +57,7 @@ public class RenderTickCounterMixin
                 this.tickDelta = 0;
             }
 
-            float share = BBSRendering.getHeldFrameShare(this.heldFrames);
+            float share = settings.getHeldFrameShare(this.heldFrames);
 
             if (this.heldFrames == 0)
             {
@@ -64,7 +67,7 @@ public class RenderTickCounterMixin
                  * until enough real time has passed to produce the next frame. */
                 if (BBSSettings.videoLimitFrameRate.get())
                 {
-                    long frameInterval = (long) (1000F / BBSRendering.getVideoFrameRate());
+                    long frameInterval = (long) (1000F / settings.getCaptureFrameRate());
 
                     if (timeMillis - this.lastFrameTime < frameInterval)
                     {
@@ -80,19 +83,19 @@ public class RenderTickCounterMixin
 
                 BBSRendering.canRender = true;
 
-                info.setReturnValue(this.advance(videoRecorder, timeMillis, share));
+                info.setReturnValue(this.advance(videoRecorder, settings, timeMillis, share));
             }
             else
             {
                 /* A held render of the same frame - which, with a shutter, moves a little on */
                 BBSRendering.canRender = false;
 
-                info.setReturnValue(share > 0F ? this.advance(videoRecorder, timeMillis, share) : 0);
+                info.setReturnValue(share > 0F ? this.advance(videoRecorder, settings, timeMillis, share) : 0);
             }
 
             this.heldFrames += 1;
 
-            if (this.heldFrames >= BBSSettings.videoHeldFrames.get())
+            if (this.heldFrames >= settings.heldFrames())
             {
                 this.heldFrames = 0;
 
@@ -109,9 +112,9 @@ public class RenderTickCounterMixin
     /**
      * Move the recording's time on by the given part of a video frame, returning the ticks to run.
      */
-    private int advance(VideoRecorder videoRecorder, long timeMillis, float share)
+    private int advance(VideoRecorder videoRecorder, VideoExportSettings settings, long timeMillis, float share)
     {
-        this.lastFrameDuration = 20F / (float) BBSRendering.getVideoFrameRate() * share;
+        this.lastFrameDuration = 20F / (float) settings.getCaptureFrameRate() * share;
         this.prevTimeMillis = timeMillis;
         this.tickDelta += this.lastFrameDuration;
 

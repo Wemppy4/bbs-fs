@@ -41,6 +41,7 @@ import mchorse.bbs_mod.ui.utils.UIChalkboard;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
@@ -136,7 +137,7 @@ public class UIDashboard extends UIBaseMenu
 
                 if (!this.main.isVisible() && this.panels.panel instanceof UIFilmPanel)
                 {
-                    UIFilmPanel.applyExportSizeToBBS();
+                    UIFilmPanel.applyExportSizeToBBS(VideoExportSettings.global());
                 }
             }
         }).category(category);

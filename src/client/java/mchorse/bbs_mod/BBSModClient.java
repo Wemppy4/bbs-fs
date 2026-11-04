@@ -105,6 +105,7 @@ import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.keys.KeybindSettings;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -1023,7 +1024,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(null, null);
+        worldExportSession.start(VideoExportSettings.global(), null, null);
     }
 
     private KeyBinding createKey(String id, int key)
@@ -1107,7 +1108,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(filmId, panel.getData());
+        worldExportSession.start(VideoExportSettings.global(), filmId, panel.getData());
     }
 
     private void keyPauseFilm()

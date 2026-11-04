@@ -67,6 +67,7 @@ import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PlayerUtils;
 import mchorse.bbs_mod.utils.Timer;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -823,13 +824,13 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     }
 
     /**
-     * Sets BBS fake window size to export resolution (from video settings).
+     * Sets BBS fake window size to the resolution of the given export settings.
      * Use when starting record, or when entering F1 fullscreen in film panel.
      */
-    public static void applyExportSizeToBBS()
+    public static void applyExportSizeToBBS(VideoExportSettings settings)
     {
-        int w = Math.max(2, BBSSettings.videoWidth.get());
-        int h = Math.max(2, BBSSettings.videoHeight.get());
+        int w = Math.max(2, settings.width());
+        int h = Math.max(2, settings.height());
         if (w % 2 != 0) w++;
         if (h % 2 != 0) h++;
         BBSRendering.setCustomSize(true, w, h);

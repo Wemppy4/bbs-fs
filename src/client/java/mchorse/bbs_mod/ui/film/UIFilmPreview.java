@@ -43,6 +43,7 @@ import mchorse.bbs_mod.utils.FFMpegUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -236,10 +237,12 @@ public class UIFilmPreview extends UIElement
             }
 
             int duration = this.panel.getData().camera.calculateDuration();
-            UIFilmPanel.applyExportSizeToBBS();
+            VideoExportSettings settings = VideoExportSettings.global();
+
+            UIFilmPanel.applyExportSizeToBBS(settings);
             BBSRendering.scheduleAfterNextExportFrame(() ->
             {
-                this.panel.recorder.startRecording(duration, BBSRendering.getTexture().id, BBSRendering.getVideoWidth(), BBSRendering.getVideoHeight());
+                this.panel.recorder.startRecording(settings, duration, BBSRendering.getTexture().id, BBSRendering.getVideoWidth(), BBSRendering.getVideoHeight());
             });
         });
         this.recordVideo.tooltip(UIKeys.CAMERA_TOOLTIPS_RECORD);
@@ -254,9 +257,10 @@ public class UIFilmPreview extends UIElement
 
                 ScreenshotRecorder recorder = BBSModClient.getScreenshotRecorder();
                 File output = Window.isAltPressed() ? null : recorder.getScreenshotFile();
+                VideoExportSettings settings = VideoExportSettings.global();
 
-                UIFilmPanel.applyExportSizeToBBS();
-                BBSRendering.scheduleAfterHeldExportFrame(() ->
+                UIFilmPanel.applyExportSizeToBBS(settings);
+                BBSRendering.scheduleAfterHeldExportFrame(settings.heldFrames(), () ->
                 {
                     Texture texture = BBSRendering.getTexture();
                     int w = BBSRendering.getVideoWidth();
@@ -412,7 +416,7 @@ public class UIFilmPreview extends UIElement
         List<AudioClip> audioClips = camera.getClips(AudioClip.class);
 
         String name = StringUtils.createTimestampFilename() + ".wav";
-        File videos = BBSRendering.getVideoFolder();
+        File videos = VideoExportSettings.global().getFolder();
         UIContext context = this.getContext();
         Vector2i range = BBSSettings.editorLoop.get() ? this.panel.getLoopingRange() : new Vector2i();
 

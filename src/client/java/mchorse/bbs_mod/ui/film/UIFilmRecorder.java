@@ -1,8 +1,6 @@
 package mchorse.bbs_mod.ui.film;
 
-import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.VideoExportSession;
-import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -10,6 +8,7 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
 
@@ -82,22 +81,17 @@ public class UIFilmRecorder extends UIElement
 
     public void openMovies()
     {
-        UIUtils.openFolder(BBSRendering.getVideoFolder());
+        UIUtils.openFolder(VideoExportSettings.global().getFolder());
     }
 
-    public void startRecording(int duration, Texture texture)
-    {
-        this.startRecording(duration, texture.id, texture.width, texture.height);
-    }
-
-    public void startRecording(int duration, int id, int w, int h)
+    public void startRecording(VideoExportSettings settings, int duration, int id, int w, int h)
     {
         if (this.editor.isRunning() || duration <= 0)
         {
             return;
         }
 
-        this.session.start(duration, id, w, h);
+        this.session.start(settings, duration, id, w, h);
     }
 
     /**
