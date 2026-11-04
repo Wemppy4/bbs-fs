@@ -37,7 +37,9 @@ import mchorse.bbs_mod.utils.undo.UndoManager;
 import net.minecraft.client.util.math.MatrixStack;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The sequence editor: films of a video put in order on one timeline, the way Unreal's Sequencer
@@ -63,6 +65,10 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
 
     private int cursor;
     private boolean playing;
+
+    /** Whether each film clip's piece is current, asked for on every frame and so checked once a second */
+    private final Map<FilmClip, Boolean> recorded = new IdentityHashMap<>();
+    private long recordedCheckedAt;
 
     /* Undo by whole-sequence snapshots: a sequence is a handful of clips, so comparing its data
      * twice a second costs nothing, and any change to it becomes one step. */
@@ -153,6 +159,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
 
         /* A film may have been edited since this editor was last looked at */
         this.filmCache.clear();
+        this.refreshRecorded();
         this.requestFilms();
 
         BBSRendering.setCustomSize(true);
@@ -263,6 +270,52 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.save();
         this.dashboard.setPanel(panel);
         panel.pickData(clip.film.get());
+    }
+
+    /* Recorded pieces */
+
+    /**
+     * Whether the clip's recorded piece shows its film as it is now, at the sequence's picture
+     * settings. A film of another world can't be looked at, so for it only the settings count.
+     */
+    public boolean isRecorded(FilmClip clip)
+    {
+        if (this.data == null)
+        {
+            return false;
+        }
+
+        long now = System.currentTimeMillis();
+
+        if (now - this.recordedCheckedAt > 1000L)
+        {
+            this.recorded.clear();
+            this.recordedCheckedAt = now;
+        }
+
+        return this.recorded.computeIfAbsent(clip, this::checkRecorded);
+    }
+
+    private boolean checkRecorded(FilmClip clip)
+    {
+        String picture = this.data.export.getPictureStamp();
+
+        if (!clip.isInCurrentWorld())
+        {
+            return clip.isRecorded(null, picture);
+        }
+
+        String fingerprint = this.filmCache.getFingerprint(clip.film.get());
+
+        return fingerprint != null && clip.isRecorded(fingerprint, picture);
+    }
+
+    /**
+     * Forget what is known about the pieces, after they were recorded or the films changed.
+     */
+    public void refreshRecorded()
+    {
+        this.recorded.clear();
     }
 
     /* Data */

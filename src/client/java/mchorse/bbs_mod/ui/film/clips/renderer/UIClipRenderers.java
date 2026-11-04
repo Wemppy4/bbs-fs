@@ -2,6 +2,8 @@ package mchorse.bbs_mod.ui.film.clips.renderer;
 
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
 import mchorse.bbs_mod.camera.clips.misc.VideoClientClip;
+import mchorse.bbs_mod.film.sequence.FilmClip;
+import mchorse.bbs_mod.ui.sequence.UIFilmClipRenderer;
 import mchorse.bbs_mod.utils.clips.Clip;
 
 import java.util.HashMap;
@@ -28,6 +30,7 @@ public class UIClipRenderers
     {
         register(AudioClientClip.class, new UIAudioClipRenderer());
         register(VideoClientClip.class, new UIAudioClipRenderer());
+        register(FilmClip.class, new UIFilmClipRenderer());
     }
 
     public static void register(Class key, IUIClipRenderer renderer)

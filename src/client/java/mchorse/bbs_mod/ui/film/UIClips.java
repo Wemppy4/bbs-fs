@@ -266,6 +266,11 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
         return this.factory;
     }
 
+    public IUIClipsDelegate getDelegate()
+    {
+        return this.delegate;
+    }
+
     public String getClipDisplayName(Clip clip)
     {
         if (!clip.title.get().isEmpty()) return clip.title.get();
