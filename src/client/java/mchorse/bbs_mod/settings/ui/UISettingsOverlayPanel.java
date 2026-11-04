@@ -31,6 +31,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.function.BiConsumer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -257,11 +258,20 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
     public void addVideoPresets(ContextMenuManager menu)
     {
-        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_720p, () -> this.applyVideoPreset(1280, 720));
-        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1080P, () -> this.applyVideoPreset(1920, 1080));
-        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_SHORTS_1080P, () -> this.applyVideoPreset(1080, 1920));
-        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1440P, () -> this.applyVideoPreset(2560, 1440));
-        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> this.applyVideoPreset(3840, 2160));
+        addVideoPresets(menu, this::applyVideoPreset);
+    }
+
+    /**
+     * The video resolution presets, for whatever export settings they go into (the global ones
+     * here, a sequence's own in its export window).
+     */
+    public static void addVideoPresets(ContextMenuManager menu, BiConsumer<Integer, Integer> apply)
+    {
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_720p, () -> apply.accept(1280, 720));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1080P, () -> apply.accept(1920, 1080));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_SHORTS_1080P, () -> apply.accept(1080, 1920));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1440P, () -> apply.accept(2560, 1440));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> apply.accept(3840, 2160));
     }
 
     /**
