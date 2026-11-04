@@ -1,10 +1,12 @@
 package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.utils.MathUtils;
 import org.joml.Matrix3f;
 import org.joml.Quaternionf;
+import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -13,6 +15,8 @@ import org.joml.Vector3f;
  * the fingertip as it drags. Inside the ball the cursor offset lifts onto
  * the sphere's surface, outside it follows Bell's hyperbola, so the turn
  * degrades into a view-axis roll smoothly — no seam at the silhouette.
+ * The ball is sized by {@link #ballScreenRadius}, apart from the drawn sphere,
+ * so the grabbed point keeps under the cursor on that ball, not on the sphere.
  *
  * <p>Within one anchor the rotation is a pure function of the cursor
  * position, so backtracking the drag restores the exact starting rotation.
@@ -37,7 +41,7 @@ public class ArcballDrag extends SphereDrag
     /** Arc segments folded in by re-anchors (cursor wraps), parent frame. */
     private final Quaternionf accum = new Quaternionf();
 
-    /** World-space radius of the rendered sphere, captured at start. */
+    /** World-space radius of the ball ({@link #ballWorldRadius}), captured at start. */
     private float radius;
 
     /** Whether the anchor state is valid (guards the re-anchor fold). */
@@ -46,6 +50,12 @@ public class ArcballDrag extends SphereDrag
     public ArcballDrag(DragContext ctx)
     {
         super(ctx);
+    }
+
+    /** Whether a grab is under way, so the ball's circle is worth drawing. */
+    public boolean isGrabbing()
+    {
+        return this.hasStart;
     }
 
     @Override
@@ -74,9 +84,8 @@ public class ArcballDrag extends SphereDrag
 
 
         Matrix3f parentInverse = RotationDragMath.parentInverse(this.ctx, drag);
-        float radius = this.ctx.sphereWorldRadius();
 
-        if (parentInverse == null || radius <= 0F)
+        if (parentInverse == null)
         {
             this.hasStart = false;
 
@@ -97,6 +106,16 @@ public class ArcballDrag extends SphereDrag
         }
 
         this.viewWorld.set(view.normalize());
+
+        float radius = this.ballWorldRadius(drag);
+
+        if (radius <= 0F)
+        {
+            this.hasStart = false;
+
+            return;
+        }
+
         this.radius = radius;
         this.parentInverse.set(parentInverse);
 
@@ -122,6 +141,50 @@ public class ArcballDrag extends SphereDrag
         this.currentLocal.set(this.startLocal);
         this.anchored = true;
         this.hasStart = true;
+    }
+
+    /**
+     * The ball's on-screen radius in interface pixels: a share of the viewport's
+     * height ({@link BBSSettings#arcballSize}), NOT the drawn sphere's. The turn per
+     * pixel is about one over the radius, so a ball the size of the gizmo made a
+     * small gizmo coarse and a precise one huge; this way the gizmo can stay small.
+     */
+    public static float ballScreenRadius(float viewportHeight)
+    {
+        return BBSSettings.arcballSize.get() * viewportHeight;
+    }
+
+    /**
+     * {@link #ballScreenRadius} carried onto the camera-facing plane through the
+     * centre — the plane {@link #mapArcball} drops the cursor on, so the ball's edge
+     * there falls exactly under the circle drawn on screen.
+     */
+    private float ballWorldRadius(GizmoDrag drag)
+    {
+        Vector2f center = new Vector2f();
+
+        if (!drag.projectToScreen(drag.gizmoOrigin, center))
+        {
+            return 0F;
+        }
+
+        Vector3d edge = new Vector3d();
+        int x = Math.round(center.x);
+        int y = Math.round(center.y + ballScreenRadius(drag.viewportH));
+
+        if (!drag.intersectPlane(x, y, this.viewWorld, edge))
+        {
+            return 0F;
+        }
+
+        Vector3d centerHit = new Vector3d();
+
+        if (!drag.intersectPlane(x, Math.round(center.y), this.viewWorld, centerHit))
+        {
+            return 0F;
+        }
+
+        return (float) edge.distance(centerHit);
     }
 
     /**

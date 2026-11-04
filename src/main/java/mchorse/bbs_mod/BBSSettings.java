@@ -96,6 +96,7 @@ public class BBSSettings {
 	public static ValueOrder scaleHotkeyOrder;
 	public static ValueOrder rotateHotkeyOrder;
 	public static ValueFloat trackballSensitivity;
+	public static ValueFloat arcballSize;
 
 	public static ValueBoolean enableCursorRendering;
 	public static ValueBoolean enableMouseButtonRendering;
@@ -843,6 +844,7 @@ public class BBSSettings {
 		rotateHotkeyOrder = new ValueOrder("rotate_hotkey_order", "view", "sphere", "x", "y", "z");
 		builder.register(rotateHotkeyOrder);
 		trackballSensitivity = builder.getFloat("trackball_sensitivity", 1F, 0.05F, 2F).slider();
+		arcballSize = builder.getFloat("arcball_size", 0.3F, 0.1F, 0.5F).slider();
 
 		builder.category("camera", Icons.CAMERA);
 		editorCameraSpeed = builder.getFloat("speed", 1F, 0.1F, 100F);

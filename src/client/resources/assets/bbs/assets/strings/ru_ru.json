@@ -433,6 +433,8 @@
 	"bbs.config.transformation.translate_hotkey_order-comment": "Порядок режимов перемещения; ПКМ сбрасывает порядок.",
 	"bbs.config.transformation.trackball_sensitivity": "Чувствительность трекбола",
 	"bbs.config.transformation.trackball_sensitivity-comment": "Скорость трекбола на пиксель движения мыши.",
+	"bbs.config.transformation.arcball_size": "Размер аркбола",
+	"bbs.config.transformation.arcball_size-comment": "Радиус шара, по которому вращает аркбол, в долях высоты вьюпорта. Не зависит от размера гизмо: чем больше шар, тем точнее поворот.",
 	"bbs.config.personalization.primary_color": "Основной цвет",
 	"bbs.config.personalization.primary_color-comment": "Основной цвет используемый во всём интерфейсе",
 	"bbs.config.personalization.secondary_color": "Вторичный цвет",

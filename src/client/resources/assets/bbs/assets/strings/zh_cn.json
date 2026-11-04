@@ -261,6 +261,8 @@
     "bbs.config.transformation.tooltip": "用于平移、旋转和缩放的坐标轴和操控器设置",
     "bbs.config.transformation.trackball_sensitivity": "轨迹球灵敏度",
     "bbs.config.transformation.trackball_sensitivity-comment": "光标每移动一个像素，自由旋转球体（轨迹球）转动的快慢",
+    "bbs.config.transformation.arcball_size": "弧形球大小",
+    "bbs.config.transformation.arcball_size-comment": "弧形球旋转所用球体的半径，按视口高度的比例计算。与操控器大小无关：球越大，旋转越精细",
     "bbs.config.transformation.translate_hotkey_order": "平移按键循环",
     "bbs.config.transformation.translate_hotkey_order-comment": "设置平移模式顺序；拖动重排，右键重置。",
     "bbs.config.tutorials.cursor": "鼠标光标",

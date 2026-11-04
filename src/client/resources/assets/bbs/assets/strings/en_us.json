@@ -435,6 +435,8 @@
 	"bbs.config.transformation.translate_hotkey_order-comment": "Move mode order; right-click to reset.",
 	"bbs.config.transformation.trackball_sensitivity": "Trackball sensitivity",
 	"bbs.config.transformation.trackball_sensitivity-comment": "How fast the free-rotation sphere (trackball) turns per pixel of cursor movement",
+	"bbs.config.transformation.arcball_size": "Arcball size",
+	"bbs.config.transformation.arcball_size-comment": "Radius of the ball the arcball turns on, as a share of the viewport height. Independent of the gizmo size: a bigger ball turns finer",
 	"bbs.config.personalization.primary_color": "Primary color",
 	"bbs.config.personalization.primary_color-comment": "The color which is used everywhere in the GUI system",
 	"bbs.config.personalization.secondary_color": "Secondary color",
