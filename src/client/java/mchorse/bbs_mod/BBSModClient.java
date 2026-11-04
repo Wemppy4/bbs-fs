@@ -305,7 +305,7 @@ public class BBSModClient implements ClientModInitializer
     }
 
     /**
-     * The clips a sequence's timeline is made of: films, and the sound, pictures and subtitles
+     * The clips a sequence's timeline is made of: films, and the sound, pictures, videos and subtitles
      * that go over them.
      */
     public static ClipFactory getSequenceClipPalette()
@@ -730,6 +730,7 @@ public class BBSModClient implements ClientModInitializer
             .register(Link.bbs("film"), FilmClip.class, new ClipFactoryData(Icons.FILM, 0x9d6cf0).in(ClipCategories.MISC))
             .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
             .register(Link.bbs("image"), ImageClip.class, new ClipFactoryData(Icons.PICTURE, 0x2d4fd2).in(ClipCategories.MISC))
+            .register(Link.bbs("video"), VideoClientClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c).in(ClipCategories.MISC))
             .register(Link.bbs("subtitle"), SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899).in(ClipCategories.MISC));
 
         /* The client-side registries, each followed by the event that lets addons add to it.
