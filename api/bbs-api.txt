@@ -259,6 +259,7 @@ public final class mchorse.bbs_mod.api.client.editor.TrackCategory {
     public final mchorse.bbs_mod.l10n.keys.IKey tooltip;
     public final mchorse.bbs_mod.ui.utils.icons.Icon icon;
     public mchorse.bbs_mod.api.client.editor.TrackCategory(java.lang.String, mchorse.bbs_mod.ui.utils.icons.Icon, mchorse.bbs_mod.l10n.keys.IKey, mchorse.bbs_mod.l10n.keys.IKey);
+    public static final mchorse.bbs_mod.api.client.editor.TrackCategory BONES;
     public static final mchorse.bbs_mod.api.client.editor.TrackCategory FORM;
     public static final mchorse.bbs_mod.api.client.editor.TrackCategory REPLAY;
 }
