@@ -96,7 +96,7 @@ public final class AddonApiCheck implements net.fabricmc.loader.api.entrypoint.P
         require(mchorse.bbs_mod.api.client.editor.TrackCategories.categoryOf(TrackId.property("", "x"), false)
             == mchorse.bbs_mod.api.client.editor.TrackCategory.REPLAY, "recording category fallback");
         require(mchorse.bbs_mod.api.client.editor.TrackCategories.categoryOf(TrackId.bone("", "arm"), true)
-            == mchorse.bbs_mod.api.client.editor.TrackCategory.FORM, "pose shares form category");
+            == mchorse.bbs_mod.api.client.editor.TrackCategory.BONES, "bone tracks are the Bones category");
         boolean duplicate = false;
         try { event.register(custom, (track, owned) -> true); }
         catch (IllegalArgumentException expected) { duplicate = true; }
