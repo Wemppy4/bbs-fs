@@ -110,7 +110,7 @@ public class UIFilmPreview extends UIWorldPreview
     public UIFilmPreview(UIFilmPanel filmPanel)
     {
         this.panel = filmPanel;
-        this.placementGizmo = new UIPlacementGizmo(filmPanel);
+        this.placementGizmo = new UIPlacementGizmo(() -> filmPanel.cameraEditor, filmPanel::getCursor);
 
         /* Preview buttons */
         this.onionSkin = new UIIcon(Icons.ONION_SKIN, (b) -> this.openOnionSkin());
