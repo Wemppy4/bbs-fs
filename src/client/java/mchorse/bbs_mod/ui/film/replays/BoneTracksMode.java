@@ -31,7 +31,6 @@ import java.util.function.Predicate;
  *     <li>Rows: only bones that have keys, plus the picked one, which is highlighted.</li>
  *     <li>Panel: {@link UIBoneTracksPanel}, the pose of the frame under the cursor, whatever is selected.</li>
  *     <li>A bone click picks the bone, the cursor stays. A right click keys it at the cursor.</li>
- *     <li>A click on a bone's key takes the cursor to it.</li>
  * </ul>
  *
  * <p>The picked bone is the editor's {@link BoneSelection} (shared with every pose panel), plus the
@@ -139,19 +138,13 @@ public class BoneTracksMode
         });
     }
 
-    /** Hand the new timeline the tab's panel and its click jumps. */
+    /** Hand the new timeline the tab's panel. */
     public void attach(UIKeyframeEditor editor)
     {
         this.editor = editor;
         this.panel = null;
         this.rowsChanged = false;
 
-        editor.view.jumpOnClick = (keyframe) ->
-        {
-            UIKeyframeSheet sheet = editor.view.getGraph().getSheet(keyframe);
-
-            return sheet != null && sheet.isBoneTrack;
-        };
         editor.panels(this::panel);
 
         if (this.revealPending)
