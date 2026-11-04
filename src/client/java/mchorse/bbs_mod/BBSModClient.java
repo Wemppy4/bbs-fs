@@ -16,6 +16,8 @@ import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
+import mchorse.bbs_mod.camera.clips.misc.ImageClip;
+import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
 import mchorse.bbs_mod.camera.clips.misc.CurveClientClip;
 import mchorse.bbs_mod.camera.clips.misc.TrackerClientClip;
 import mchorse.bbs_mod.camera.clips.misc.SplineClientClip;
@@ -66,6 +68,7 @@ import mchorse.bbs_mod.api.client.events.RegisterL10nEvent;
 import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.WorldVideoExportSession;
+import mchorse.bbs_mod.film.sequence.FilmClip;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormCategories;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
@@ -103,6 +106,7 @@ import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.keys.KeybindSettings;
+import mchorse.bbs_mod.utils.clips.ClipFactory;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.VideoExportSettings;
@@ -170,6 +174,7 @@ public class BBSModClient implements ClientModInitializer
     private static EntitySelectors selectors;
 
     private static ParticleManager particles;
+    private static ClipFactory sequenceClips;
 
     private static KeyBinding keyDashboard;
     private static KeyBinding keyItemEditor;
@@ -294,6 +299,15 @@ public class BBSModClient implements ClientModInitializer
     public static ParticleManager getParticles()
     {
         return particles;
+    }
+
+    /**
+     * The clips a sequence's timeline is made of: films, and the sound, pictures and subtitles
+     * that go over them.
+     */
+    public static ClipFactory getSequenceClipPalette()
+    {
+        return sequenceClips;
     }
 
     public static CameraController getCameraController()
@@ -705,6 +719,13 @@ public class BBSModClient implements ClientModInitializer
             .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc).in(ClipCategories.OVERWRITE))
             .register(Link.bbs("spline"), SplineClientClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff).in(ClipCategories.OVERWRITE))
             .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493).in(ClipCategories.MISC));
+
+        sequenceClips = new ClipFactory().category(ClipCategories.MISC);
+        sequenceClips
+            .register(Link.bbs("film"), FilmClip.class, new ClipFactoryData(Icons.FILM, 0x9d6cf0).in(ClipCategories.MISC))
+            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
+            .register(Link.bbs("image"), ImageClip.class, new ClipFactoryData(Icons.PICTURE, 0x2d4fd2).in(ClipCategories.MISC))
+            .register(Link.bbs("subtitle"), SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899).in(ClipCategories.MISC));
 
         /* The client-side registries, each followed by the event that lets addons add to it.
          * They used to fill themselves in static initialisers, so the moment depended on who

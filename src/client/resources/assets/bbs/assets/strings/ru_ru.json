@@ -812,6 +812,7 @@
 	"bbs.ui.camera.clips.bbs:damage": "Урон",
 	"bbs.ui.camera.clips.bbs:dolly": "Рельс",
 	"bbs.ui.camera.clips.bbs:dolly_zoom": "Приближение рельс",
+	"bbs.ui.camera.clips.bbs:film": "Фильм",
 	"bbs.ui.camera.clips.bbs:drag": "Сглаживание",
 	"bbs.ui.camera.clips.bbs:drop_item": "Выкинуть предмет",
 	"bbs.ui.camera.clips.bbs:idle": "Вид",

@@ -6,6 +6,8 @@ import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.model.config.ModelManagerRepository;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmManager;
+import mchorse.bbs_mod.film.sequence.Sequence;
+import mchorse.bbs_mod.film.sequence.SequenceManager;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.particles.ParticleScheme;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
@@ -30,10 +32,13 @@ public class ContentType
     private static final IRepository<Film> FILMS_REPOSITORY = new FolderManagerRepository<>(BBSMod.getFilms());
     private static final IRepository<Film> FILMS_LOCAL_REPOSITORY = new FolderManagerRepository<>(new FilmManager(() -> new File(BBSMod.getAssetsFolder().getParentFile(), "data/films")));
     private static final IRepository<Film> FILMS_REMOTE_REPOSITORY = new FilmRepository();
+    /* Sequences belong to no world: the films of one video are often spread over several */
+    private static final IRepository<Sequence> SEQUENCES_REPOSITORY = new FolderManagerRepository<>(new SequenceManager(() -> new File(BBSMod.getAssetsFolder().getParentFile(), "data/sequences")));
 
     public static final ContentType MODELS = new ContentType("models", () -> MODEL_REPOSITORY, (dashboard) -> dashboard.getPanel(UIModelEditorPanel.class));
     public static final ContentType PARTICLES = new ContentType("particles", () -> PARTICLE_REPOSITORY, (dashboard) -> dashboard.getPanel(UIParticleSchemePanel.class));
     public static final ContentType FILMS = new ContentType("films", ContentType::getFilmsRepository, (dashboard) -> dashboard.getPanel(UIFilmPanel.class));
+    public static final ContentType SEQUENCES = new ContentType("sequences", () -> SEQUENCES_REPOSITORY, (dashboard) -> null);
 
     private static IRepository<? extends ValueGroup> getFilmsRepository()
     {
