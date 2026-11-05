@@ -2,23 +2,22 @@ package mchorse.bbs_mod.ui.film.markers;
 
 import mchorse.bbs_mod.film.markers.FilmMarker;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
- * Name, colour and tick of a single marker.
+ * Name, tick and colour of a single marker, at the cursor.
  *
  * <p>Edits go straight into the marker's values: the film's undo handler is listening at the root
  * of the tree, so nothing has to be collected or applied here. Removing lives in the marker's
  * context menu on the ruler: a button at the foot of this panel read as "apply" and got clicked
  * by mistake.
  */
-public class UIMarkerOverlayPanel extends UIOverlayPanel
+public class UIMarkerPopup extends UIPopup
 {
     public UITextbox title;
     public UIColor color;
@@ -26,10 +25,9 @@ public class UIMarkerOverlayPanel extends UIOverlayPanel
 
     private final FilmMarker marker;
 
-    public UIMarkerOverlayPanel(FilmMarker marker)
+    public UIMarkerPopup(FilmMarker marker)
     {
         super(UIKeys.FILM_MARKERS_TITLE);
-        this.wh(220, 155);
 
         this.marker = marker;
 
@@ -43,21 +41,8 @@ public class UIMarkerOverlayPanel extends UIOverlayPanel
         this.tick = new UITrackpad((value) -> this.marker.tick.set((int) Math.round(value)));
         this.tick.limit(0, Integer.MAX_VALUE, true);
         this.tick.valueBinding(() -> this.tick.setValue(this.marker.tick.get()));
+        this.tick.tooltip(UIKeys.FILM_MARKERS_TICK);
 
-        UIElement column = UI.column(
-            UI.label(UIKeys.FILM_MARKERS_NAME),
-            this.title,
-            UI.label(UIKeys.FILM_MARKERS_TICK).marginTop(6),
-            this.tick,
-            UI.label(UIKeys.FILM_MARKERS_COLOR).marginTop(6),
-            this.color
-        );
-
-        column.relative(this.content).xy(6, 6).w(1F, -12).h(1F, -12);
-
-        this.content.add(column);
-
-        /* The picker lives next to the overlay, not inside it, so it would outlive the panel */
-        this.onClose((e) -> this.color.picker.removeFromParent());
+        this.column.add(this.title, UI.row(this.tick, this.color));
     }
 }

@@ -34,13 +34,14 @@ import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.context.UINumberPopup;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIFolderOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.model_blocks.UIModelBlockEntityList;
@@ -194,7 +195,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     }
                     else
                     {
-                        UINumberOverlayPanel numberPanel = new UINumberOverlayPanel(UIKeys.SCENE_REPLAYS_CONTEXT_DUPE, UIKeys.SCENE_REPLAYS_CONTEXT_DUPE_DESCRIPTION, (n) ->
+                        UINumberPopup numberPanel = new UINumberPopup(UIKeys.SCENE_REPLAYS_CONTEXT_DUPE, UIKeys.SCENE_REPLAYS_CONTEXT_DUPE_DESCRIPTION, (n) ->
                         {
                             for (int i = 0; i < n; i++)
                             {
@@ -202,10 +203,11 @@ public class UIReplayList extends UIList<ReplayListEntry>
                             }
                         });
 
+                        numberPanel.verb(UIKeys.GENERAL_DUPE);
                         numberPanel.value.limit(1).integer();
                         numberPanel.value.setValue(1D);
 
-                        UIOverlay.addOverlay(this.getContext(), numberPanel);
+                        this.getContext().replaceContextMenu(numberPanel);
                     }
                 });
             }
@@ -701,7 +703,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
     /** Ask for a name and make the folder - inside {@code parent}, when the ask came from a folder. */
     private void openAddCategoryOverlay(String parent)
     {
-        this.openCategoryNameOverlay(UIKeys.SCENE_REPLAYS_ADD_CATEGORY_TITLE, UIKeys.SCENE_REPLAYS_ADD_CATEGORY_DESCRIPTION, "", (name) ->
+        this.openCategoryNamePopup(UIKeys.SCENE_REPLAYS_ADD_CATEGORY_TITLE, UIKeys.SCENE_REPLAYS_ADD_CATEGORY_DESCRIPTION, "", (name) ->
         {
             Film film = this.panel.getData();
             String path = CategoryPath.join(parent, name);
@@ -779,27 +781,16 @@ public class UIReplayList extends UIList<ReplayListEntry>
         return renamed;
     }
 
-    /** The one overlay that both making and renaming a folder ask a name with. */
-    private void openCategoryNameOverlay(IKey title, IKey description, String initial, Consumer<String> consumer)
+    /** The one popup that making a folder asks a name with. */
+    private void openCategoryNamePopup(IKey title, IKey description, String initial, Consumer<String> consumer)
     {
-        UITextbox box = new UITextbox(1000, (text) -> {});
+        UIPromptPopup popup = new UIPromptPopup(title, description, consumer);
 
-        box.setText(initial);
-        box.placeholder(UIKeys.SCENE_REPLAYS_ADD_CATEGORY_PLACEHOLDER);
+        popup.verb(UIKeys.GENERAL_ADD);
+        popup.text.setText(initial);
+        popup.text.placeholder(UIKeys.SCENE_REPLAYS_ADD_CATEGORY_PLACEHOLDER);
 
-        UIConfirmOverlayPanel panel = new UIConfirmOverlayPanel(title, description, (ok) ->
-        {
-            if (ok)
-            {
-                consumer.accept(box.getText());
-            }
-        });
-
-        box.relative(panel.confirm).y(-1F, -5).w(1F).h(20);
-        panel.confirm.w(1F, -10);
-        panel.content.add(box);
-
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(popup);
     }
 
     /**
@@ -831,7 +822,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
         context.replaceContextMenu((add) ->
         {
             add.action(Icons.ARROW_DOWN, UIKeys.SCENE_REPLAYS_CATEGORY_NONE, () -> this.applyReplayCategory(selected, ""));
-            add.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CATEGORY_NEW, () -> this.openCategoryNameOverlay(
+            add.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CATEGORY_NEW, () -> this.openCategoryNamePopup(
                 UIKeys.SCENE_REPLAYS_ADD_CATEGORY_TITLE,
                 UIKeys.SCENE_REPLAYS_ADD_CATEGORY_DESCRIPTION,
                 "",
@@ -1341,7 +1332,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        UINumberOverlayPanel offsetPanel = new UINumberOverlayPanel(UIKeys.SCENE_REPLAYS_CONTEXT_PASTE_KEYFRAMES_TITLE, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE_KEYFRAMES_DESCRIPTION, (n) ->
+        UINumberPopup offsetPanel = new UINumberPopup(UIKeys.SCENE_REPLAYS_CONTEXT_PASTE_KEYFRAMES_TITLE, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE_KEYFRAMES_DESCRIPTION, (n) ->
         {
             UIContext context = this.getContext();
             float tick = this.panel.getKeyframeCursor(context == null ? 0F : context.getTransition());
@@ -1390,7 +1381,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
             }
         });
 
-        UIOverlay.addOverlay(this.getContext(), offsetPanel);
+        offsetPanel.verb(UIKeys.GENERAL_PASTE);
+        this.getContext().replaceContextMenu(offsetPanel);
     }
 
     private void openRandomTexturesOverlay()
@@ -1497,76 +1489,69 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        UITextbox tick = new UITextbox((t) -> LAST_OFFSET = t);
-        UIConfirmOverlayPanel panel = new UIConfirmOverlayPanel(UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_TITLE, UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_DESCRIPTION, (b) ->
+        UIPromptPopup panel = new UIPromptPopup(UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_TITLE, UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_DESCRIPTION, (text) ->
         {
-            if (b)
+            LAST_OFFSET = text;
+
+            MathBuilder builder = new MathBuilder();
+            int min = Integer.MAX_VALUE;
+
+            builder.register("i");
+            builder.register("o");
+
+            IExpression parse = null;
+
+            try
             {
-                MathBuilder builder = new MathBuilder();
-                int min = Integer.MAX_VALUE;
+                parse = builder.parse(text);
+            }
+            catch (Exception e)
+            {}
 
-                builder.register("i");
-                builder.register("o");
+            Film film = this.panel.getData();
+            List<Replay> selected = this.getSelectedReplaysInViewOrder();
 
-                IExpression parse = null;
+            /* i/o are ordered by the film's own replay list, not by visible rows — a selected
+             * replay in a collapsed folder has no row and used to silently drop out. The
+             * index is taken by identity - see the same note in collectVisibleReplays. */
+            List<Replay> all = film.replays.getList();
 
-                try
+            for (Replay replay : selected)
+            {
+                int index = CollectionUtils.getIndex(all, replay);
+
+                if (index >= 0)
                 {
-                    parse = builder.parse(tick.getText());
+                    min = Math.min(min, index);
                 }
-                catch (Exception e)
-                {}
+            }
 
-                Film film = this.panel.getData();
-                List<Replay> selected = this.getSelectedReplaysInViewOrder();
+            if (min == Integer.MAX_VALUE)
+            {
+                return;
+            }
 
-                /* i/o are ordered by the film's own replay list, not by visible rows — a selected
-                 * replay in a collapsed folder has no row and used to silently drop out. The
-                 * index is taken by identity - see the same note in collectVisibleReplays. */
-                List<Replay> all = film.replays.getList();
+            for (Replay replay : selected)
+            {
+                int index = CollectionUtils.getIndex(all, replay);
 
-                for (Replay replay : selected)
+                if (index < 0)
                 {
-                    int index = CollectionUtils.getIndex(all, replay);
-
-                    if (index >= 0)
-                    {
-                        min = Math.min(min, index);
-                    }
+                    continue;
                 }
 
-                if (min == Integer.MAX_VALUE)
-                {
-                    return;
-                }
+                builder.variables.get("i").set(index);
+                builder.variables.get("o").set(index - min);
 
-                for (Replay replay : selected)
-                {
-                    int index = CollectionUtils.getIndex(all, replay);
+                float tickv = parse == null ? 0F : (float) parse.doubleValue();
 
-                    if (index < 0)
-                    {
-                        continue;
-                    }
-
-                    builder.variables.get("i").set(index);
-                    builder.variables.get("o").set(index - min);
-
-                    float tickv = parse == null ? 0F : (float) parse.doubleValue();
-
-                    BaseValue.edit(replay, (r) -> r.shift(tickv));
-                }
+                BaseValue.edit(replay, (r) -> r.shift(tickv));
             }
         });
 
-        tick.setText(LAST_OFFSET);
-        tick.tooltip(UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_EXPRESSION_TOOLTIP);
-        tick.relative(panel.confirm).y(-1F, -5).w(1F).h(20);
-
-        panel.confirm.w(1F, -10);
-        panel.content.add(tick);
-
-        UIOverlay.addOverlay(this.getContext(), panel);
+        panel.text.setText(LAST_OFFSET);
+        panel.text.tooltip(UIKeys.SCENE_REPLAYS_CONTEXT_OFFSET_TIME_EXPRESSION_TOOLTIP);
+        this.getContext().replaceContextMenu(panel);
     }
 
     public void copyReplay()
@@ -1772,7 +1757,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     }
                 });
             }
-        }));
+        }).verb(UIKeys.GENERAL_CUT).danger());
     }
 
     /** The cut region's form, dropped in at the very spot it was cut from. */

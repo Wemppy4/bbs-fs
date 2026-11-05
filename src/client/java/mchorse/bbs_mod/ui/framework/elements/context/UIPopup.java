@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.context;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 
@@ -47,6 +48,18 @@ public class UIPopup extends UIContextMenu
     public boolean isEmpty()
     {
         return false;
+    }
+
+    @Override
+    public void removeFromParent()
+    {
+        /* A colour field's picker hangs next to the popup rather than in it, and would outlive it */
+        for (UIColor color : this.getChildren(UIColor.class))
+        {
+            color.picker.removeFromParent();
+        }
+
+        super.removeFromParent();
     }
 
     @Override

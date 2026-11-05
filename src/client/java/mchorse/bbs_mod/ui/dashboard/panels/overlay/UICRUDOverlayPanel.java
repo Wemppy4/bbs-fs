@@ -8,11 +8,11 @@ import mchorse.bbs_mod.ui.dashboard.list.UIDataPathList;
 import mchorse.bbs_mod.ui.dashboard.list.UIDataFolderTree;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.DataPath;
 
@@ -163,30 +163,32 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
     protected void addNewData(UIContext context, MapType data)
     {
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+        UIPromptPopup panel = new UIPromptPopup(
             UIKeys.GENERAL_ADD,
             UIKeys.PANELS_MODALS_ADD,
             (str) -> this.addNewData(context, this.namesList.getPath(str).toString(), data)
         );
 
+        panel.verb(UIKeys.GENERAL_ADD);
         panel.text.filename();
 
-        UIOverlay.addOverlay(context, panel);
+        context.replaceContextMenu(panel);
     }
 
     protected abstract void addNewData(UIContext context, String name, MapType data);
 
     protected void addNewFolder()
     {
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+        UIPromptPopup panel = new UIPromptPopup(
             UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE,
             UIKeys.PANELS_MODALS_ADD_FOLDER,
             (str) -> this.addNewFolder(this.namesList.getPath(str).toString())
         );
 
+        panel.verb(UIKeys.GENERAL_ADD);
         panel.text.filename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     protected abstract void addNewFolder(String path);
@@ -220,16 +222,17 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
         DataPath current = this.getCurrentSelectedPath();
 
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+        UIPromptPopup panel = new UIPromptPopup(
             UIKeys.GENERAL_DUPE,
             UIKeys.PANELS_MODALS_DUPE,
             (str) -> this.dupeData(this.namesList.getPath(str).toString())
         );
 
+        panel.verb(UIKeys.GENERAL_DUPE);
         panel.text.setText(current.getLast());
         panel.text.filename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     protected abstract void dupeData(String name);
@@ -243,11 +246,13 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
         DataPath current = this.getCurrentSelectedPath();
 
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+        UIPromptPopup panel = new UIPromptPopup(
             UIKeys.GENERAL_RENAME,
             UIKeys.PANELS_MODALS_RENAME,
             (str) -> this.renameData(this.namesList.getPath(str).toString())
         );
+
+        panel.verb(UIKeys.GENERAL_RENAME);
 
         if (current.folder)
         {
@@ -256,17 +261,19 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
                 return;
             }
 
-            panel = new UIPromptOverlayPanel(
+            panel = new UIPromptPopup(
                 UIKeys.PANELS_MODALS_RENAME_FOLDER_TITLE,
                 UIKeys.PANELS_MODALS_RENAME_FOLDER,
                 (str) -> this.renameFolder(current.getParent().getChild(str).toString())
             );
+
+            panel.verb(UIKeys.GENERAL_RENAME);
         }
 
         panel.text.setText(current.getLast());
         panel.text.filename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     protected abstract void renameData(String name);
@@ -289,7 +296,7 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
             {
                 if (confirm) this.removeData();
             }
-        );
+        ).verb(UIKeys.GENERAL_REMOVE).danger();
 
         if (current.folder)
         {
@@ -305,7 +312,7 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
                 {
                     if (confirm) this.removeFolder();
                 }
-            );
+            ).verb(UIKeys.GENERAL_REMOVE).danger();
         }
 
         UIOverlay.addOverlay(this.getContext(), panel);

@@ -1,16 +1,15 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays;
 
 import mchorse.bbs_mod.l10n.L10n;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeLoops;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeLoop;
 import mchorse.bbs_mod.utils.keyframes.KeyframeLoops;
 
-public class UIKeyframeLoopOverlay extends UIOverlayPanel
+public class UIKeyframeLoopPopup extends UIPopup
 {
     private final UITrackpad end;
     private final UITrackpad passes;
@@ -18,10 +17,9 @@ public class UIKeyframeLoopOverlay extends UIOverlayPanel
     private final KeyframeChannel<?> channel;
     private final String id;
 
-    public UIKeyframeLoopOverlay(UIKeyframeLoops editor, KeyframeChannel<?> channel, String id)
+    public UIKeyframeLoopPopup(UIKeyframeLoops editor, KeyframeChannel<?> channel, String id)
     {
         super(L10n.lang("bbs.ui.keyframes.loop.title"));
-        this.wh(240, 164);
         this.editor = editor;
         this.channel = channel;
         this.id = id;
@@ -33,12 +31,10 @@ public class UIKeyframeLoopOverlay extends UIOverlayPanel
         });
         this.passes.limit(1).tooltip(L10n.lang("bbs.ui.keyframes.loop.passes_hint"));
         this.end.tooltip(L10n.lang("bbs.ui.keyframes.loop.end_hint"));
-        UIElement column = UI.column(
+        this.column.add(
             UI.label(L10n.lang("bbs.ui.keyframes.loop.end")), this.end,
-            UI.label(L10n.lang("bbs.ui.keyframes.loop.passes")).marginTop(6), this.passes
+            UI.label(L10n.lang("bbs.ui.keyframes.loop.passes")), this.passes
         );
-        column.relative(this.content).xy(6, 6).w(1F, -12);
-        this.content.add(column);
         this.refresh();
     }
 

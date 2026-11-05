@@ -29,7 +29,7 @@ import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStylePopup;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UILabelOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
@@ -202,9 +202,8 @@ public class UIValueMap
         /* The very panel that restyles a keyframe, pointed at the style new keyframes are born with */
         register(ValueKeyframeStyle.class, (value, ui) ->
         {
-            UIButton button = new UIButton(UIKeys.CONFIG_KEYFRAME_STYLE_EDIT, (b) -> UIOverlay.addOverlay(
-                ui.getContext(),
-                new UIKeyframeStyleOverlayPanel(value.get(), (style) -> value.set(style.copy()))
+            UIButton button = new UIButton(UIKeys.CONFIG_KEYFRAME_STYLE_EDIT, (b) -> ui.getContext().replaceContextMenu(
+                new UIKeyframeStylePopup(value.get(), (style) -> value.set(style.copy()))
             ));
 
             button.w(90);

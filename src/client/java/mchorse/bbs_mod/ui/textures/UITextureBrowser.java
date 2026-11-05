@@ -12,12 +12,12 @@ import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
@@ -1210,7 +1210,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             return;
         }
 
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(UIKeys.TEXTURES_BROWSER_NEW_FOLDER_TITLE, UIKeys.TEXTURES_BROWSER_NEW_FOLDER_DESCRIPTION, (name) ->
+        UIPromptPopup panel = new UIPromptPopup(UIKeys.TEXTURES_BROWSER_NEW_FOLDER_TITLE, UIKeys.TEXTURES_BROWSER_NEW_FOLDER_DESCRIPTION, (name) ->
         {
             if (TextureFiles.newFolder(this.path, name) != null)
             {
@@ -1219,15 +1219,16 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             }
         });
 
+        panel.verb(UIKeys.GENERAL_ADD);
         panel.text.filename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     private void promptRename(Link link)
     {
         String name = StringUtils.fileName(link.path).replace("/", "");
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(UIKeys.TEXTURES_BROWSER_RENAME_TITLE, UIKeys.TEXTURES_BROWSER_RENAME_DESCRIPTION, (newName) ->
+        UIPromptPopup panel = new UIPromptPopup(UIKeys.TEXTURES_BROWSER_RENAME_TITLE, UIKeys.TEXTURES_BROWSER_RENAME_DESCRIPTION, (newName) ->
         {
             Link renamed = TextureFiles.rename(link, newName);
 
@@ -1243,11 +1244,12 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             }
         });
 
+        panel.verb(UIKeys.GENERAL_RENAME);
         panel.text.validator(UITextbox.SPACED_FILENAME_PREDICATE);
         panel.text.setText(name);
         panel.text.textbox.selectFilename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     private void confirmDelete(List<Link> links)
@@ -1278,7 +1280,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             this.grid.selection.clear();
             this.refresh();
             this.tree.refresh();
-        });
+        }).verb(UIKeys.GENERAL_REMOVE).danger();
 
         UIOverlay.addOverlay(this.getContext(), panel);
     }
@@ -1405,12 +1407,12 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     /** Asks for a nickname and fetches that player's skin into the <code>player:</code> source. */
     private void promptPlayerSkin()
     {
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(UIKeys.TEXTURES_PLAYER_SKIN_TITLE, UIKeys.TEXTURES_PLAYER_SKIN_DESCRIPTION, (nickname) ->
+        UIPromptPopup panel = new UIPromptPopup(UIKeys.TEXTURES_PLAYER_SKIN_TITLE, UIKeys.TEXTURES_PLAYER_SKIN_DESCRIPTION, (nickname) ->
         {
             this.fetchPlayerSkin(nickname.trim(), false);
         });
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     private void fetchPlayerSkin(String nickname, boolean refetch)

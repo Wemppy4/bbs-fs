@@ -199,7 +199,7 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
                 {
                     this.write(target);
                 }
-            });
+            }).verb(UIKeys.GENERAL_SAVE);
 
             UIOverlay.addOverlay(this.getContext(), confirm);
         }

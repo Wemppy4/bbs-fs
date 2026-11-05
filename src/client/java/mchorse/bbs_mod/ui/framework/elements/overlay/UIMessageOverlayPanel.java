@@ -7,10 +7,10 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 public class UIMessageOverlayPanel extends UIOverlayPanel
 {
     /** The width a message dialog asks for: the longest strings wrap into three or four lines at it. */
-    public static final int WIDTH = 280;
+    public static final int WIDTH = 240;
 
     /** Distance from the top of the content to the message. */
-    protected static final int TOP = 12;
+    protected static final int TOP = 8;
 
     /** Gap between the message and whatever sits under it. */
     protected static final int GAP = 10;
@@ -30,8 +30,8 @@ public class UIMessageOverlayPanel extends UIOverlayPanel
     {
         super(title);
 
-        this.message = new UIText().text(message).textAnchorX(0.5F);
-        this.message.relative(this.content).x(0.5F).y(TOP).w(0.7F).anchorX(0.5F);
+        this.message = new UIText().text(message);
+        this.message.relative(this.content).x(6).y(TOP).w(1F, -12);
 
         this.content.add(this.message);
         this.w(WIDTH);

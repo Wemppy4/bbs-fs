@@ -34,9 +34,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeG
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeGraph;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackStyleOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStylePopup;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackStylePopup;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
@@ -335,9 +334,8 @@ public class UIKeyframes extends UITimelineCanvas
 
             if (hovered != null)
             {
-                menu.action(Icons.BUCKET, UIKeys.KEYFRAMES_CONTEXT_TRACK_STYLE, () -> UIOverlay.addOverlay(
-                    this.getContext(),
-                    new UITrackStyleOverlayPanel(hovered, this::refreshTrackStyles)
+                menu.action(Icons.BUCKET, UIKeys.KEYFRAMES_CONTEXT_TRACK_STYLE, () -> this.getContext().replaceContextMenu(
+                    new UITrackStylePopup(hovered, this::refreshTrackStyles)
                 ));
             }
 
@@ -468,7 +466,7 @@ public class UIKeyframes extends UITimelineCanvas
             return;
         }
 
-        UIOverlay.addOverlay(this.getContext(), new UIKeyframeStyleOverlayPanel(selected.getStyle(), (style) ->
+        this.getContext().replaceContextMenu(new UIKeyframeStylePopup(selected.getStyle(), (style) ->
         {
             for (UIKeyframeSheet sheet : this.getOperationSheets())
             {

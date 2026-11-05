@@ -2168,7 +2168,7 @@ public class UIModelGeometryEditor extends UIElement
                     this.removeNodes(nodes);
                 }
             }
-        ));
+        ).verb(UIKeys.GENERAL_REMOVE).danger());
     }
 
     private void removeNodes(List<ModelNode> nodes)

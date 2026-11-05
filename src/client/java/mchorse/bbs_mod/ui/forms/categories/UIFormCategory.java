@@ -22,11 +22,10 @@ import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
@@ -188,7 +187,7 @@ public class UIFormCategory extends UIItemGrid<Form>
 
         menu.icon(MenuVerb.ADD, () ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UIPromptOverlayPanel(
+            UIPromptPopup prompt = new UIPromptPopup(
                 UIKeys.FORMS_CATEGORIES_ADD_CATEGORY_TITLE,
                 UIKeys.FORMS_CATEGORIES_ADD_CATEGORY_DESCRIPTION,
                 (str) ->
@@ -196,7 +195,10 @@ public class UIFormCategory extends UIItemGrid<Form>
                     userForms.addUserCategory(new UserFormCategory(IKey.constant(str), formCategories.preferences.visible(UUID.randomUUID().toString()), userForms));
                     list.setupForms(formCategories);
                 }
-            ));
+            );
+
+            prompt.verb(UIKeys.GENERAL_ADD);
+            this.getContext().replaceContextMenu(prompt);
         }).label(UIKeys.FORMS_CATEGORIES_CONTEXT_ADD_CATEGORY);
 
         if (form != null)

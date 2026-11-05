@@ -17,10 +17,10 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -314,7 +314,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
     private void promptSaveTheme()
     {
-        UIOverlay.addOverlay(this.getContext(), new UIPromptOverlayPanel(
+        UIPromptPopup prompt = new UIPromptPopup(
             UIKeys.CONFIG_PERSONALIZATION_PRESET_SAVE,
             UIKeys.CONFIG_PERSONALIZATION_PRESET_NAME,
             (input) ->
@@ -327,7 +327,10 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
                         BBSSettings.primaryColor.get(), BBSSettings.secondaryColor.get(),
                         BBSSettings.textColor.get(), BBSSettings.interfaceContrast.get()));
                 }
-            }));
+            });
+
+        prompt.verb(UIKeys.GENERAL_SAVE);
+        this.getContext().replaceContextMenu(prompt);
     }
 
     private void openDeleteThemeMenu()

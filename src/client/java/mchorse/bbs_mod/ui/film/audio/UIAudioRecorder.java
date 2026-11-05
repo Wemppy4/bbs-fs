@@ -11,8 +11,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -70,7 +69,7 @@ public class UIAudioRecorder extends UIElement
 
         menu.action(Icons.SOUND, UIKeys.CAMERA_TIMELINE_CONTEXT_RECORD_MICROPHONE, () ->
         {
-            UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+            UIPromptPopup panel = new UIPromptPopup(
                 UIKeys.CAMERA_TIMELINE_CONTEXT_RECORD_MICROPHONE_TITLE,
                 UIKeys.CAMERA_TIMELINE_CONTEXT_RECORD_MICROPHONE_DESCRIPTION,
                 (t) ->
@@ -93,10 +92,11 @@ public class UIAudioRecorder extends UIElement
                 }
             );
 
+            panel.verb(UIKeys.FILM_CONTROLLER_RECORD_TITLE);
             panel.text.setText(value);
             panel.text.path();
 
-            UIOverlay.addOverlay(context, panel);
+            context.replaceContextMenu(panel);
         });
     }
 

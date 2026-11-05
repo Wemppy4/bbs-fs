@@ -9,8 +9,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcons;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSection;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -71,7 +70,7 @@ public class UICurveEditor extends UIElement
     private void rename(UIIcon b)
     {
         String oldName = this.particleCurve.variable.getName();
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+        UIPromptPopup panel = new UIPromptPopup(
             UIKeys.GENERAL_RENAME,
             UIKeys.SNOWSTORM_CURVES_RENAME_OVERLAY,
             (newName) ->
@@ -96,9 +95,10 @@ public class UICurveEditor extends UIElement
             }
         );
 
+        panel.verb(UIKeys.GENERAL_RENAME);
         panel.text.setText(oldName);
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     private void remove(UIIcon b)

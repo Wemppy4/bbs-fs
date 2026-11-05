@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.screenplay.UIAudioPlayer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UILikeableStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UILikedSoundList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
@@ -90,15 +91,17 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
                 return;
             }
             
-            UIPromptOverlayPanel renamePanel = new UIPromptOverlayPanel(
+            UIPromptPopup renamePanel = new UIPromptPopup(
                 UIKeys.GENERAL_RENAME,
                 UIKeys.GENERAL_RENAME,
                 (newName) -> this.renameAudio(soundName, newName)
             );
+
+            renamePanel.verb(UIKeys.GENERAL_RENAME);
             renamePanel.text.setText(soundName);
             renamePanel.text.filename();
             
-            UIOverlay.addOverlay(this.context, renamePanel);
+            this.context.replaceContextMenu(renamePanel);
         });
         
         likeableList.setRemoveCallback((soundName) ->
@@ -118,7 +121,7 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
                         this.deleteAudio(soundName);
                     }
                 }
-            );
+            ).verb(UIKeys.GENERAL_REMOVE).danger();
             
             UIOverlay.addOverlay(this.context, confirmPanel);
         });

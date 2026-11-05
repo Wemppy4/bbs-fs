@@ -9,9 +9,9 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIUserFormCategory extends UIFormCategory
@@ -26,7 +26,7 @@ public class UIUserFormCategory extends UIFormCategory
 
             menu.action(Icons.EDIT, UIKeys.FORMS_CATEGORIES_CONTEXT_RENAME_CATEGORY, () ->
             {
-                UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+                UIPromptPopup panel = new UIPromptPopup(
                     UIKeys.FORMS_CATEGORIES_RENAME_CATEGORY_TITLE,
                     UIKeys.FORMS_CATEGORIES_RENAME_CATEGORY_DESCRIPTION,
                     (str) ->
@@ -36,9 +36,10 @@ public class UIUserFormCategory extends UIFormCategory
                     }
                 );
 
+                panel.verb(UIKeys.GENERAL_RENAME);
                 panel.text.setText(this.getCategory().title.get());
 
-                UIOverlay.addOverlay(this.getContext(), panel);
+                this.getContext().replaceContextMenu(panel);
             });
 
             this.pasteFormAction(menu);
@@ -68,7 +69,7 @@ public class UIUserFormCategory extends UIFormCategory
                                 parent.resize();
                             }
                         }
-                    );
+                    ).verb(UIKeys.GENERAL_REMOVE).danger();
 
                     UIOverlay.addOverlay(this.getContext(), panel);
                 });

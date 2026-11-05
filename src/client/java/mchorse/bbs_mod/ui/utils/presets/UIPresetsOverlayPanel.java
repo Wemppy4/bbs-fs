@@ -3,9 +3,8 @@ package mchorse.bbs_mod.ui.utils.presets;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.presets.PresetManager;
@@ -65,14 +64,15 @@ public class UIPresetsOverlayPanel extends UIListOverlayPanel {
 
             if (type != null)
             {
-                UIPromptOverlayPanel pane = new UIPromptOverlayPanel(UIKeys.PRESETS_SAVE_TITLE, UIKeys.PRESETS_SAVE_DESCRIPTION, (t) ->
+                UIPromptPopup pane = new UIPromptPopup(UIKeys.PRESETS_SAVE_TITLE, UIKeys.PRESETS_SAVE_DESCRIPTION, (t) ->
                 {
                     this.controller.manager.save(t, type);
                     this.refreshList();
                 });
 
+                pane.verb(UIKeys.GENERAL_SAVE);
                 pane.text.filename();
-                UIOverlay.addOverlay(this.getContext(), pane);
+                this.getContext().replaceContextMenu(pane);
             }
         });
 
