@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.settings.ui;
 
-import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -10,6 +9,7 @@ import mchorse.bbs_mod.ui.utils.UIFileDialogs;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 
 /**
  * The folder exported videos land in. Empty means the default movies folder, so
@@ -32,12 +32,12 @@ public class UIExportPathRow extends UIPathRow
     @Override
     protected void pick(UITextbox textbox)
     {
-        UIFileDialogs.pickFolder(UIKeys.GENERAL_DIALOG_EXPORT_FOLDER, BBSRendering.getVideoFolder(), (file) -> this.set(textbox, file));
+        UIFileDialogs.pickFolder(UIKeys.GENERAL_DIALOG_EXPORT_FOLDER, VideoExportSettings.resolveFolder(this.path.get()), (file) -> this.set(textbox, file));
     }
 
     @Override
     protected void context(ContextMenuManager menu, UIElement element, UITextbox textbox)
     {
-        menu.action(Icons.FOLDER, UIKeys.CAMERA_TOOLTIPS_OPEN_VIDEOS, () -> UIUtils.openFolder(BBSRendering.getVideoFolder()));
+        menu.action(Icons.FOLDER, UIKeys.CAMERA_TOOLTIPS_OPEN_VIDEOS, () -> UIUtils.openFolder(VideoExportSettings.resolveFolder(this.path.get())));
     }
 }

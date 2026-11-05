@@ -31,10 +31,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+/**
+ * A clips timeline with the picked clip's panel beside it (and, {@link #withKeys optionally}, its
+ * keys under it). Everything beyond the clips themselves - time, playback, undo, the camera and
+ * the film - comes from the editor it lives in, its {@link IUIClipsOwner owner}.
+ */
 public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
 {
     public UIClips clips;
-    public UIFilmPanel filmPanel;
+    public final IUIClipsOwner owner;
 
     private UIClip panel;
     private boolean hasClips;
@@ -60,9 +65,9 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     private int syncedTick;
     private double syncedOrigin;
 
-    public UIClipsPanel(UIFilmPanel panel, ClipFactory factory)
+    public UIClipsPanel(IUIClipsOwner owner, ClipFactory factory)
     {
-        this.filmPanel = panel;
+        this.owner = owner;
         this.clips = new UIClips(this, factory);
 
         this.add(this.clips.full(this));
@@ -352,7 +357,7 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     {
         if (this.panel != null)
         {
-            Map<Clip, Position> snapshots = this.filmPanel.getRunner().getContext().getSnapshots();
+            Map<Clip, Position> snapshots = this.owner.getRunner().getContext().getSnapshots();
             Position newPosition = new Position();
             Position snapshot = snapshots.get(this.panel.clip);
 
@@ -392,13 +397,13 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     @Override
     public Film getFilm()
     {
-        return this.filmPanel.getData();
+        return this.owner.getFilm();
     }
 
     @Override
     public Camera getCamera()
     {
-        return this.filmPanel.getCamera();
+        return this.owner.getCamera();
     }
 
     @Override
@@ -463,7 +468,7 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
             this.panel.setVisible(this.propertiesVisible);
             this.panel.restoreScroll();
 
-            if (this.filmPanel.isFlying())
+            if (this.owner.isFlying())
             {
                 this.setCursor(clip.tick.get());
             }
@@ -477,7 +482,13 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
         this.resize();
         this.resizeTarget();
 
-        this.filmPanel.pickClip(clip, this);
+        this.owner.pickClip(clip, this);
+    }
+
+    @Override
+    public void openClip(Clip clip)
+    {
+        this.owner.openClip(clip);
     }
 
     private void resizeTarget()
@@ -491,55 +502,55 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     @Override
     public void setFlight(boolean flight)
     {
-        this.filmPanel.setFlight(flight);
+        this.owner.setFlight(flight);
     }
 
     @Override
     public boolean isFlying()
     {
-        return this.filmPanel.isFlying();
+        return this.owner.isFlying();
     }
 
     @Override
     public int getCursor()
     {
-        return this.filmPanel.getCursor();
+        return this.owner.getCursor();
     }
 
     @Override
     public void setCursor(int tick)
     {
-        this.filmPanel.setCursor(tick);
+        this.owner.setCursor(tick);
     }
 
     @Override
     public float getCursor(float transition)
     {
-        return this.filmPanel.getCursor(transition);
+        return this.owner.getCursor(transition);
     }
 
     @Override
     public void setCursor(float tick)
     {
-        this.filmPanel.setCursor(tick);
+        this.owner.setCursor(tick);
     }
 
     @Override
     public boolean isRunning()
     {
-        return this.filmPanel.isRunning();
+        return this.owner.isRunning();
     }
 
     @Override
     public void togglePlayback()
     {
-        this.filmPanel.togglePlayback();
+        this.owner.togglePlayback();
     }
 
     @Override
     public boolean canUseKeybinds()
     {
-        return this.filmPanel.canUseKeybinds();
+        return this.owner.canUseKeybinds();
     }
 
     @Override
@@ -585,7 +596,7 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     @Override
     public void markLastUndoNoMerging()
     {
-        this.filmPanel.getUndoHandler().getUndoManager().markLastUndoNoMerging();
+        this.owner.markLastUndoNoMerging();
     }
 
     @Override

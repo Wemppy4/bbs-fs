@@ -66,6 +66,8 @@ import mchorse.bbs_mod.api.client.events.RegisterL10nEvent;
 import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.WorldVideoExportSession;
+import mchorse.bbs_mod.film.sequence.FilmClip;
+import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormCategories;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
@@ -86,6 +88,7 @@ import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.particles.ParticleManager;
 import mchorse.bbs_mod.resources.AssetProvider;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.resources.packs.ExternalAssetsSourcePack;
 import mchorse.bbs_mod.resources.packs.URLError;
 import mchorse.bbs_mod.resources.packs.URLRepository;
 import mchorse.bbs_mod.resources.packs.URLSourcePack;
@@ -103,8 +106,11 @@ import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.keys.KeybindSettings;
+import mchorse.bbs_mod.utils.clips.ClipFactory;
+import mchorse.bbs_mod.utils.CameraFollow;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -169,6 +175,7 @@ public class BBSModClient implements ClientModInitializer
     private static EntitySelectors selectors;
 
     private static ParticleManager particles;
+    private static ClipFactory sequenceClips;
 
     private static KeyBinding keyDashboard;
     private static KeyBinding keyItemEditor;
@@ -295,6 +302,15 @@ public class BBSModClient implements ClientModInitializer
         return particles;
     }
 
+    /**
+     * The clips a sequence's timeline is made of: films and the sound over them. Nothing is drawn
+     * over the films, so the sequence's video is put together by ffmpeg alone.
+     */
+    public static ClipFactory getSequenceClipPalette()
+    {
+        return sequenceClips;
+    }
+
     public static CameraController getCameraController()
     {
         return cameraController;
@@ -378,6 +394,7 @@ public class BBSModClient implements ClientModInitializer
     public static void leaveWorld()
     {
         dashboard = null;
+        CameraFollow.reset();
         DashboardWarmup.reset();
         worldExportSession.stop();
         videos.delete();
@@ -600,6 +617,7 @@ public class BBSModClient implements ClientModInitializer
 
         provider.register(new URLSourcePack("http", repository));
         provider.register(new URLSourcePack("https", repository));
+        provider.register(new ExternalAssetsSourcePack(SequenceParts.SOURCE, SequenceParts.getFolder()).providesFiles());
 
         PlayerSkins.init(new File(parentFile, "skin_cache"));
 
@@ -704,6 +722,11 @@ public class BBSModClient implements ClientModInitializer
             .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc).in(ClipCategories.OVERWRITE))
             .register(Link.bbs("spline"), SplineClientClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff).in(ClipCategories.OVERWRITE))
             .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493).in(ClipCategories.MISC));
+
+        sequenceClips = new ClipFactory().category(ClipCategories.MISC);
+        sequenceClips
+            .register(Link.bbs("film"), FilmClip.class, new ClipFactoryData(Icons.FILM, 0x9d6cf0).in(ClipCategories.MISC))
+            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC));
 
         /* The client-side registries, each followed by the event that lets addons add to it.
          * They used to fill themselves in static initialisers, so the moment depended on who
@@ -1023,7 +1046,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(null, null);
+        worldExportSession.start(VideoExportSettings.global(), null, null);
     }
 
     private KeyBinding createKey(String id, int key)
@@ -1107,7 +1130,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(filmId, panel.getData());
+        worldExportSession.start(VideoExportSettings.global(), filmId, panel.getData());
     }
 
     private void keyPauseFilm()

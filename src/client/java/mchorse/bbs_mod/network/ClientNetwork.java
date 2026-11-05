@@ -598,6 +598,15 @@ public class ClientNetwork
         ClientPlayNetworking.send(ServerNetwork.SERVER_PLAYER_TP, buf);
     }
 
+    public static void sendFollowSpectator(boolean spectate)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeBoolean(spectate);
+
+        ClientPlayNetworking.send(ServerNetwork.SERVER_PLAYER_FOLLOW_SPECTATOR, buf);
+    }
+
     public static void sendFormTrigger(String triggerId, int type)
     {
         PacketByteBuf buf = PacketByteBufs.create();

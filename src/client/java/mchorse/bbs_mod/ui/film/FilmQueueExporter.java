@@ -6,6 +6,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +27,8 @@ import java.util.List;
  *       queued film or finalizing the queue.</li>
  * </ol>
  *
- * <p>Cancellation (ESC during a recording, errors, or {@link #cancel()})
+ * <p>Every film is recorded with the export settings the queue was built
+ * with. Cancellation (ESC during a recording, errors, or {@link #cancel()})
  * stops the queue and restores the originally selected tab.
  */
 public class FilmQueueExporter
@@ -37,16 +39,18 @@ public class FilmQueueExporter
     private final UIFilmPanel panel;
     private final List<String> filmIds;
     private final String returnToFilmId;
+    private final VideoExportSettings settings;
 
     private State state = State.IDLE;
     private int currentIndex = -1;
     private long waitStartedAtMs;
 
-    private FilmQueueExporter(UIFilmPanel panel, List<String> filmIds, String returnToFilmId)
+    private FilmQueueExporter(UIFilmPanel panel, List<String> filmIds, String returnToFilmId, VideoExportSettings settings)
     {
         this.panel = panel;
         this.filmIds = filmIds;
         this.returnToFilmId = returnToFilmId;
+        this.settings = settings;
     }
 
     /**
@@ -74,7 +78,7 @@ public class FilmQueueExporter
         Film current = panel.getData();
         String returnTo = current == null ? null : current.getId();
 
-        return new FilmQueueExporter(panel, ids, returnTo);
+        return new FilmQueueExporter(panel, ids, returnTo, VideoExportSettings.global());
     }
 
     public boolean isActive()
@@ -205,7 +209,7 @@ public class FilmQueueExporter
 
         recorder.setFinishedListener(this::onRecordingFinished);
 
-        UIFilmPanel.applyExportSizeToBBS();
+        UIWorldPreview.applyExportSize(this.settings);
         BBSRendering.scheduleAfterNextExportFrame(() ->
         {
             if (this.state != State.RECORDING)
@@ -214,6 +218,7 @@ public class FilmQueueExporter
             }
 
             recorder.startRecording(
+                this.settings,
                 duration,
                 BBSRendering.getTexture().id,
                 BBSRendering.getVideoWidth(),
