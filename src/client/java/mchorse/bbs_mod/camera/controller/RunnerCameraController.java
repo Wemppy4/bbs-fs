@@ -158,6 +158,7 @@ public class RunnerCameraController extends CameraWorkCameraController
             boolean free = this.panel.getController().getPovMode() == UIFilmController.CAMERA_MODE_FREE;
 
             this.apply(free ? null : camera, this.ticks, this.getTransition(transition));
+            this.panel.applySequenceSound(this.ticks, this.getTransition(transition), this.context.playing);
         }
 
         this.panel.getController().handleCamera(camera, transition);

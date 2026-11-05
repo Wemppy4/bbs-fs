@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.network;
 
+import java.util.HashMap;
+import net.minecraft.world.GameMode;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.actions.ActionManager;
 import mchorse.bbs_mod.actions.ActionPlayer;
@@ -96,6 +98,10 @@ public class ServerNetwork
     public static final Identifier SERVER_SAVE_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s15");
     public static final Identifier SERVER_CUT_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s16");
     public static final Identifier SERVER_CONVERT_MODEL_BLOCK = new Identifier(BBSMod.MOD_ID, "s17");
+    public static final Identifier SERVER_PLAYER_FOLLOW_SPECTATOR = new Identifier(BBSMod.MOD_ID, "s18");
+
+    /** The game mode each player had before following the camera as a spectator */
+    private static final Map<UUID, GameMode> followModes = new HashMap<>();
 
     private static ServerPacketCrusher crusher = new ServerPacketCrusher();
 
@@ -123,6 +129,7 @@ public class ServerNetwork
         ServerPlayNetworking.registerGlobalReceiver(SERVER_SAVE_STRUCTURE, (server, player, handler, buf, responder) -> handleSaveStructure(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_CUT_STRUCTURE, (server, player, handler, buf, responder) -> handleCutStructure(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_CONVERT_MODEL_BLOCK, (server, player, handler, buf, responder) -> handleConvertModelBlock(server, player, buf));
+        ServerPlayNetworking.registerGlobalReceiver(SERVER_PLAYER_FOLLOW_SPECTATOR, (server, player, handler, buf, responder) -> handleFollowSpectator(server, player, buf));
     }
 
     /* Handlers */
@@ -586,6 +593,48 @@ public class ServerNetwork
             player.setBodyYaw(bodyYaw);
             player.setPitch(pitch);
         });
+    }
+
+    /**
+     * The player follows the film's camera as a spectator, or stops. The mode is changed on the
+     * player directly, not by a command, so the chat says nothing; the old mode is remembered
+     * and given back.
+     */
+    private static void handleFollowSpectator(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
+    {
+        boolean spectate = buf.readBoolean();
+
+        server.execute(() ->
+        {
+            if (spectate)
+            {
+                if (!PermissionUtils.arePanelsAllowed(server, player) || followModes.containsKey(player.getUuid()))
+                {
+                    return;
+                }
+
+                followModes.put(player.getUuid(), player.interactionManager.getGameMode());
+                player.changeGameMode(GameMode.SPECTATOR);
+            }
+            else
+            {
+                restoreFollowMode(player);
+            }
+        });
+    }
+
+    /**
+     * Give a player that followed the camera as a spectator its own game mode back (also when
+     * it leaves the game while following).
+     */
+    public static void restoreFollowMode(ServerPlayerEntity player)
+    {
+        GameMode mode = followModes.remove(player.getUuid());
+
+        if (mode != null)
+        {
+            player.changeGameMode(mode);
+        }
     }
 
     private static void handleAnimationStateTriggerPacket(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)

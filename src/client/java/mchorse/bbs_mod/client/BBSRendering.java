@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
@@ -21,6 +20,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.sequence.UISequencePanel;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
@@ -56,7 +56,6 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -112,35 +111,6 @@ public class BBSRendering
     private static int pendingExportFrames;
     private static volatile boolean holdingExportFrame;
 
-    public static int getMotionBlur()
-    {
-        return getMotionBlur(BBSSettings.videoFrameRate.get(), getMotionBlurFactor());
-    }
-
-    public static int getMotionBlur(double fps, int target)
-    {
-        int i = 0;
-
-        while (fps < target)
-        {
-            fps *= 2;
-
-            i++;
-        }
-
-        return i;
-    }
-
-    public static int getMotionBlurFactor()
-    {
-        return getMotionBlurFactor(BBSSettings.videoMotionBlur.get());
-    }
-
-    public static int getMotionBlurFactor(int integer)
-    {
-        return integer == 0 ? 0 : (int) Math.pow(2, 6 + integer);
-    }
-
     public static int getVideoWidth()
     {
         return width == 0 ? BBSSettings.videoWidth.get() : width;
@@ -149,56 +119,6 @@ public class BBSRendering
     public static int getVideoHeight()
     {
         return height == 0 ? BBSSettings.videoHeight.get() : height;
-    }
-
-    public static int getVideoFrameRate()
-    {
-        int frameRate = BBSSettings.videoFrameRate.get();
-
-        return frameRate * (1 << getMotionBlur(frameRate, getMotionBlurFactor()));
-    }
-
-    /**
-     * How many of a video frame's motion blur sub-frames go into it. With no shutter, all of them -
-     * the blur spans the whole frame, as if the shutter were fully open (360 degrees), the way it
-     * always worked; otherwise the share of the frame the shutter keeps open (180 = the film look).
-     */
-    public static int getMotionBlurExposedFrames()
-    {
-        int subframes = 1 << getMotionBlur();
-        int shutter = BBSSettings.videoShutter.get();
-
-        return shutter <= 0 ? subframes : Math.max(1, Math.min(subframes, Math.round(subframes * shutter / 360F)));
-    }
-
-    /**
-     * The part of a video frame's time that passes at its given held render. Each frame is
-     * rendered "held frames" times; with no shutter they all show one moment, so the first moves
-     * time a whole frame on and the rest none. The shutter (degrees, as on a film camera) spreads
-     * them over that part of the frame instead - each repeat moves shutter/held of it, the first
-     * the rest - and a shader that accumulates the repeats averages them into motion blur.
-     */
-    public static float getHeldFrameShare(int heldFrame)
-    {
-        int held = BBSSettings.videoHeldFrames.get();
-        float step = held > 1 ? BBSSettings.videoShutter.get() / 360F / held : 0F;
-
-        return heldFrame == 0 ? 1F - step * (held - 1) : step;
-    }
-
-    public static File getVideoFolder()
-    {
-        File movies = new File(BBSMod.getSettingsFolder().getParentFile(), "movies");
-        File exportPath = new File(BBSSettings.videoExportPath.get());
-
-        if (exportPath.isDirectory())
-        {
-            movies = exportPath;
-        }
-
-        movies.mkdirs();
-
-        return movies;
     }
 
     public static boolean canReplaceFramebuffer()
@@ -391,7 +311,7 @@ public class BBSRendering
                  * blit our framebuffer to the full window or the preview would stretch to full screen. */
                 UIBaseMenu currentMenu = UIScreen.getCurrentMenu();
                 boolean filmPanelShowing = currentMenu instanceof UIDashboard dashboard
-                    && dashboard.getPanels().panel instanceof UIFilmPanel;
+                    && (dashboard.getPanels().panel instanceof UIFilmPanel || dashboard.getPanels().panel instanceof UISequencePanel);
                 if (!filmPanelShowing)
                 {
                     framebuffer.draw(drawW, drawH);
@@ -490,6 +410,10 @@ public class BBSRendering
             {
                 FrameOverlays.render(currentMenu.context.batcher.getContext().getMatrices(), currentMenu.context.batcher, panel.getRunner().getContext());
             }
+            else if (dashboard.getPanels().panel instanceof UISequencePanel panel)
+            {
+                panel.renderFrameOverlays(currentMenu.context.batcher.getContext().getMatrices(), currentMenu.context.batcher);
+            }
         }
 
         renderingWorld = false;
@@ -566,11 +490,11 @@ public class BBSRendering
         holdingExportFrame = false;
     }
 
-    /** Render one frozen scene repeatedly at export resolution before capturing it. */
-    public static void scheduleAfterHeldExportFrame(Runnable action)
+    /** Render one frozen scene the given number of times at export resolution before capturing it. */
+    public static void scheduleAfterHeldExportFrame(int renders, Runnable action)
     {
         pendingExportResolutionAction = action;
-        pendingExportFrames = BBSSettings.videoHeldFrames.get();
+        pendingExportFrames = renders;
         holdingExportFrame = true;
     }
 

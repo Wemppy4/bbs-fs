@@ -17,12 +17,12 @@ import java.util.concurrent.TimeUnit;
 public class VideoMuxer
 {
     /**
-     * Merge {@code audio} into {@code video}, replacing it: the merged file takes the
-     * video's base name with the extension produced by the mux arguments, the original
-     * video is deleted. Returns the merged file, or null when the merge failed (the
-     * recorded video is left untouched then).
+     * Merge {@code audio} into {@code video} with the given mux arguments, replacing it: the
+     * merged file takes the video's base name with the extension produced by the arguments,
+     * the original video is deleted. Returns the merged file, or null when the merge failed
+     * (the recorded video is left untouched then).
      */
-    public static File mux(File video, File audio, String movieName)
+    public static File mux(File video, File audio, String movieName, String arguments)
     {
         File folder = video.getParentFile();
         String tempName = movieName + ".tmp";
@@ -37,7 +37,7 @@ public class VideoMuxer
              * single arguments. ProcessBuilder passes quote characters literally, so
              * they must not be added around paths. Both files sit in the working
              * directory, plain names keep the arguments path-free. */
-            for (String arg : BBSSettings.videoArgumentsMux.get().split(" "))
+            for (String arg : arguments.split(" "))
             {
                 if (arg.isEmpty())
                 {

@@ -11,9 +11,7 @@ import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.DataPath;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.util.WorldSavePath;
+import mchorse.bbs_mod.utils.WorldScope;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -94,24 +92,10 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
 
         if (this.panel.getType().getRepository().getFolder() == null)
         {
-            prefix += "@" + getWorldScope();
+            prefix += "@" + WorldScope.current();
         }
 
         return prefix + ":";
-    }
-
-    private static String getWorldScope()
-    {
-        MinecraftClient mc = MinecraftClient.getInstance();
-
-        if (mc.getServer() != null)
-        {
-            return String.valueOf(mc.getServer().getSavePath(WorldSavePath.ROOT).toAbsolutePath().normalize().getFileName());
-        }
-
-        ServerInfo server = mc.getCurrentServerEntry();
-
-        return server == null ? "" : server.address;
     }
 
     private void setDone(String id, boolean done)

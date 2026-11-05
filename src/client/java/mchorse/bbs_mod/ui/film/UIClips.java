@@ -41,6 +41,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.IFileDropTarget;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -130,6 +131,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
     private boolean centerScrollOnRender;
 
     private UIClipRenderers renderers = new UIClipRenderers();
+    private final DoubleClick<Clip> doubleClick = new DoubleClick<>(true);
 
     private List<Clip> grabbedClips = Collections.emptyList();
     private List<Clip> otherClips = Collections.emptyList();
@@ -266,6 +268,11 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
         return this.factory;
     }
 
+    public IUIClipsDelegate getDelegate()
+    {
+        return this.delegate;
+    }
+
     public String getClipDisplayName(Clip clip)
     {
         if (!clip.title.get().isEmpty()) return clip.title.get();
@@ -289,7 +296,8 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
                 add.action(Icons.UPLOAD, UIKeys.CAMERA_TIMELINE_CONTEXT_ADD_ON_TOP, this::showAddsOnTop);
             }
 
-            if (this.factory.getKeys().contains(Link.bbs("keyframe")))
+            /* A camera made from a replay's path - only clips that belong to a film have replays */
+            if (this.factory.getKeys().contains(Link.bbs("keyframe")) && this.delegate.getFilm() != null)
             {
                 add.action(Icons.EDITOR, UIKeys.CAMERA_TIMELINE_CONTEXT_FROM_PLAYER_RECORDING, () -> this.fromReplay(mouseX, mouseY));
             }
@@ -378,8 +386,9 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
         }
 
         UIColumnsContextMenu menu = new UIColumnsContextMenu(BBSSettings.editorClipPaletteIcons.get());
+        Map<Link, List<Link>> categories = this.factory.getTypesByCategory();
 
-        for (Map.Entry<Link, List<Link>> column : this.factory.getTypesByCategory().entrySet())
+        for (Map.Entry<Link, List<Link>> column : categories.entrySet())
         {
             List<ContextAction> actions = new ArrayList<>();
 
@@ -390,7 +399,8 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
                 actions.add(new ColorfulContextAction(data.icon, UIKeys.C_CLIP.get(type), () -> this.addClip(type, preview.x, preview.y, preview.z), data.color));
             }
 
-            menu.column(UIKeys.C_CLIP_CATEGORY.get(column.getKey()), actions);
+            /* A palette of one category (the sequence's) needs no heading */
+            menu.column(categories.size() == 1 ? null : UIKeys.C_CLIP_CATEGORY.get(column.getKey()), actions);
         }
 
         menu.getEvents().register(UIRemovedEvent.class, (e) -> this.addPreview = null);
@@ -1372,6 +1382,13 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
             int layerIndex = this.fromLayerY(mouseY);
             Clip original = this.delegate.getClip();
             Clip clip = this.clips.getClipAt(tick, layerIndex);
+
+            if (clip != null && this.doubleClick.hit(clip) && !ctrl && !shift && !alt)
+            {
+                this.delegate.openClip(clip);
+
+                return true;
+            }
 
             if (clip != null)
             {

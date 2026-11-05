@@ -41,13 +41,12 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
         int right = area.ex();
 
         ClipFactoryData data = clips.getFactory().getData(clip);
-        int color = Colors.A100 | data.color;
+        int rgb = this.getColor(clips, clip) & Colors.RGB;
+        int color = Colors.setA(rgb, this.getOpacity(clips, clip));
 
         if (current)
         {
-            int shadow = data.color & Colors.RGB;
-
-            context.batcher.dropShadow(left + 2, y + 2, right - 2, y + h - 2, 8, Colors.A75 | shadow, shadow);
+            context.batcher.dropShadow(left + 2, y + 2, right - 2, y + h - 2, 8, Colors.A75 | rgb, rgb);
         }
 
         if (clip.enabled.get())
@@ -85,6 +84,22 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
         {
             context.batcher.textShadow(label, labelX, labelY);
         }
+    }
+
+    /**
+     * The clip's colour: its type's, unless a kind of clip tells its clips apart by colour.
+     */
+    protected int getColor(UIClips clips, T clip)
+    {
+        return clips.getFactory().getData(clip).color;
+    }
+
+    /**
+     * How solid the clip's strip is drawn, from 0 to 1: a clip that is not ready is drawn pale.
+     */
+    protected float getOpacity(UIClips clips, T clip)
+    {
+        return 1F;
     }
 
     protected void renderBackground(UIContext context, int color, T clip, Area area, boolean selected, boolean current)

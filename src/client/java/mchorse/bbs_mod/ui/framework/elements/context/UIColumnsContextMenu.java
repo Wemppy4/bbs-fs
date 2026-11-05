@@ -150,7 +150,7 @@ public class UIColumnsContextMenu extends UIContextMenu
             {
                 column.titleX = PADDING;
                 column.titleY = y;
-                y += TITLE_HEIGHT;
+                y += column.getTitleHeight();
 
                 column.body.relative(this).xy(PADDING, y).w(COLUMN_WIDTH).h(column.getHeight());
                 y += column.getHeight();
@@ -162,6 +162,12 @@ public class UIColumnsContextMenu extends UIContextMenu
         else
         {
             int h = 0;
+            int titleH = 0;
+
+            for (Column column : this.columns)
+            {
+                titleH = Math.max(titleH, column.getTitleHeight());
+            }
 
             for (int i = 0; i < this.columns.size(); i++)
             {
@@ -171,11 +177,11 @@ public class UIColumnsContextMenu extends UIContextMenu
                 column.titleY = top;
 
                 h = Math.max(h, column.getHeight());
-                column.body.relative(this).xy(column.titleX, top + TITLE_HEIGHT).w(COLUMN_WIDTH).h(1F, -top - TITLE_HEIGHT - PADDING);
+                column.body.relative(this).xy(column.titleX, top + titleH).w(COLUMN_WIDTH).h(1F, -top - titleH - PADDING);
             }
 
             width = PADDING * 2 + COLUMN_WIDTH * this.columns.size();
-            height = top + TITLE_HEIGHT + h + PADDING;
+            height = top + titleH + h + PADDING;
         }
 
         width = Math.max(width, this.bar.getContentWidth());
@@ -233,6 +239,11 @@ public class UIColumnsContextMenu extends UIContextMenu
 
         for (Column column : this.columns)
         {
+            if (column.title == null)
+            {
+                continue;
+            }
+
             int x = this.area.x + column.titleX;
             int y = this.area.y + column.titleY;
             String title = font.limitToWidth(column.title.get(), COLUMN_WIDTH);
@@ -256,6 +267,12 @@ public class UIColumnsContextMenu extends UIContextMenu
 
         private UIActionList list;
         private final List<UIIcon> tiles = new ArrayList<>();
+
+        /** A column without a title (the only one of its menu) takes no room for it. */
+        public int getTitleHeight()
+        {
+            return this.title == null ? 0 : TITLE_HEIGHT;
+        }
 
         public Column(IKey title, List<ContextAction> actions)
         {

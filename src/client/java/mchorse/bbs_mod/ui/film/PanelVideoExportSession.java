@@ -5,7 +5,6 @@ import mchorse.bbs_mod.actions.ActionState;
 import mchorse.bbs_mod.audio.AudioRenderer;
 import mchorse.bbs_mod.camera.clips.misc.AudioClip;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
-import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.VideoExportSession;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -14,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.clips.Clips;
 import org.joml.Vector2i;
 
@@ -42,13 +42,13 @@ public class PanelVideoExportSession extends VideoExportSession
         this.editor = editor;
     }
 
-    public boolean start(int duration, int textureId, int width, int height)
+    public boolean start(VideoExportSettings settings, int duration, int textureId, int width, int height)
     {
         this.duration = duration;
 
         long delayMs = (long) (Math.max(0F, BBSSettings.videoDelay.get()) * 1000F);
 
-        return this.begin(textureId, width, height, delayMs);
+        return this.begin(settings, textureId, width, height, delayMs);
     }
 
     @Override
@@ -56,13 +56,13 @@ public class PanelVideoExportSession extends VideoExportSession
     {
         try
         {
-            if (BBSSettings.videoExportAudio.get())
+            if (this.settings.exportAudio())
             {
                 Clips camera = this.editor.getData().camera;
                 List<AudioClip> audioClips = camera.getClips(AudioClip.class);
 
                 String name = StringUtils.createTimestampFilename() + ".wav";
-                File file = new File(BBSRendering.getVideoFolder(), name);
+                File file = new File(this.settings.getFolder(), name);
                 Vector2i range = BBSSettings.editorLoop.get() ? this.editor.getLoopingRange() : new Vector2i();
 
                 if (AudioRenderer.renderAudio(file, audioClips, camera.calculateDuration(), 48000, TimeUtils.toSeconds(range.x), TimeUtils.toSeconds(range.y)))
@@ -106,58 +106,15 @@ public class PanelVideoExportSession extends VideoExportSession
     {
         Film film = this.editor.getData();
         String base = StringUtils.resolveExportFilename(
-            BBSSettings.videoExportFilenameFormat.get(),
+            this.settings.filenameFormat(),
             film == null ? "" : film.getId(),
             this.width,
             this.height,
-            BBSRendering.getVideoFrameRate(),
+            this.settings.getCaptureFrameRate(),
             film == null ? 0 : film.camera.calculateDuration()
         );
 
-        return uniqueName(BBSRendering.getVideoFolder(), base);
-    }
-
-    /**
-     * Avoid overwriting a previous export - and, with it, hanging ffmpeg (whose default args
-     * carry no {@code -y}): when a file with this base name already exists, append " (n)".
-     */
-    private static String uniqueName(File folder, String base)
-    {
-        String candidate = base;
-
-        for (int i = 1; nameTaken(folder, candidate); i++)
-        {
-            candidate = base + " (" + i + ")";
-        }
-
-        return candidate;
-    }
-
-    private static boolean nameTaken(File folder, String base)
-    {
-        File[] files = folder.listFiles();
-
-        if (files == null)
-        {
-            return false;
-        }
-
-        String prefix = (base + ".").toLowerCase();
-
-        for (File file : files)
-        {
-            String name = file.getName().toLowerCase();
-
-            /* Only a video of an earlier export takes the name: the audio track this
-             * export just rendered sits in the same folder under the same base name and
-             * must not bump every audio export to a "(1)" */
-            if (name.startsWith(prefix) && !isExportArtifact(name.substring(prefix.length())))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return uniqueName(this.settings.getFolder(), base);
     }
 
     @Override
@@ -214,7 +171,7 @@ public class PanelVideoExportSession extends VideoExportSession
     protected void teardown(boolean cancelled)
     {
         this.editor.getController().setPaused(this.restorePaused);
-        this.editor.restorePreviewSize();
+        this.editor.preview.applySize();
         this.editor.restoreTimelineViews();
 
         if (this.editor.isRunning())

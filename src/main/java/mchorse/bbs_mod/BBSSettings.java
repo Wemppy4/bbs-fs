@@ -176,6 +176,7 @@ public class BBSSettings {
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
+	public static ValueBoolean editorPlayerFollowsSpectator;
 	public static ValueEditorLayout editorLayoutSettings;
 	public static ValueOnionSkin editorOnionSkin;
 	/** The rig's debug overlay: switched by the rig tab and F5, no row in the settings. */
@@ -855,6 +856,7 @@ public class BBSSettings {
 		editorFlightFreeLook = builder.getBoolean("flight_free_look", false);
 		editorCameraSmoothness = builder.getFloat("camera_smoothness", 0.1F, 0F, 0.95F).slider();
 		editorPlayerFollowsCamera = builder.getBoolean("player_follows_camera", false);
+		editorPlayerFollowsSpectator = builder.getBoolean("player_follows_spectator", false);
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);
 		editorOrbitCenterMarker = builder.getBoolean("orbit_center_marker", false);
 		editorOrbitGizmo = builder.getBoolean("orbit_gizmo", true);

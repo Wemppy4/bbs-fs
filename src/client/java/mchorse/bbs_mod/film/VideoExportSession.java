@@ -1,13 +1,12 @@
 package mchorse.bbs_mod.film;
 
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.audio.MinecraftSoundCapture;
 import mchorse.bbs_mod.audio.MinecraftSoundMixer;
 import mchorse.bbs_mod.audio.Wave;
 import mchorse.bbs_mod.audio.wav.WaveReader;
-import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.VideoMuxer;
 import mchorse.bbs_mod.utils.VideoRecorder;
 
@@ -25,6 +24,9 @@ import java.io.InputStream;
  * ({@link mchorse.bbs_mod.ui.film.PanelVideoExportSession}) through the
  * template hooks. The common state machine lives here so neither path
  * reimplements the warm-up timer.
+ *
+ * <p>Whoever starts an export hands it the {@link VideoExportSettings} to record with; the
+ * session keeps them until it is done and passes them on to the recorder.
  */
 public abstract class VideoExportSession
 {
@@ -38,6 +40,8 @@ public abstract class VideoExportSession
     protected State state = State.IDLE;
     protected long warmupEndsAtMs;
 
+    /** What the export comes out like, set from {@link #begin} until the export is done */
+    protected VideoExportSettings settings;
     protected File audioFile;
     protected int textureId;
     protected int width;
@@ -94,17 +98,18 @@ public abstract class VideoExportSession
     }
 
     /**
-     * Begin an export against the given capture target. Runs {@link #prepare()}
-     * (which may abort or set {@link #audioFile}); on success either records
-     * immediately or enters the warm-up delay.
+     * Begin an export with the given settings against the given capture target. Runs
+     * {@link #prepare()} (which may abort or set {@link #audioFile}); on success either
+     * records immediately or enters the warm-up delay.
      */
-    protected final boolean begin(int textureId, int width, int height, long delayMs)
+    protected final boolean begin(VideoExportSettings settings, int textureId, int width, int height, long delayMs)
     {
         if (this.isExporting() || this.getRecorder().isRecording())
         {
             return false;
         }
 
+        this.settings = settings;
         this.textureId = textureId;
         this.width = width;
         this.height = height;
@@ -177,7 +182,7 @@ public abstract class VideoExportSession
         }
 
         File muxAudioFile = this.audioFile;
-        boolean captureSounds = BBSSettings.videoExportMinecraftSounds.get();
+        boolean captureSounds = this.settings.minecraftSounds();
 
         if (captureSounds)
         {
@@ -190,7 +195,7 @@ public abstract class VideoExportSession
 
         try
         {
-            recorder.startRecording(movieName, muxAudioFile, this.textureId, this.width, this.height);
+            recorder.startRecording(this.settings, movieName, muxAudioFile, this.textureId, this.width, this.height);
         }
         catch (Exception e)
         {
@@ -212,7 +217,7 @@ public abstract class VideoExportSession
 
         if (captureSounds)
         {
-            this.recordingFrameRate = BBSRendering.getVideoFrameRate();
+            this.recordingFrameRate = this.settings.getCaptureFrameRate();
 
             BBSModClient.getMinecraftSoundCapture().begin();
         }
@@ -266,7 +271,7 @@ public abstract class VideoExportSession
         if (postPass)
         {
             this.finishCapturedSounds(capture, recordedFrames);
-            recorder.playFinishEffects();
+            recorder.playFinishEffects(this.settings.getFolder());
         }
         else if (this.deferredAudioFile != null)
         {
@@ -315,7 +320,7 @@ public abstract class VideoExportSession
                 return;
             }
 
-            File folder = BBSRendering.getVideoFolder();
+            File folder = this.settings.getFolder();
             File audio = new File(folder, this.movieName + ".wav");
 
             if (!MinecraftSoundMixer.mixToFile(audio, capture.getSounds(), capture.getFrames(), readWave(deferred), 48000, this.recordingFrameRate, recordedFrames))
@@ -325,7 +330,7 @@ public abstract class VideoExportSession
 
             File video = this.findRecordedVideo(folder);
 
-            if (video != null && VideoMuxer.mux(video, audio, this.movieName) != null && deferred != null)
+            if (video != null && VideoMuxer.mux(video, audio, this.movieName, this.settings.argumentsMux()) != null && deferred != null)
             {
                 /* Only a successful merge makes the deferred film track redundant */
                 deferred.delete();
@@ -408,6 +413,50 @@ public abstract class VideoExportSession
     }
 
     /**
+     * A name no video in the folder has yet, so nothing gets overwritten (and ffmpeg never stops
+     * to ask about it).
+     */
+    public static String uniqueName(File folder, String base)
+    {
+        String candidate = base;
+
+        for (int i = 1; findVideo(folder, candidate) != null; i++)
+        {
+            candidate = base + " (" + i + ")";
+        }
+
+        return candidate;
+    }
+
+    /**
+     * The video recorded under the given base name: the extension is up to the encoder's
+     * arguments. Null when there is none.
+     */
+    public static File findVideo(File folder, String base)
+    {
+        File[] files = folder.listFiles();
+
+        if (files == null)
+        {
+            return null;
+        }
+
+        String prefix = (base + ".").toLowerCase();
+
+        for (File file : files)
+        {
+            String name = file.getName().toLowerCase();
+
+            if (file.isFile() && name.startsWith(prefix) && !isExportArtifact(name.substring(prefix.length())))
+            {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Whether a file named {@code <movie name>.<rest>} is a side product of an export -
      * the audio track, an encoder log or the leftover of a failed merge - rather than the
      * video itself. Shared so picking the recorded video and allocating a free movie name
@@ -424,6 +473,7 @@ public abstract class VideoExportSession
     {
         this.state = State.IDLE;
         this.warmupEndsAtMs = 0L;
+        this.settings = null;
         this.audioFile = null;
         this.textureId = 0;
         this.width = 0;

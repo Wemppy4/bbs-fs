@@ -25,6 +25,12 @@ public interface IUIClipsDelegate extends ICursor
 
     public void pickClip(Clip clip);
 
+    /**
+     * A clip was double clicked: open whatever it stands for, if it stands for anything.
+     */
+    public default void openClip(Clip clip)
+    {}
+
     public void setFlight(boolean flight);
 
     public boolean isFlying();

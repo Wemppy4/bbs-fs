@@ -10,6 +10,9 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
+
 /**
  * The screen manipulator of overlay clips (subtitle, image, video): while such
  * a clip is selected and under the timeline's cursor, its on-screen rectangle
@@ -31,7 +34,10 @@ public class UIPlacementGizmo
     private static final int MODE_SCALE_X = 3;
     private static final int MODE_SCALE_Y = 4;
 
-    private final UIFilmPanel panel;
+    /** The timeline whose selected clip is edited, and where its cursor is: the film editor's
+     * camera clips, or a sequence's */
+    private final Supplier<UIClipsPanel> clips;
+    private final IntSupplier cursor;
 
     private int mode = MODE_NONE;
     private float startUnitX;
@@ -39,9 +45,10 @@ public class UIPlacementGizmo
     private Placement startPlacement;
     private ValuePlacement editedValue;
 
-    public UIPlacementGizmo(UIFilmPanel panel)
+    public UIPlacementGizmo(Supplier<UIClipsPanel> clips, IntSupplier cursor)
     {
-        this.panel = panel;
+        this.clips = clips;
+        this.cursor = cursor;
     }
 
     public boolean isDragging()
@@ -56,19 +63,21 @@ public class UIPlacementGizmo
      */
     private ValuePlacement getPlacement()
     {
-        if (!this.panel.cameraEditor.isVisible())
+        UIClipsPanel clips = this.clips.get();
+
+        if (clips == null || !clips.isVisible())
         {
             return null;
         }
 
-        Clip clip = this.panel.cameraEditor.getClip();
+        Clip clip = clips.getClip();
 
         if (clip == null || !clip.enabled.get())
         {
             return null;
         }
 
-        int cursor = this.panel.getCursor();
+        int cursor = this.cursor.getAsInt();
 
         if (cursor < clip.tick.get() || cursor >= clip.tick.get() + clip.duration.get())
         {
@@ -80,7 +89,7 @@ public class UIPlacementGizmo
 
     private OverlayBox getBox()
     {
-        Clip clip = this.panel.cameraEditor.getClip();
+        Clip clip = this.clips.get().getClip();
         OverlayBox box = clip instanceof IPlaceableClip placeable ? placeable.getOverlayBox() : null;
 
         return box == null || box.unitWidth <= 0F ? null : box;
@@ -165,7 +174,7 @@ public class UIPlacementGizmo
         this.mode = MODE_NONE;
         this.startPlacement = null;
         this.editedValue = null;
-        this.panel.cameraEditor.markLastUndoNoMerging();
+        this.clips.get().markLastUndoNoMerging();
 
         return true;
     }
@@ -271,8 +280,8 @@ public class UIPlacementGizmo
 
         if (!value.get().equals(edited))
         {
-            this.panel.cameraEditor.editMultiple(value, (v) -> v.set(edited.copy()));
-            this.panel.cameraEditor.fillData();
+            this.clips.get().editMultiple(value, (v) -> v.set(edited.copy()));
+            this.clips.get().fillData();
         }
     }
 

@@ -31,8 +31,11 @@ public class ValueEditorLayout extends BaseValue
     public static final String FILM_CAMERA = "film.camera";
     public static final String FILM_REPLAY = "film.replay";
     public static final String PARTICLE = "particle";
+    public static final String SEQUENCE = "sequence";
 
     private final Map<String, EditorLayoutNode> layouts = new LinkedHashMap<>();
+    /** Session-only default trees for ids with nothing stored; see {@link #getLayout}. */
+    private final Map<String, EditorLayoutNode> defaults = new HashMap<>();
     private final Set<String> bound = new HashSet<>();
     /** Panels the user hid, per layout id; hidden ids are not re-added by the dock's ensure pass. */
     private final Map<String, Set<String>> hiddenByLayout = new LinkedHashMap<>();
@@ -57,11 +60,17 @@ public class ValueEditorLayout extends BaseValue
 
     /* Layout trees */
 
+    /**
+     * An id with nothing stored gets the same default tree on every call. The dock finds the seam
+     * being dragged by node identity, so a fresh default per call made a never-saved layout
+     * impossible to resize until a reset stored one. The default is not saved here, so a later
+     * change to it still reaches users who never touched their layout.
+     */
     public EditorLayoutNode getLayout(String id, Supplier<EditorLayoutNode> defaultSupplier)
     {
         EditorLayoutNode root = this.layouts.get(id);
 
-        return root == null ? defaultSupplier.get() : root;
+        return root == null ? this.defaults.computeIfAbsent(id, (k) -> defaultSupplier.get()) : root;
     }
 
     public void setLayout(String id, EditorLayoutNode root)

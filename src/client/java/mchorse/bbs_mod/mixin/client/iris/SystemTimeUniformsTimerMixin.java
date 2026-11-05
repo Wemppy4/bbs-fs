@@ -1,8 +1,8 @@
 package mchorse.bbs_mod.mixin.client.iris;
 
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import net.irisshaders.iris.uniforms.SystemTimeUniforms;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,8 +37,9 @@ public class SystemTimeUniformsTimerMixin
 
         if (videoRecorder.isRecording())
         {
-            float videoFrameRate = BBSRendering.getVideoFrameRate();
-            float share = BBSRendering.getHeldFrameShare(this.heldFrames);
+            VideoExportSettings settings = videoRecorder.getSettings();
+            float videoFrameRate = settings.getCaptureFrameRate();
+            float share = settings.getHeldFrameShare(this.heldFrames);
 
             /* The shader clock keeps step with the world's, held renders included (see the shutter) */
             if (share > 0F)
@@ -49,7 +50,7 @@ public class SystemTimeUniformsTimerMixin
 
             this.heldFrames += 1;
 
-            if (this.heldFrames >= BBSSettings.videoHeldFrames.get())
+            if (this.heldFrames >= settings.heldFrames())
             {
                 this.heldFrames = 0;
             }

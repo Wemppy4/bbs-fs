@@ -8,6 +8,7 @@ import mchorse.bbs_mod.camera.clips.misc.AudioClip;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.WorldExportWindowSession;
 import mchorse.bbs_mod.utils.clips.Clips;
 import net.minecraft.client.MinecraftClient;
@@ -38,12 +39,12 @@ public class WorldVideoExportSession extends VideoExportSession
     }
 
     /**
-     * Start a world recording. Pass a film id and its data to also play that film
-     * and stop when it finishes (F6), or {@code null}/{@code null} to record the
-     * live world (F4). The film is used to render its audio track when the
-     * "export audio" setting is on.
+     * Start a world recording with the given export settings. Pass a film id and its
+     * data to also play that film and stop when it finishes (F6), or {@code null}/{@code null}
+     * to record the live world (F4). The film is used to render its audio track when the
+     * settings export audio.
      */
-    public boolean start(String filmId, Film film)
+    public boolean start(VideoExportSettings settings, String filmId, Film film)
     {
         if (this.isExporting() || this.getRecorder().isRecording())
         {
@@ -51,7 +52,7 @@ public class WorldVideoExportSession extends VideoExportSession
         }
 
         Window window = MinecraftClient.getInstance().getWindow();
-        VideoSize size = this.getVideoSize(window);
+        VideoSize size = this.getVideoSize(settings, window);
 
         this.applyWindowSize(size);
 
@@ -60,7 +61,7 @@ public class WorldVideoExportSession extends VideoExportSession
         this.firstTickPaused = false;
 
         long delayMs = (long) (Math.max(0F, BBSSettings.videoDelay.get()) * 1000F);
-        boolean started = this.begin(BBSRendering.getTexture().id, size.width, size.height, delayMs);
+        boolean started = this.begin(settings, BBSRendering.getTexture().id, size.width, size.height, delayMs);
 
         if (!started)
         {
@@ -85,13 +86,13 @@ public class WorldVideoExportSession extends VideoExportSession
         /* When recording a film (F6) with "export audio" on, render its audio track to a
          * temp WAV so the recorder muxes it into the video (same as the film-panel export).
          * Best-effort: a failure here just yields a silent video, never aborts the render. */
-        if (this.film != null && BBSSettings.videoExportAudio.get())
+        if (this.film != null && this.settings.exportAudio())
         {
             try
             {
                 Clips camera = this.film.camera;
                 List<AudioClip> audioClips = camera.getClips(AudioClip.class);
-                File file = new File(BBSRendering.getVideoFolder(), StringUtils.createTimestampFilename() + ".wav");
+                File file = new File(this.settings.getFolder(), StringUtils.createTimestampFilename() + ".wav");
 
                 if (AudioRenderer.renderAudio(file, audioClips, camera.calculateDuration(), 48000, 0, 0))
                 {
@@ -213,11 +214,11 @@ public class WorldVideoExportSession extends VideoExportSession
         }
     }
 
-    private VideoSize getVideoSize(Window window)
+    private VideoSize getVideoSize(VideoExportSettings settings, Window window)
     {
         if (BBSSettings.worldExportResizeWindow.get())
         {
-            return new VideoSize(even(BBSSettings.videoWidth.get()), even(BBSSettings.videoHeight.get()));
+            return new VideoSize(even(settings.width()), even(settings.height()));
         }
 
         return new VideoSize(even(window.getWidth()), even(window.getHeight()));

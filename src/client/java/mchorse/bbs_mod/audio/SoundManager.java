@@ -55,6 +55,14 @@ public class SoundManager implements IWatchDogListener
             Wave wave = AudioReader.read(this.provider, link);
             Waveform waveform = null;
 
+            /* Nothing to hear: a video without a sound track, a file that isn't sound */
+            if (wave == null)
+            {
+                this.buffers.put(link, null);
+
+                return null;
+            }
+
             if (includeWaveform)
             {
                 if (wave.getBytesPerSample() > 2)
