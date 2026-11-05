@@ -126,7 +126,7 @@ public class UIFilmClip extends UIClip<FilmClip>
             });
 
             panel.set(this.clip.isInCurrentWorld() ? this.clip.film.get() : "");
-            UIOverlay.addOverlay(this.getContext(), panel, 240, 300);
+            UIOverlay.addOverlay(this.getContext(), panel);
         });
     }
 

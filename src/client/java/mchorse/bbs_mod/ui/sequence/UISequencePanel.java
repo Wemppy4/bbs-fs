@@ -414,7 +414,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             this.refreshRecorded();
             this.preview.applySize();
         });
-        UIOverlay.addOverlay(this.getContext(), panel, 260, 270);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     /* Data */

@@ -46,6 +46,8 @@ public class UISequenceExportOverlayPanel extends UIOverlayPanel
     {
         super(UIKeys.SEQUENCE_EXPORT_TITLE);
 
+        this.wh(260, 270);
+
         this.export = export;
 
         UIScrollView view = new UIScrollView(ScrollDirection.VERTICAL);
