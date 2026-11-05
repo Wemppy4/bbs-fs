@@ -45,6 +45,8 @@ public class UIListOverlayPanel extends UIOverlayPanel
         this.list.label(UIKeys.GENERAL_SEARCH).keyboardSelection(this::confirm);
 
         this.content.add(this.list);
+        this.w(400).h(0.75F);
+        this.flex.h.max = 420;
     }
 
     public UIListOverlayPanel callback(Consumer<List<String>> callback)
@@ -71,12 +73,6 @@ public class UIListOverlayPanel extends UIOverlayPanel
         if (selected != null) this.apply(List.of(selected));
     }
 
-    @Override
-    public int getPreferredWidth()
-    {
-        return 400;
-    }
-
     public UIListOverlayPanel setValue(String value)
     {
         this.list.list.setCurrentScroll(value);
@@ -95,12 +91,6 @@ public class UIListOverlayPanel extends UIOverlayPanel
     protected void onAdd(UIElement parent)
     {
         super.onAdd(parent);
-
-        if (!this.wasResized())
-        {
-            this.flex.h.set(0.75F, 0);
-            this.flex.h.max = 420;
-        }
 
         this.list.list.moveSelection(0);
         this.getContext().focus(this.list.search);

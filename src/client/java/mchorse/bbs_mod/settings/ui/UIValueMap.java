@@ -204,8 +204,7 @@ public class UIValueMap
         {
             UIButton button = new UIButton(UIKeys.CONFIG_KEYFRAME_STYLE_EDIT, (b) -> UIOverlay.addOverlay(
                 ui.getContext(),
-                new UIKeyframeStyleOverlayPanel(value.get(), (style) -> value.set(style.copy())),
-                220, 200
+                new UIKeyframeStyleOverlayPanel(value.get(), (style) -> value.set(style.copy()))
             ));
 
             button.w(90);

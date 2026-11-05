@@ -167,7 +167,7 @@ public class UIFormList extends UIElement
             formCategories.getAllCategories()
         );
 
-        UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
+        UIOverlay.addOverlay(this.getContext(), panel);
 
         panel.onClose(e ->
         {

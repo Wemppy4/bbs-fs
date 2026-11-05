@@ -22,6 +22,7 @@ public class UIKeybindPresetsOverlayPanel extends UIOverlayPanel
     public UIKeybindPresetsOverlayPanel(Settings settings, Runnable onLoaded)
     {
         super(L10n.lang("bbs.ui.config.keybind-presets.title"));
+        this.wh(320, 240);
 
         this.settings = settings;
         this.onLoaded = onLoaded;

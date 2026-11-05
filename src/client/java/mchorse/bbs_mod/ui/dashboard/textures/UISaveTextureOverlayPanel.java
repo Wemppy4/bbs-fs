@@ -57,6 +57,7 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
     public UISaveTextureOverlayPanel(UITextureEditor editor, Predicate<Link> writer)
     {
         super(UIKeys.TEXTURES_SAVE_AS);
+        this.wh(530, 340);
 
         this.editor = editor;
         this.writer = writer;

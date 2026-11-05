@@ -25,6 +25,7 @@ public class UIFilmDetailsOverlayPanel extends UIOverlayPanel
     public UIFilmDetailsOverlayPanel(Film film)
     {
         super(L10n.lang("bbs.ui.film.details.title"));
+        this.wh(300, 260);
 
         this.film = film;
 

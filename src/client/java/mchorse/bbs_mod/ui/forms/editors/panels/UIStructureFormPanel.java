@@ -97,7 +97,8 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         );
 
         panel.set(this.form.structure.get());
-        UIOverlay.addOverlay(this.getContext(), panel, 240, 280);
+        panel.wh(240, 280);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     private void openBiomePicker()
@@ -121,7 +122,8 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         );
 
         panel.set(this.form.biome.get());
-        UIOverlay.addOverlay(this.getContext(), panel, 240, 280);
+        panel.wh(240, 280);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     @Override

@@ -58,6 +58,8 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
     public UIUtilityOverlayPanel(IKey title, Runnable callback)
     {
         super(title);
+        this.w(0.95F);
+        this.flex.w.max = WIDTH;
         this.callback = callback;
         this.focused = MinecraftClient.getInstance().isWindowFocused();
         this.view = UI.scrollView(3, PADDING, 140);
@@ -135,12 +137,6 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         this.refreshShaders();
     }
 
-    @Override
-    public int getPreferredWidth()
-    {
-        return WIDTH;
-    }
-
     /**
      * As tall as the left column needs, so its buttons end where the shader settings do, and no
      * taller than the screen has room for; the shader list takes what's left on the right. Only
@@ -159,20 +155,6 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         UIElement parent = this.getParent();
 
         return parent == null ? height : Math.min(height, (int) (parent.area.h * 0.9F));
-    }
-
-    @Override
-    public void resize()
-    {
-        UIElement parent = this.getParent();
-
-        /* No wider than the screen has room for, unless the user picked the width */
-        if (parent != null && !this.wasResized())
-        {
-            this.flex.w.set(0F, Math.min(WIDTH, (int) (parent.area.w * 0.95F)));
-        }
-
-        super.resize();
     }
 
     private UIElement header(IKey label, UIIcon icon)

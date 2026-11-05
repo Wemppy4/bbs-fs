@@ -16,6 +16,7 @@ public class UIMorphFormCategoryFilterOverlayPanel extends UIOverlayPanel
     public UIMorphFormCategoryFilterOverlayPanel(Set<String> disabled, List<FormCategory> categories)
     {
         super(UIKeys.MORPHING_FILTER_CATEGORIES_TITLE);
+        this.w(240).h(0.9F);
 
         UIScrollView scrollView = UI.scrollView(4, 6);
 

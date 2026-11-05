@@ -183,7 +183,7 @@ public class UIKeyframeLoops
     {
         this.selectedChannel = channel;
         this.selectedId = id;
-        UIOverlay.addOverlay(this.view.getContext(), new UIKeyframeLoopOverlay(this, channel, id), 240, 164);
+        UIOverlay.addOverlay(this.view.getContext(), new UIKeyframeLoopOverlay(this, channel, id));
     }
 
     public void setEnd(KeyframeChannel<?> channel, String id, float end)

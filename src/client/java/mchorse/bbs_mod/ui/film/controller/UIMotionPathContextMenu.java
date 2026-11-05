@@ -6,10 +6,8 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
@@ -24,7 +22,7 @@ import java.util.List;
  * list (add picks a bone of the replay; M adds whatever is selected), and the window around the
  * current frame.
  */
-public class UIMotionPathContextMenu extends UIContextMenu
+public class UIMotionPathContextMenu extends UIPopup
 {
     public UIToggle enable;
     public UIMotionPathList paths;
@@ -33,13 +31,14 @@ public class UIMotionPathContextMenu extends UIContextMenu
     public UITrackpad before;
     public UITrackpad after;
 
-    private UIElement column;
-
     private UIFilmPanel panel;
     private ValueMotionPath motionPath;
 
     public UIMotionPathContextMenu(UIFilmPanel panel, ValueMotionPath motionPath)
     {
+        /* The toggle on top has the feature's name on it, so it is the title; the list wants width */
+        super(null, 190);
+
         this.panel = panel;
         this.motionPath = motionPath;
 
@@ -57,16 +56,13 @@ public class UIMotionPathContextMenu extends UIContextMenu
         this.after = new UITrackpad((v) -> this.motionPath.after.set(v.intValue()));
         this.after.limit(1, 1000, true).setValue(this.motionPath.after.get());
 
-        this.column = UI.column(4, 8,
+        this.column.add(
             this.enable,
             this.pathsEditor.strip, this.paths,
             this.around, UI.row(this.before, this.after)
         );
-        this.column.relative(this).w(190);
 
-        this.add(this.column);
         this.fillPaths();
-        this.column.resize();
     }
 
     private Replay replay()
@@ -147,19 +143,5 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
         this.paths.deselect();
         this.fillPaths();
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return false;
-    }
-
-    @Override
-    public void setMouse(UIContext context)
-    {
-        this.xy(context.mouseX(), context.mouseY())
-            .wh(this.column.area.w, this.column.area.h)
-            .bounds(context.menu.overlay, 5);
     }
 }

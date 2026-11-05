@@ -95,6 +95,7 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
     public UIProcessReplaysPanel(UIFilmPanel filmPanel, List<Replay> replays)
     {
         super(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_TITLE, IKey.EMPTY, null);
+        this.wh(320, 320);
 
         this.filmPanel = filmPanel;
         this.replays = replays;

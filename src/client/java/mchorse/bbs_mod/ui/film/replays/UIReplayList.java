@@ -1407,7 +1407,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             this.applyRandomTextures(folder, selected, this.getContext());
         }).confirmLabel(UIKeys.SCENE_REPLAYS_RANDOM_TEXTURES_APPLY);
 
-        UIOverlay.addOverlay(this.getContext(), panel, 320, 0.8F);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     private void applyRandomTextures(Link folder, List<Replay> replays, UIContext context)
@@ -1485,7 +1485,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        UIOverlay.addOverlay(this.getContext(), new UIProcessReplaysPanel(this.panel, this.getSelectedReplaysInViewOrder()), 320, 320);
+        UIOverlay.addOverlay(this.getContext(), new UIProcessReplaysPanel(this.panel, this.getSelectedReplaysInViewOrder()));
     }
 
     private void offsetTimeReplays()
@@ -1723,7 +1723,9 @@ public class UIReplayList extends UIList<ReplayListEntry>
         panel.confirm.w(1F, -10);
         panel.content.add(search);
 
-        UIOverlay.addOverlay(this.getContext(), panel, 240, 300);
+        /* The list put into it doesn't count towards the height the question measures */
+        panel.wh(240, 300);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     private void fromModelBlock(ModelBlockEntity modelBlock)
@@ -1770,7 +1772,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     }
                 });
             }
-        }), 300, 140);
+        }));
     }
 
     /** The cut region's form, dropped in at the very spot it was cut from. */

@@ -21,6 +21,7 @@ public class UIKeyframeLoopOverlay extends UIOverlayPanel
     public UIKeyframeLoopOverlay(UIKeyframeLoops editor, KeyframeChannel<?> channel, String id)
     {
         super(L10n.lang("bbs.ui.keyframes.loop.title"));
+        this.wh(240, 164);
         this.editor = editor;
         this.channel = channel;
         this.id = id;

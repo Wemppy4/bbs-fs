@@ -33,12 +33,7 @@ public class UIModelPicker
         public ModelListOverlayPanel(Consumer<String> callback)
         {
             super(UIKeys.FORMS_EDITOR_MODEL_MODELS, callback);
-        }
-
-        @Override
-        public int getPreferredWidth()
-        {
-            return 440;
+            this.w(440);
         }
     }
 }

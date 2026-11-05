@@ -87,6 +87,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
     public UISettingsOverlayPanel()
     {
         super(UIKeys.CONFIG_TITLE);
+        this.wh(430, 400);
 
         this.search = new UITextbox(100, (str) ->
         {
@@ -112,8 +113,8 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         {
             UIIcon icon = new UIIcon(settings.icon, (b) -> this.selectConfig(settings.getId(), b));
 
-            icon.tooltip(L10n.lang(UIValueFactory.getTitleKey(settings)), Direction.LEFT);
-            icon.highlight(() -> this.currentModule == icon, Direction.LEFT);
+            icon.tooltip(L10n.lang(UIValueFactory.getTitleKey(settings)));
+            icon.highlight(() -> this.currentModule == icon, Direction.BOTTOM);
             this.icons.add(icon);
             this.moduleButtons.put(settings.getId(), icon);
 
@@ -574,7 +575,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
             else if (panel.settings.getId().equals("keybinds"))
             {
                 UIIcon presets = new UIIcon(Icons.KEY_CAP, (b) -> UIOverlay.addOverlay(
-                    b.getContext(), new UIKeybindPresetsOverlayPanel(panel.settings, panel::refresh), 320, 240));
+                    b.getContext(), new UIKeybindPresetsOverlayPanel(panel.settings, panel::refresh)));
 
                 presets.tooltip(L10n.lang("bbs.ui.config.keybind-presets.title"));
                 presets.wh(16, 16);

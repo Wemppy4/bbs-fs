@@ -28,6 +28,7 @@ public class UIAnimationToPoseOverlayPanel extends UIOverlayPanel
     public UIAnimationToPoseOverlayPanel(IUIAnimationPoseCallback callback, ModelForm modelForm, UIKeyframeSheet sheet)
     {
         super(UIKeys.FILM_REPLAY_ANIMATION_TO_POSE_TITLE);
+        this.wh(200, 197);
 
         this.callback = callback;
         this.modelForm = modelForm;

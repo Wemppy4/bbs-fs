@@ -111,7 +111,7 @@ public class UIDashboard extends UIBaseMenu
         this.settings = new UIIcon(Icons.SETTINGS, (b) -> this.openSettings());
         this.selectors = new UIIcon(Icons.PROPERTIES, (b) ->
         {
-            UIOverlay.addOverlay(this.context, new UISelectorsOverlayPanel(), 430, 300);
+            UIOverlay.addOverlay(this.context, new UISelectorsOverlayPanel());
         });
         this.chalkboard = new UIChalkboard();
         this.chalkboard.full(this.getRoot());
@@ -177,7 +177,7 @@ public class UIDashboard extends UIBaseMenu
 
     public void openSettings()
     {
-        UIOverlay.addOverlay(this.context, this.settingsPanel, 430, 400);
+        UIOverlay.addOverlay(this.context, this.settingsPanel);
     }
 
     public void copyCurrentEntityCamera()

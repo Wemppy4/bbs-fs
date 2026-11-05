@@ -76,7 +76,7 @@ public class UIMobEditor extends UIElement
                 }
             });
 
-            UIOverlay.addOverlay(this.getContext(), panel, 0.5F, 0.75F);
+            UIOverlay.addOverlay(this.getContext(), panel);
             UIUtils.playClick();
 
             return true;

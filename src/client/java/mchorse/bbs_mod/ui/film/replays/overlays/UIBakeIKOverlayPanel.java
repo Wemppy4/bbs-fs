@@ -35,6 +35,7 @@ public class UIBakeIKOverlayPanel extends UIOverlayPanel
     public UIBakeIKOverlayPanel(Collection<String> tips, int lastTick, IUIBakeIKCallback callback)
     {
         super(UIKeys.FILM_REPLAY_BAKE_IK_TITLE);
+        this.wh(240, 240);
 
         this.callback = callback;
 

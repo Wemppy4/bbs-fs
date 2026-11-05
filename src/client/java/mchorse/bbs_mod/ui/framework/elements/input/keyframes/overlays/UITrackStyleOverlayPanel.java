@@ -27,6 +27,7 @@ public class UITrackStyleOverlayPanel extends UIOverlayPanel
     public UITrackStyleOverlayPanel(UIKeyframeSheet sheet, Runnable callback)
     {
         super(L10n.lang("bbs.ui.keyframes.track_style.title"));
+        this.wh(220, 160);
 
         this.sheet = sheet;
         this.callback = callback;

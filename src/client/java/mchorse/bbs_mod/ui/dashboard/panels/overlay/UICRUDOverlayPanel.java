@@ -33,6 +33,8 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
     public UICRUDOverlayPanel(IKey title, Consumer<String> callback)
     {
         super(title);
+        this.w(1F, -20).h(0.8F);
+        this.flex.w.max = 480;
 
         this.callback = callback;
 
@@ -80,12 +82,6 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
         {
             this.icons.add(this.dupe, this.rename, this.remove);
         }
-    }
-
-    @Override
-    public int getPreferredWidth()
-    {
-        return 480;
     }
 
     @Override

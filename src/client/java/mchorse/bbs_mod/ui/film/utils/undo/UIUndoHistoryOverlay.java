@@ -21,6 +21,7 @@ public class UIUndoHistoryOverlay extends UIOverlayPanel
     public UIUndoHistoryOverlay(IKey title, UndoManager<ValueGroup> undoManager, Supplier<ValueGroup> context, Runnable onApplied)
     {
         super(title);
+        this.w(200).h(0.6F);
 
         this.list = new UIUndoList((l) ->
         {

@@ -22,6 +22,12 @@ import java.util.function.Consumer;
 
 public class UIOverlayPanel extends UIElement
 {
+    /** Height of the bar on top: the title, the panel's own buttons and the close cross. */
+    public static final int HEADER = 20;
+
+    /** Gap between the panel's buttons and the close cross, so a click meant for one isn't the other. */
+    private static final int CLOSE_GAP = 4;
+
     /** Side of the square grip in the bottom right corner. */
     private static final int GRIP = 10;
 
@@ -42,8 +48,8 @@ public class UIOverlayPanel extends UIElement
     private int initialOffsetY;
 
     /**
-     * Whether the overlay opened this panel without a size. Only then is the panel's own opinion
-     * about its height in charge; a call site that passed one meant it.
+     * Whether the panel left its height to the overlay. Only then is its content in charge of the
+     * height; a panel that set one in its constructor meant it.
      */
     private boolean sizeless;
 
@@ -65,18 +71,20 @@ public class UIOverlayPanel extends UIElement
         this.content = new UIElement();
         this.icons = new UIElement();
 
-        this.title.labelAnchor(0, 0.5F).relative(this).xy(6, 0).w(0.6F).h(20);
-        this.icons.relative(this).x(1F, -20).y(0).w(20).h(1F).column(0).stretch();
-        this.content.relative(this).xy(0, 20).w(1F, -20).h(1F, -20);
+        /* The header carries the window, the content everything else: the panel's buttons line up
+         * leftwards from the cross, and the content gets the whole width under the bar */
+        this.title.labelAnchor(0, 0.5F).relative(this).xy(6, 0).w(0.6F).h(HEADER);
+        this.close.relative(this).x(1F, -HEADER).y(0);
+        this.icons.relative(this).x(1F, -HEADER - CLOSE_GAP).y(0).h(HEADER).anchorX(1F);
+        this.icons.row(0).resize();
+        this.content.relative(this).xy(0, HEADER).w(1F).h(1F, -HEADER);
 
-        this.icons.add(this.close);
-
-        this.add(this.title, this.icons, this.content);
+        this.add(this.title, this.icons, this.close, this.content);
 
         this.mouseEventPropagataion(EventPropagation.BLOCK_INSIDE);
     }
 
-    /** Marks the panel as opened without a size; called by {@link UIOverlay}. */
+    /** Marks the panel as opened without a height of its own; called by {@link UIOverlay}. */
     public void sizeless()
     {
         this.sizeless = true;
@@ -206,17 +214,9 @@ public class UIOverlayPanel extends UIElement
     {}
 
     /**
-     * The width this panel asks for when it is opened without one; a negative value leaves the
-     * overlay's own default in charge.
-     */
-    public int getPreferredWidth()
-    {
-        return -1;
-    }
-
-    /**
      * The height this panel wants once its children are laid out, or -1 to keep whatever height it
-     * was opened with. A panel that knows what is inside it &mdash; a message with one block under
+     * was opened with. Asked only of a panel that didn't set its own height. A panel that knows
+     * what is inside it &mdash; a message with one block under
      * it &mdash; returns the sum, so a two line question doesn't get a half screen box with the
      * button parked at the bottom of it.
      */
@@ -250,7 +250,7 @@ public class UIOverlayPanel extends UIElement
     @Override
     public boolean subMouseClicked(UIContext context)
     {
-        if (this.title.area.isInside(context))
+        if (this.isOverHeader(context))
         {
             if (Window.isCtrlPressed())
             {
@@ -335,17 +335,23 @@ public class UIOverlayPanel extends UIElement
         context.batcher.dropShadow(this.area.x, this.area.y, this.area.ex(), this.area.ey(), 10, BBSSettings.panelShadowOpaqueColor(), BBSSettings.panelShadowTransparentColor());
 
         this.area.render(context.batcher, BBSSettings.raisedSurface());
-        this.icons.area.render(context.batcher, BBSSettings.chromeSurface());
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + HEADER, BBSSettings.chromeSurface());
 
-        if (this.close.area.isInside(context))
+        if (this.close.isVisible() && this.close.area.isInside(context))
         {
             this.close.area.render(context.batcher, Colors.RED | Colors.A100);
         }
 
-        if (this.title.area.isInside(context))
+        if (this.isOverHeader(context) && !this.icons.area.isInside(context) && !this.close.area.isInside(context))
         {
-            context.batcher.icon(Icons.ALL_DIRECTIONS, Colors.GRAY, this.area.mx(), this.title.area.my(), 0.5F, 0.5F);
+            context.batcher.icon(Icons.ALL_DIRECTIONS, Colors.GRAY, this.area.mx(), this.area.y + HEADER / 2, 0.5F, 0.5F);
         }
+    }
+
+    /** The bar on top is what the panel is dragged by; its buttons take their clicks first. */
+    private boolean isOverHeader(UIContext context)
+    {
+        return this.title.isVisible() && this.area.isInside(context) && context.mouseY < this.area.y + HEADER;
     }
 
     public void onClose()

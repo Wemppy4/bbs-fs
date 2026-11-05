@@ -34,6 +34,7 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
     public UIFilmPlayerSettingsOverlayPanel(Film film, int tick)
     {
         super(UIKeys.FILM_PLAYER_SETTINGS_TITLE, UIKeys.FILM_PLAYER_SETTINGS_DESCRIPTION);
+        this.w(280).h(0.4F);
 
         this.film = film;
         this.tick = tick;

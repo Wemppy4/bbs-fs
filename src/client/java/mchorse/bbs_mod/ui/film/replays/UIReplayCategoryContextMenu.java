@@ -1,13 +1,9 @@
 package mchorse.bbs_mod.ui.film.replays;
 
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
-import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.categories.CategoryPath;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -20,14 +16,11 @@ import mchorse.bbs_mod.utils.colors.Colors;
  * field is left or the popup goes away, so a rename sweeps the replays once instead of once per
  * letter typed.</p>
  */
-public class UIReplayCategoryContextMenu extends UIContextMenu
+public class UIReplayCategoryContextMenu extends UIPopup
 {
-    private static final int WIDTH = 140;
-
     public final UITextbox name;
     public final UIColor color;
 
-    private final UIElement column;
     private final UIReplayList list;
 
     /** Where the folder is now — a rename moves it, and the next edit has to find it there. */
@@ -36,6 +29,8 @@ public class UIReplayCategoryContextMenu extends UIContextMenu
 
     public UIReplayCategoryContextMenu(UIReplayList list, String path, int color)
     {
+        super(UIKeys.SCENE_REPLAYS_EDIT_CATEGORY_TITLE);
+
         this.list = list;
         this.path = path;
         this.picked = color;
@@ -53,16 +48,8 @@ public class UIReplayCategoryContextMenu extends UIContextMenu
         });
         this.color.setColor(color);
 
-        this.column = UI.column(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, UIConstants.CONTROL_HEIGHT,
-            UI.label(UIKeys.SCENE_REPLAYS_EDIT_CATEGORY_TITLE),
-            this.name,
-            this.color
-        );
+        this.column.add(this.name, this.color);
         this.column.tooltip(UIKeys.SCENE_REPLAYS_EDIT_CATEGORY_DESCRIPTION);
-        this.column.relative(this).w(WIDTH);
-
-        this.add(this.column);
-        this.column.resize();
     }
 
     private void apply()
@@ -83,19 +70,5 @@ public class UIReplayCategoryContextMenu extends UIContextMenu
         }
 
         super.removeFromParent();
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return false;
-    }
-
-    @Override
-    public void setMouse(UIContext context)
-    {
-        this.xy(context.mouseX(), context.mouseY())
-            .wh(this.column.area.w, this.column.area.h)
-            .bounds(context.menu.overlay, 5);
     }
 }

@@ -427,7 +427,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             UIAnimationStatesOverlayPanel panel = new UIAnimationStatesOverlayPanel(this.form.states, this.statesKeyframes.getState(), (state) -> this.pickState(state));
 
             panel.setUndoId("animation_states_overlay_panel");
-            UIOverlay.addOverlay(this.getContext(), panel, 280, 0.5F).eventPropagataion(EventPropagation.PASS);
+            UIOverlay.addOverlay(this.getContext(), panel).eventPropagataion(EventPropagation.PASS);
         });
         this.openStates.relative(this.statesEditor).x(1F, -20);
         this.openStates.tooltip(UIKeys.FORMS_EDITOR_STATES_OPEN, Direction.LEFT);
@@ -1034,7 +1034,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             {
                 menu.action(Icons.CAMERA, UIKeys.FORMS_EDITOR_CONTEXT_SETUP_FACE, () ->
                 {
-                    UIOverlay.addOverlay(this.getContext(), new UISetupFaceOverlayPanel((model, offset) -> this.setupFace(framebuffer, parent, model, offset)), 240, 170);
+                    UIOverlay.addOverlay(this.getContext(), new UISetupFaceOverlayPanel((model, offset) -> this.setupFace(framebuffer, parent, model, offset)));
                 });
             }
 

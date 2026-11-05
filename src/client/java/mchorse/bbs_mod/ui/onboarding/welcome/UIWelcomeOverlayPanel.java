@@ -62,9 +62,11 @@ public class UIWelcomeOverlayPanel extends UIOverlayPanel
     public UIWelcomeOverlayPanel()
     {
         super(UIKeys.ONBOARDING_WELCOME_TITLE);
+        this.wh(1F, 1F);
 
         this.title.setVisible(false);
         this.icons.setVisible(false);
+        this.close.setVisible(false);
         this.content.resetFlex().relative(this).xy(0, 0).w(1F).h(1F);
 
         /* A little under the middle, so the title above it doesn't crowd the top edge */

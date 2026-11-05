@@ -180,15 +180,15 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
 
         this.folderButton = new UIIcon(Icons.FOLDER, (b) -> this.switchToMode(ViewMode.FOLDER));
         this.folderButton.tooltip(UIKeys.OVERLAYS_SOUNDS_FOLDER_MODE);
-        this.folderButton.highlight(() -> this.currentMode == ViewMode.FOLDER, Direction.LEFT);
+        this.folderButton.highlight(() -> this.currentMode == ViewMode.FOLDER, Direction.BOTTOM);
 
         this.addButton = new UIIcon(Icons.ADD, (b) -> this.switchToMode(ViewMode.ADD));
         this.addButton.tooltip(UIKeys.OVERLAYS_SOUNDS_ADD_MODE);
-        this.addButton.highlight(() -> this.currentMode == ViewMode.ADD, Direction.LEFT);
+        this.addButton.highlight(() -> this.currentMode == ViewMode.ADD, Direction.BOTTOM);
 
         this.likeButton = new UIIcon(Icons.HEART_ALT, (b) -> this.switchToMode(ViewMode.LIKE));
         this.likeButton.tooltip(UIKeys.OVERLAYS_SOUNDS_LIKE_MODE);
-        this.likeButton.highlight(() -> this.currentMode == ViewMode.LIKE, Direction.LEFT);
+        this.likeButton.highlight(() -> this.currentMode == ViewMode.LIKE, Direction.BOTTOM);
 
         this.icons.add(this.folderButton, this.addButton, this.likeButton);
 

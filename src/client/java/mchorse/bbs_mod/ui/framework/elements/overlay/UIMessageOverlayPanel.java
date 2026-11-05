@@ -34,6 +34,7 @@ public class UIMessageOverlayPanel extends UIOverlayPanel
         this.message.relative(this.content).x(0.5F).y(TOP).w(0.7F).anchorX(0.5F);
 
         this.content.add(this.message);
+        this.w(WIDTH);
     }
 
     /**
@@ -43,18 +44,15 @@ public class UIMessageOverlayPanel extends UIOverlayPanel
     protected void fillsOverlay()
     {
         this.fits = false;
+
+        /* Nor the message's width: the overlay's default share fits a list better */
+        this.flex.w.set(0F, 0);
     }
 
     @Override
     public boolean isResizable()
     {
         return !this.fits;
-    }
-
-    @Override
-    public int getPreferredWidth()
-    {
-        return this.fits ? WIDTH : super.getPreferredWidth();
     }
 
     @Override

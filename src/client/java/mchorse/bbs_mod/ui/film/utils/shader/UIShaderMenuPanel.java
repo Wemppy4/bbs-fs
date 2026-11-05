@@ -64,10 +64,11 @@ public abstract class UIShaderMenuPanel extends UIOverlayPanel
     /** Opens the panel in the size its menu asks for, as far as the screen has room. */
     protected static void open(UIContext context, UIShaderMenuPanel panel)
     {
-        int width = Math.min(panel.preferredWidth(), (int) (context.menu.width * 0.95F));
-        int height = Math.min(panel.preferredHeight(), (int) (context.menu.height * 0.9F));
+        panel.w(0.95F).h(0.9F);
+        panel.getFlex().w.max = panel.preferredWidth();
+        panel.getFlex().h.max = panel.preferredHeight();
 
-        UIOverlay.addOverlay(context, panel, width, height);
+        UIOverlay.addOverlay(context, panel);
     }
 
     protected UIShaderMenuPanel(IKey title)

@@ -1277,7 +1277,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
 
         if (markers != null && marker != null)
         {
-            UIOverlay.addOverlay(this.getContext(), new UIMarkerOverlayPanel(marker), 220, 155);
+            UIOverlay.addOverlay(this.getContext(), new UIMarkerOverlayPanel(marker));
         }
     }
 

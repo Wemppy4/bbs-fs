@@ -21,6 +21,7 @@ public class UITextureExtractOverlayPanel extends UIOverlayPanel
     public UITextureExtractOverlayPanel(Link link, Pixels pixels)
     {
         super(UIKeys.TEXTURES_EXTRACT_FRAMES_TITLE);
+        this.wh(200, 231);
 
         this.title.tooltip(UIKeys.TEXTURES_EXTRACT_FRAMES_TOOLTIP);
 

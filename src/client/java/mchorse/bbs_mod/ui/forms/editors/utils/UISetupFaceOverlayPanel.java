@@ -27,6 +27,7 @@ public class UISetupFaceOverlayPanel extends UIOverlayPanel
     public UISetupFaceOverlayPanel(BiConsumer<String, Double> callback)
     {
         super(UIKeys.FORMS_EDITOR_SETUP_FACE_TITLE);
+        this.wh(240, 170);
 
         this.callback = callback;
         this.eyesRig = new UIButton(IKey.constant(this.model), (b) -> this.pickModel());

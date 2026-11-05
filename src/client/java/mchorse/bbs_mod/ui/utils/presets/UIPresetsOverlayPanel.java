@@ -8,7 +8,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 
 public class UIPresetsOverlayPanel extends UIListOverlayPanel {
@@ -21,6 +20,7 @@ public class UIPresetsOverlayPanel extends UIListOverlayPanel {
     public UIPresetsOverlayPanel(UICopyPasteController controller, int mouseX, int mouseY)
     {
         super(UIKeys.PRESETS_TITLE, null);
+        this.w(240);
 
         this.controller = controller;
         this.mouseX = mouseX;
@@ -83,8 +83,8 @@ public class UIPresetsOverlayPanel extends UIListOverlayPanel {
             UIUtils.openFolder(this.controller.manager.getFolder());
         });
 
-        save.tooltip(UIKeys.PRESETS_SAVE, Direction.LEFT);
-        folder.tooltip(UIKeys.PRESETS_OPEN, Direction.LEFT);
+        save.tooltip(UIKeys.PRESETS_SAVE);
+        folder.tooltip(UIKeys.PRESETS_OPEN);
         this.icons.add(save, folder);
     }
 

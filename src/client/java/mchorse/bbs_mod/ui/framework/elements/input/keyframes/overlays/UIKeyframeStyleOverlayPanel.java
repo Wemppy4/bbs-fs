@@ -42,6 +42,7 @@ public class UIKeyframeStyleOverlayPanel extends UIOverlayPanel
     public UIKeyframeStyleOverlayPanel(KeyframeStyle style, Consumer<KeyframeStyle> callback)
     {
         super(L10n.lang("bbs.ui.keyframes.keyframe_style.title"));
+        this.wh(220, 200);
 
         this.style = style.copy();
         this.callback = callback;

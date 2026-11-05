@@ -337,8 +337,7 @@ public class UIKeyframes extends UITimelineCanvas
             {
                 menu.action(Icons.BUCKET, UIKeys.KEYFRAMES_CONTEXT_TRACK_STYLE, () -> UIOverlay.addOverlay(
                     this.getContext(),
-                    new UITrackStyleOverlayPanel(hovered, this::refreshTrackStyles),
-                    220, 160
+                    new UITrackStyleOverlayPanel(hovered, this::refreshTrackStyles)
                 ));
             }
 
@@ -478,7 +477,7 @@ public class UIKeyframes extends UITimelineCanvas
                     keyframe.setStyle(style);
                 }
             }
-        }), 220, 200);
+        }));
     }
 
     private void toggleEnabled()

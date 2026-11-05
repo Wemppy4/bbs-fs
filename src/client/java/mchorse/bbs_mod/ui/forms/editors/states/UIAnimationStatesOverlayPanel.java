@@ -48,6 +48,7 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
     public UIAnimationStatesOverlayPanel(AnimationStates states, AnimationState current, Consumer<AnimationState> consumer)
     {
         super(UIKeys.FORMS_EDITOR_STATES_MANAGER_TITLE);
+        this.w(280).h(0.5F);
 
         this.copyPasteController = new UICopyPasteController(PresetManager.ANIMATION_STATES, "_CopyAnimationStates")
             .consumer((data, x, y) ->

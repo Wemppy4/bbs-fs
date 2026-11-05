@@ -39,7 +39,7 @@ public abstract class UICRUDDashboardPanel extends UIEditorDashboardPanel
 
         if (context != null)
         {
-            UIOverlay.addOverlay(context, this.overlay, Math.min(this.overlay.getPreferredWidth(), context.menu.overlay.area.w - 20), 0.8F);
+            UIOverlay.addOverlay(context, this.overlay);
         }
     }
 

@@ -39,6 +39,7 @@ public class UIKeyframeSheetFilterOverlayPanel extends UIOverlayPanel
     public UIKeyframeSheetFilterOverlayPanel(Set<String> disabled, Set<String> keys, Map<String, Integer> keyToColor, Map<String, IKey> keyToTitle)
     {
         super(UIKeys.FILM_REPLAY_FILTER_SHEETS_TITLE);
+        this.w(240).h(0.9F);
 
         /* Expand the legacy "hide everything" sentinel into concrete keys so the toggles below stay consistent. */
         if (!keys.isEmpty() && disabled.remove(Form.DISABLED_ALL))

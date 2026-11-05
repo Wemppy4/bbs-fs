@@ -263,6 +263,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
     private UIUnifiedPickOverlayPanel(PickerMode mode, Consumer<ItemStack> itemCallback, Consumer<BlockState> blockCallback, BiConsumer<String, String> mobCallback, ItemStack itemStack, BlockState blockState, String mobID, String mobNbt)
     {
         super(titleFor(mode));
+        this.wh(0.5F, 0.75F);
 
         this.mode = mode;
         this.itemCallback = itemCallback;

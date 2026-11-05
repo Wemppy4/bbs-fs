@@ -29,6 +29,7 @@ public class UIMarkerOverlayPanel extends UIOverlayPanel
     public UIMarkerOverlayPanel(FilmMarker marker)
     {
         super(UIKeys.FILM_MARKERS_TITLE);
+        this.wh(220, 155);
 
         this.marker = marker;
 

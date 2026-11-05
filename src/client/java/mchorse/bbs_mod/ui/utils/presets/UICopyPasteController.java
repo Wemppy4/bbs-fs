@@ -109,7 +109,7 @@ public class UICopyPasteController
 
     public void openPresets(UIContext context, int mouseX, int mouseY)
     {
-        UIOverlay.addOverlay(context, new UIPresetsOverlayPanel(this, mouseX, mouseY), 240, 0.5F);
+        UIOverlay.addOverlay(context, new UIPresetsOverlayPanel(this, mouseX, mouseY));
     }
 
     public boolean canCopy()

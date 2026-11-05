@@ -223,7 +223,7 @@ public class UIGeneralFormPanel extends UIFormPanel
 
         UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(disabled, keys, keyToColor, keyToTitle);
 
-        UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
+        UIOverlay.addOverlay(this.getContext(), panel);
 
         panel.onClose(e -> this.form.disabledTracks.set(disabled));
     }

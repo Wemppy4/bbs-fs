@@ -25,6 +25,7 @@ public class UIFilmMoveOverlayPanel extends UIMessageOverlayPanel
     public UIFilmMoveOverlayPanel(Consumer<Vector3d> callbackVector)
     {
         super(UIKeys.FILM_MOVE_TITLE, UIKeys.FILM_MOVE_DESCRIPTION);
+        this.wh(240, 140);
 
         this.callbackVector = callbackVector;
 
