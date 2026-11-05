@@ -41,6 +41,8 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.ContextAction;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
@@ -104,6 +106,13 @@ public class UIKeyframes extends UITimelineCanvas
     private final UIKeyframeMotionShift motionShift = new UIKeyframeMotionShift(this);
 
     /* Fields */
+
+    /**
+     * The groups of the timeline's menu, top to bottom: rows about the track under the mouse, about
+     * the selected keys (a row's default order) and about the view. See {@link #arrangeContextMenu}.
+     */
+    public static final int MENU_TRACK = -2;
+    public static final int MENU_VIEW = 0;
 
     public final Area graphArea = new Area();
 
@@ -316,49 +325,61 @@ public class UIKeyframes extends UITimelineCanvas
             int mouseY = context.mouseY;
             boolean hasSelected = this.currentGraph.getSelected() != null;
 
-            this.copyPasteController.install(menu, context, mouseX, mouseY);
-            this.loops.menu(menu, context);
-
-            menu.icon(MenuVerb.REMOVE, () -> this.currentGraph.removeSelected()).label(UIKeys.KEYFRAMES_CONTEXT_REMOVE).enabled(hasSelected);
-
             UIKeyframeSheet hovered = this.currentGraph.getSheet(mouseX, mouseY);
-
-            if (this.isEditing())
-            {
-                menu.action(Icons.KEY, UIKeys.KEYFRAMES_MODE_KEYS, () -> this.setGraphMode(false));
-            }
-            else
-            {
-                menu.action(Icons.GRAPH, UIKeys.KEYFRAMES_MODE_GRAPH, () -> this.setGraphMode(true));
-            }
 
             if (hovered != null)
             {
                 menu.action(Icons.BUCKET, UIKeys.KEYFRAMES_CONTEXT_TRACK_STYLE, () -> this.getContext().replaceContextMenu(
                     new UITrackStylePopup(hovered, this::refreshTrackStyles)
-                ));
+                )).order(MENU_TRACK);
             }
+
+            if (this.isOverTrackName(context))
+            {
+                return;
+            }
+
+            this.copyPasteController.install(menu, context, mouseX, mouseY);
+
+            menu.icon(MenuVerb.REMOVE, () -> this.currentGraph.removeSelected()).label(UIKeys.KEYFRAMES_CONTEXT_REMOVE).enabled(hasSelected);
+
+            if (this.isEditing())
+            {
+                menu.action(Icons.KEY, UIKeys.KEYFRAMES_MODE_KEYS, () -> this.setGraphMode(false)).order(MENU_VIEW);
+            }
+            else
+            {
+                menu.action(Icons.GRAPH, UIKeys.KEYFRAMES_MODE_GRAPH, () -> this.setGraphMode(true)).order(MENU_VIEW);
+            }
+
+            menu.action(Icons.MAXIMIZE, this.isEditing() ? UIKeys.KEYFRAMES_GRAPH_FIT_ALL : UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, this::resetView).order(MENU_VIEW);
+
+            if (this.isEditing() && hasSelected)
+            {
+                menu.action(Icons.SEARCH, UIKeys.KEYFRAMES_GRAPH_FIT_SELECTED, this.curveGraph::fitSelection).order(MENU_VIEW);
+            }
+
+            menu.action(Icons.FULLSCREEN, UIKeys.KEYFRAMES_CONTEXT_SELECT_ALL, () -> this.currentGraph.selectAll()).order(MENU_VIEW);
+            menu.action(Icons.ARROW_LEFT, UIKeys.KEYFRAMES_KEYS_SELECT_LEFT, () -> this.selectAfter(mouseX, mouseY, -1)).order(MENU_VIEW);
+            menu.action(Icons.ARROW_RIGHT, UIKeys.KEYFRAMES_KEYS_SELECT_RIGHT, () -> this.selectAfter(mouseX, mouseY, 1)).order(MENU_VIEW);
 
             if (hasSelected)
             {
                 menu.action(Icons.SHAPES, UIKeys.KEYFRAMES_CONTEXT_KEYFRAME_STYLE, this::editKeyframeStyle);
             }
 
-            menu.action(Icons.SEARCH, UIKeys.KEYFRAMES_CONTEXT_ADJUST_VALUES, () -> this.adjustValues());
-            menu.action(Icons.ARROW_LEFT, UIKeys.KEYFRAMES_KEYS_SELECT_LEFT, () -> this.selectAfter(mouseX, mouseY, -1));
-            menu.action(Icons.ARROW_RIGHT, UIKeys.KEYFRAMES_KEYS_SELECT_RIGHT, () -> this.selectAfter(mouseX, mouseY, 1));
-
-            menu.action(Icons.MAXIMIZE, this.isEditing() ? UIKeys.KEYFRAMES_GRAPH_FIT_ALL : UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, this::resetView);
-            if (this.isEditing() && hasSelected)
-            {
-                menu.action(Icons.SEARCH, UIKeys.KEYFRAMES_GRAPH_FIT_SELECTED, this.curveGraph::fitSelection);
-                menu.action(Icons.SCALE, UIKeys.KEYFRAMES_GRAPH_SCALE_TIME, () -> this.startScaling(false));
-                menu.action(Icons.SCALE, UIKeys.KEYFRAMES_GRAPH_SCALE_VALUE, () -> this.startScaling(true));
-            }
-            menu.action(Icons.FULLSCREEN, UIKeys.KEYFRAMES_CONTEXT_SELECT_ALL, () -> this.currentGraph.selectAll());
+            this.loops.menu(menu, context);
 
             if (hasSelected)
             {
+                menu.action(Icons.SEARCH, UIKeys.KEYFRAMES_CONTEXT_ADJUST_VALUES, () -> this.adjustValues());
+
+                if (this.isEditing())
+                {
+                    menu.action(Icons.SCALE, UIKeys.KEYFRAMES_GRAPH_SCALE_TIME, () -> this.startScaling(false));
+                    menu.action(Icons.SCALE, UIKeys.KEYFRAMES_GRAPH_SCALE_VALUE, () -> this.startScaling(true));
+                }
+
                 menu.action(Icons.EXCHANGE, UIKeys.KEYFRAMES_CONTEXT_FLIP, this::flipKeyframes);
                 menu.action(Icons.CONVERT, UIKeys.KEYFRAMES_CONTEXT_SPREAD, this::spreadKeyframes);
                 menu.action(Icons.OUTLINE_SPHERE, UIKeys.KEYFRAMES_CONTEXT_ROUND, () ->
@@ -450,6 +471,40 @@ public class UIKeyframes extends UITimelineCanvas
     public int getLabelWidth()
     {
         return BBSSettings.editorLayoutSettings.getKeyframeLabelWidth();
+    }
+
+    /** Whether the mouse is on a track's name rather than out on the timeline. */
+    public boolean isOverTrackName(UIContext context)
+    {
+        return context.mouseX < this.graphArea.x && this.currentGraph.getSheet(context.mouseX, context.mouseY) != null;
+    }
+
+    /**
+     * A track's name offers just the rows about that track. On the timeline they lead the menu, unless
+     * keys are selected: then the menu is about those keys and the track's rows wait one click away.
+     */
+    @Override
+    protected void arrangeContextMenu(UIContext context, ContextMenuManager menu)
+    {
+        List<ContextAction> track = new ArrayList<>();
+
+        for (ContextAction action : menu.actions)
+        {
+            if (action.order == MENU_TRACK)
+            {
+                track.add(action);
+            }
+        }
+
+        if (this.isOverTrackName(context))
+        {
+            menu.actions.retainAll(track);
+        }
+        else if (this.currentGraph.getSelected() != null && !track.isEmpty())
+        {
+            menu.actions.removeAll(track);
+            menu.action(Icons.LIST, UIKeys.KEYFRAMES_CONTEXT_TRACK, () -> context.replaceContextMenu((sub) -> sub.actions.addAll(track)));
+        }
     }
 
     /**

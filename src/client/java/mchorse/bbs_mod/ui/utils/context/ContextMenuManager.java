@@ -139,6 +139,12 @@ public class ContextMenuManager
 
         this.actions.sort(Comparator.comparingInt((a) -> a.order));
 
+        /* Rows of one order make a group, and a line tells the groups apart */
+        for (int i = 1; i < this.actions.size(); i++)
+        {
+            this.actions.get(i).divided = this.actions.get(i).order != this.actions.get(i - 1).order;
+        }
+
         contextMenu.actions.add(this.actions);
         contextMenu.getEvents().register(UIRemovedEvent.class, this.onClose);
 

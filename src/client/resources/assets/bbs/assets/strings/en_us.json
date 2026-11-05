@@ -1749,6 +1749,7 @@
 	"bbs.ui.keyframes.context.round": "Round keyframes' tick",
 	"bbs.ui.keyframes.context.select_all": "Select all",
 	"bbs.ui.keyframes.context.spread": "Spread keyframes equally",
+	"bbs.ui.keyframes.context.track": "Track...",
 	"bbs.ui.keyframes.context.track_style": "Track appearance...",
 	"bbs.ui.keyframes.track_style.title": "Track appearance",
 	"bbs.ui.keyframes.track_style.key": "Key: %s",

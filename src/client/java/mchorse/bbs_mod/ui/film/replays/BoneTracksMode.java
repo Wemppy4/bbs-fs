@@ -10,6 +10,7 @@ import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -356,7 +357,7 @@ public class BoneTracksMode
             }
 
             refresh.run();
-        });
+        }).order(UIKeyframes.MENU_TRACK);
     }
 
     /** Whether some bone needs a row it doesn't have yet. Rebuild the timeline once nothing is being dragged. */

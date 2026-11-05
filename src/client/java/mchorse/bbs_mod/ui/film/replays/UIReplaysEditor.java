@@ -722,7 +722,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.keyframeEditor.view.duration(() -> this.film.camera.calculateDuration());
             this.keyframeEditor.view.context(menu ->
             {
-                menu.action(Icons.SEARCH, Keys.FILM_TRACK_SEARCH.label, this::openTrackSearch);
                 int mouseY = this.getContext().mouseY;
                 UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(this.getContext().mouseX, mouseY);
 
@@ -760,22 +759,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                                     },
                                 poseModelForm, sheet));
                         }
-                    });
-
-                }
-
-                /* Not gated on a MODEL form: baking a pose into per-bone tracks is a pose
-                 * operation, and a mob form has a skeleton to bake onto just the same. */
-                if (posedForm != null && sheet.selection.hasAny())
-                {
-                    menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
-                    {
-                        if (UIReplaysEditorUtils.posesToLimbTracks(this.replay.properties, sheet))
-                        {
-                            this.getExpandedTracks().set(sheet.id, true);
-                            this.updateChannelsList();
-                        }
-                    });
+                    }).order(UIKeyframes.MENU_TRACK);
                 }
 
                 if (this.replay.form.get() instanceof ModelForm modelForm)
@@ -806,10 +790,25 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                                     this.updateChannelsList();
                                 }
                             }));
-                        });
+                        }).order(UIKeyframes.MENU_TRACK);
                     }
                 }
 
+                /* Not gated on a MODEL form: baking a pose into per-bone tracks is a pose
+                 * operation, and a mob form has a skeleton to bake onto just the same. */
+                if (posedForm != null && sheet.selection.hasAny())
+                {
+                    menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
+                    {
+                        if (UIReplaysEditorUtils.posesToLimbTracks(this.replay.properties, sheet))
+                        {
+                            this.getExpandedTracks().set(sheet.id, true);
+                            this.updateChannelsList();
+                        }
+                    });
+                }
+
+                menu.action(Icons.SEARCH, Keys.FILM_TRACK_SEARCH.label, this::openTrackSearch).order(UIKeyframes.MENU_VIEW);
                 menu.action(Icons.FILTER, UIKeys.FILM_REPLAY_FILTER_SHEETS, () ->
                 {
                     Set<String> disabledSet = BBSSettings.disabledSheets.get();
@@ -835,7 +834,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                         BBSSettings.disabledSheets.set(disabledSet);
                         this.updateChannelsList();
                     });
-                });
+                }).order(UIKeyframes.MENU_VIEW);
 
             });
 

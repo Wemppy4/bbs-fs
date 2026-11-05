@@ -451,7 +451,6 @@ public class UIAnimationStateEditor extends UIElement
             this.keyframeEditor.view.duration(() -> this.state.duration.get());
             this.keyframeEditor.view.context((menu) ->
             {
-                menu.action(Icons.SEARCH, Keys.FILM_TRACK_SEARCH.label, this::openTrackSearch);
                 int mouseY = this.getContext().mouseY;
                 UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(this.getContext().mouseX, mouseY);
 
@@ -464,19 +463,6 @@ public class UIAnimationStateEditor extends UIElement
                 if (bones)
                 {
                     this.bonesMode.addRemoveAction(menu, sheet, () -> this.setState(this.state));
-                }
-
-                IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
-                if (posedForm != null && sheet.selection.hasAny())
-                {
-                    menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
-                    {
-                        if (UIReplaysEditorUtils.posesToLimbTracks(this.state.properties, sheet))
-                        {
-                            this.expandedTabs.set(sheet.id, true);
-                            this.setState(this.state);
-                        }
-                    });
                 }
 
                 ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
@@ -497,9 +483,23 @@ public class UIAnimationStateEditor extends UIElement
                                 UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
                             }, poseModelForm, sheet));
                         }
+                    }).order(UIKeyframes.MENU_TRACK);
+                }
+
+                IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
+                if (posedForm != null && sheet.selection.hasAny())
+                {
+                    menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
+                    {
+                        if (UIReplaysEditorUtils.posesToLimbTracks(this.state.properties, sheet))
+                        {
+                            this.expandedTabs.set(sheet.id, true);
+                            this.setState(this.state);
+                        }
                     });
                 }
 
+                menu.action(Icons.SEARCH, Keys.FILM_TRACK_SEARCH.label, this::openTrackSearch).order(UIKeyframes.MENU_VIEW);
                 menu.action(Icons.FILTER, UIKeys.FILM_REPLAY_FILTER_SHEETS, () ->
                 {
                     Map<String, Integer> keyToColor = new HashMap<>();
@@ -519,7 +519,7 @@ public class UIAnimationStateEditor extends UIElement
                         this.setState(this.state);
                         BBSSettings.disabledSheets.set(BBSSettings.disabledSheets.get());
                     });
-                });
+                }).order(UIKeyframes.MENU_VIEW);
 
             });
 
