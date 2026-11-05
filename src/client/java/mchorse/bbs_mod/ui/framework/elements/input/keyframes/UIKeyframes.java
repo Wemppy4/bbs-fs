@@ -1533,7 +1533,10 @@ public class UIKeyframes extends UITimelineCanvas
 
         if (!keyframes.isEmpty())
         {
-            this.currentGraph.removeKeyframes(keyframes);
+            if (!this.currentGraph.completeColumn(context.mouseX, context.mouseY))
+            {
+                this.currentGraph.removeKeyframes(keyframes);
+            }
         }
         else
         {

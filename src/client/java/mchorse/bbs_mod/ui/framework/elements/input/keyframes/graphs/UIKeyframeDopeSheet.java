@@ -713,6 +713,42 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     }
 
     /**
+     * Ctrl+click on a summary mark that stands for only some of the heading's animated tracks keys
+     * the rest at its tick: a column can be made where a key already stands. A full column is left
+     * to be removed as before.
+     */
+    @Override
+    public boolean completeColumn(int mouseX, int mouseY)
+    {
+        UIKeyframeSheet.Section section = this.getSection(mouseY);
+
+        if (section == null) return false;
+
+        SummaryMark mark = this.findSummaryMark(section, mouseX, mouseY);
+
+        if (mark == null) return false;
+
+        float tick = mark.keyframes.get(0).getTick();
+
+        for (UIKeyframeSheet sheet : this.getAnimatedTracks(section))
+        {
+            if (!this.hasKeyframeAt(sheet, tick)) return this.addSummaryKeyframes(section, tick);
+        }
+
+        return false;
+    }
+
+    private boolean hasKeyframeAt(UIKeyframeSheet sheet, float tick)
+    {
+        for (Object object : sheet.channel.getKeyframes())
+        {
+            if (((Keyframe) object).getTick() == tick) return true;
+        }
+
+        return false;
+    }
+
+    /**
      * The tracks inside a heading that already have keyframes — the ones a key on the heading goes to.
      * None with the summary turned off: a heading is then only a fold.
      */

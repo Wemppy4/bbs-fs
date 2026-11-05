@@ -205,6 +205,15 @@ public interface IUIKeyframeGraph
         return keyframe;
     }
 
+    /**
+     * Fill the column under the cursor if it is only partly keyed, instead of removing it. Only a
+     * heading's summary has columns, so a plain graph has nothing to fill.
+     */
+    public default boolean completeColumn(int mouseX, int mouseY)
+    {
+        return false;
+    }
+
     public default void removeKeyframe(Keyframe keyframe)
     {
         this.removeKeyframes(Collections.singletonList(keyframe));
