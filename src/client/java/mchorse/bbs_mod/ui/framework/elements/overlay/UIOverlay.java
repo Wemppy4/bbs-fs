@@ -21,8 +21,9 @@ public class UIOverlay extends UIElement
     private static final Map<String, Vector2i> sizes = new HashMap<>();
 
     /**
-     * How large a panel opened without a size may grow. The default is a share of the screen, and a
-     * share of a wide one is a lot of empty box around content that doesn't grow with it.
+     * How large a panel that didn't say how big it is may grow. The default is a share of the
+     * screen, and a share of a wide one is a lot of empty box around content that doesn't grow
+     * with it.
      */
     private static final int MAX_WIDTH = 420;
     private static final int MAX_HEIGHT = 340;
@@ -30,88 +31,40 @@ public class UIOverlay extends UIElement
     /** Null means the dimming from the settings; a set value overrides it. */
     private Integer background;
 
+    /**
+     * Opens the panel in the middle of the screen. How big it is, is the panel's own business: it
+     * sets its width and height in its constructor like any other element, and an axis it leaves
+     * alone gets the default share of the screen.
+     */
     public static UIOverlay addOverlay(UIContext context, UIOverlayPanel panel)
     {
         UIOverlay overlay = new UIOverlay();
-        int width = panel.getPreferredWidth();
+        Flex flex = panel.getFlex();
 
-        panel.relative(overlay).xy(0.5F, 0.5F).wh(0.5F, 0.5F).anchor(0.5F).bounds(overlay, 0);
+        panel.relative(overlay).xy(0.5F, 0.5F).anchor(0.5F).bounds(overlay, 0);
 
-        if (width > 0)
+        if (isUnset(flex.w))
         {
-            panel.w(width);
-        }
-        else
-        {
-            panel.getFlex().w.max = MAX_WIDTH;
+            flex.w.set(0.5F);
+            flex.w.max = MAX_WIDTH;
         }
 
-        panel.getFlex().h.max = MAX_HEIGHT;
-        panel.sizeless();
+        /* Only a panel that didn't pick its height gets to measure it from its content */
+        if (isUnset(flex.h))
+        {
+            flex.h.set(0.5F);
+            flex.h.max = MAX_HEIGHT;
+            panel.sizeless();
+        }
 
         setupPanel(context, overlay, panel);
 
         return overlay;
     }
 
-    public static UIOverlay addOverlay(UIContext context, UIOverlayPanel panel, float w, float h)
+    private static boolean isUnset(Flex.Unit unit)
     {
-        UIOverlay overlay = new UIOverlay();
-
-        panel.relative(overlay).xy(0.5F, 0.5F).wh(w, h).anchor(0.5F).bounds(overlay, 0);
-        setupPanel(context, overlay, panel);
-
-        return overlay;
-    }
-
-    public static UIOverlay addOverlay(UIContext context, UIOverlayPanel panel, int w, int h)
-    {
-        UIOverlay overlay = new UIOverlay();
-
-        panel.relative(overlay).xy(0.5F, 0.5F).wh(w, h).anchor(0.5F).bounds(overlay, 0);
-        setupPanel(context, overlay, panel);
-
-        return overlay;
-    }
-
-    public static UIOverlay addOverlay(UIContext context, UIOverlayPanel panel, int w, float h)
-    {
-        UIOverlay overlay = new UIOverlay();
-
-        panel.relative(overlay).xy(0.5F, 0.5F).w(w).h(h).anchor(0.5F).bounds(overlay, 0);
-        setupPanel(context, overlay, panel);
-
-        return overlay;
-    }
-
-    public static UIOverlay addOverlayLeft(UIContext context, UIOverlayPanel panel, int w)
-    {
-        return addOverlayLeft(context, panel, w, 10);
-    }
-
-    public static UIOverlay addOverlayLeft(UIContext context, UIOverlayPanel panel, int w, int padding)
-    {
-        UIOverlay overlay = new UIOverlay();
-
-        panel.relative(overlay).x(padding).y(padding).w(w).h(1F, -padding * 2).anchor(0F, 0F).bounds(overlay, 0);
-        setupPanel(context, overlay, panel);
-
-        return overlay;
-    }
-
-    public static UIOverlay addOverlayRight(UIContext context, UIOverlayPanel panel, int w)
-    {
-        return addOverlayRight(context, panel, w, 10);
-    }
-
-    public static UIOverlay addOverlayRight(UIContext context, UIOverlayPanel panel, int w, int padding)
-    {
-        UIOverlay overlay = new UIOverlay();
-
-        panel.relative(overlay).x(1F, -padding).y(padding).w(w).h(1F, -padding * 2).anchor(1F, 0F).bounds(overlay, 0);
-        setupPanel(context, overlay, panel);
-
-        return overlay;
+        return unit.value == 0F && unit.offset == 0 && unit.target == null;
     }
 
     public static void setupPanel(UIContext context, UIOverlay overlay, UIOverlayPanel panel)
@@ -189,6 +142,11 @@ public class UIOverlay extends UIElement
                 Vector2i size = new Vector2i(element.getFlex().w.offset, element.getFlex().h.offset);
 
                 sizes.put(element.getClass().getSimpleName(), size);
+            }
+            else
+            {
+                /* Sized once and then reset with Ctrl+click: back to opening at its own size */
+                sizes.remove(element.getClass().getSimpleName());
             }
         }
     }

@@ -800,7 +800,7 @@ public class UITexturePainter extends UIElement
                 {
                     this.setAnimated(editor, false);
                 }
-            });
+            }).verb(UIKeys.GENERAL_REMOVE).danger();
 
             UIOverlay.addOverlay(this.getContext(), panel);
         }

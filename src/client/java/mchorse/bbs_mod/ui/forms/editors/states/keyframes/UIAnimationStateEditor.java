@@ -495,7 +495,7 @@ public class UIAnimationStateEditor extends UIElement
                                 IEntity entity = this.editor.renderer.getTargetEntity();
 
                                 UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
-                            }, poseModelForm, sheet), 200, 197);
+                            }, poseModelForm, sheet));
                         }
                     });
                 }
@@ -511,7 +511,7 @@ public class UIAnimationStateEditor extends UIElement
                     }
                     UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(BBSSettings.disabledSheets.get(), this.keys, keyToColor, keyToTitle);
 
-                    UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
+                    UIOverlay.addOverlay(this.getContext(), panel);
 
                     panel.onClose((e) ->
                     {

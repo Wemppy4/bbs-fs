@@ -35,7 +35,7 @@ public class UIBillboardFormPanel extends UIFormPanel<BillboardForm>
 
         UIButton openCrop = new UIButton(UIKeys.FORMS_EDITORS_BILLBOARD_EDIT_CROP, (b) ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UICropOverlayPanel(this.form.texture.get(), this.form.crop.get()), 0.5F, 0.5F);
+            UIOverlay.addOverlay(this.getContext(), new UICropOverlayPanel(this.form.texture.get(), this.form.crop.get()));
         });
 
         this.options.add(

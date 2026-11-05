@@ -290,7 +290,7 @@ public class UIFilmPreview extends UIElement
                 UISettingsOverlayPanel panel = new UISettingsOverlayPanel();
 
                 panel.showCategory("bbs", "video");
-                UIOverlay.addOverlay(this.getContext(), panel, 430, 400);
+                UIOverlay.addOverlay(this.getContext(), panel);
             });
 
             menu.action(Icons.VIDEO_CAMERA, UIKeys.FILM_RENDER_QUEUE, this::exportQueueFromTabs);
@@ -395,7 +395,7 @@ public class UIFilmPreview extends UIElement
             UIMessageOverlayPanel panel = new UIMessageOverlayPanel(UIKeys.GENERAL_WARNING, UIKeys.GENERAL_FFMPEG_ERROR_DESCRIPTION);
             UIIcon guide = new UIIcon(Icons.HELP, (bb) -> UIUtils.openWebLink(UIKeys.GENERAL_FFMPEG_ERROR_GUIDE_LINK.get()));
 
-            guide.tooltip(UIKeys.GENERAL_FFMPEG_ERROR_GUIDE, Direction.LEFT);
+            guide.tooltip(UIKeys.GENERAL_FFMPEG_ERROR_GUIDE);
             panel.icons.add(guide);
 
             UIOverlay.addOverlay(this.getContext(), panel);

@@ -88,7 +88,7 @@ public class UIItemStack extends UIElement
 
             panel.onClose((a) -> this.opened = false);
 
-            UIOverlay.addOverlay(this.getContext(), panel, 0.5F, 0.75F);
+            UIOverlay.addOverlay(this.getContext(), panel);
             UIUtils.playClick();
 
             return true;

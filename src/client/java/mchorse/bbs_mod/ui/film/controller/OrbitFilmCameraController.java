@@ -284,6 +284,75 @@ public class OrbitFilmCameraController extends OrbitViewportController
                 BBSRendering.setTerrainCut(center, this.getWallCutDepth());
             }
         }
+
+        this.traceCamera(camera, transition, "");
+    }
+
+    @Override
+    public void follow(Camera camera, float transition)
+    {
+        super.follow(camera, transition);
+
+        this.traceCamera(camera, transition, "F");
+    }
+
+    /* TEMPORARY diagnostics (OrbitTrace): remove with it */
+
+    private final OrbitTrace trace = new OrbitTrace();
+    private boolean traceFallback;
+
+    @Override
+    protected void noteInput(String what)
+    {
+        if (this.trace != null)
+        {
+            this.trace.input(what);
+        }
+    }
+
+    private void traceAnchor(Subject subject, String key, boolean keyChanged, boolean moved, boolean follow, boolean timeMoved, boolean placedMoved, Vector3d position, Quaternionf rotation, Matrix4f frame, float time, boolean turning)
+    {
+        if (this.trace == null)
+        {
+            return;
+        }
+
+        String decision = keyChanged ? "KEY" : !moved ? "-" : follow ? "FOLLOW" : "REBASE";
+        String why = (timeMoved ? "t" : "") + (placedMoved ? "p" : "") + (this.controller.isControlling() ? "h" : "") + (this.controller.isRecording() ? "r" : "");
+        float dot = Math.abs(rotation.x * this.anchorRotation.x + rotation.y * this.anchorRotation.y + rotation.z * this.anchorRotation.z + rotation.w * this.anchorRotation.w);
+        float dr = (float) Math.toDegrees(2D * Math.acos(Math.min(1F, dot)));
+        String name = subject == null ? "none" : (subject.path() == null ? "actor" : subject.path()) + (turning ? "+turn" : "");
+        float det = frame == null ? 0F : frame.determinant3x3();
+        float sx = frame == null ? 0F : (float) Math.sqrt(frame.m00() * frame.m00() + frame.m01() * frame.m01() + frame.m02() * frame.m02());
+        float sy = frame == null ? 0F : (float) Math.sqrt(frame.m10() * frame.m10() + frame.m11() * frame.m11() + frame.m12() * frame.m12());
+        float sz = frame == null ? 0F : (float) Math.sqrt(frame.m20() * frame.m20() + frame.m21() * frame.m21() + frame.m22() * frame.m22());
+
+        this.trace.anchor(decision, why, position.distance(this.anchorPosition), dr, time, this.placedTick, name, this.traceFallback, det, sx, sy, sz);
+    }
+
+    private void traceCamera(Camera camera, float transition, String extra)
+    {
+        if (this.trace == null)
+        {
+            return;
+        }
+
+        Vector3f subject = this.getSubjectPivot(transition);
+        Vector3f local = null;
+
+        if (subject != null)
+        {
+            Quaternionf turn = new Quaternionf(this.anchorRotation).mul(orbitRotation(this.rotation.y, this.rotation.x));
+
+            local = turn.transformInverse(subject.sub((float) camera.position.x, (float) camera.position.y, (float) camera.position.z));
+        }
+
+        String flags = (this.isAttached() ? "A" : "") + (this.isTurningWithAnchor() ? "W" : "")
+            + (this.controller.isPlaying() ? "P" : "") + (this.controller.isControlling() ? "H" : "")
+            + (this.controller.isRecording() ? "R" : "") + extra;
+        float smoothing = this.pivot.distance(this.targetPivot) + Math.abs(this.rotation.x - this.targetRotation.x) + Math.abs(this.rotation.y - this.targetRotation.y);
+
+        this.trace.camera(local, flags, this.distance, smoothing);
     }
 
     /**
@@ -319,15 +388,20 @@ public class OrbitFilmCameraController extends OrbitViewportController
         Vector3d position = new Vector3d();
         Quaternionf rotation = new Quaternionf();
         float time = this.controller.panel.getCursor(transition);
-        boolean follow = time != this.anchorTime || this.placedTick != this.anchorPlacedTick
-            || this.controller.isControlling() || this.controller.isRecording();
+        boolean timeMoved = time != this.anchorTime;
+        boolean placedMoved = this.placedTick != this.anchorPlacedTick;
+        boolean follow = timeMoved || placedMoved || this.controller.isControlling() || this.controller.isRecording();
 
         this.anchorTime = time;
         this.anchorPlacedTick = this.placedTick;
 
+        Matrix4f frame = null;
+
+        this.traceFallback = false;
+
         if (subject != null)
         {
-            Matrix4f frame = this.getFrame(subject, transition);
+            frame = this.getFrame(subject, transition);
             Vector3f translation = frame.getTranslation(new Vector3f());
 
             position.set(translation.x, translation.y, translation.z);
@@ -339,8 +413,11 @@ public class OrbitFilmCameraController extends OrbitViewportController
         }
 
         boolean moved = !position.equals(this.anchorPosition) || !rotation.equals(this.anchorRotation);
+        boolean keyChanged = !Objects.equals(key, this.anchorKey);
 
-        if (!Objects.equals(key, this.anchorKey) || (moved && !follow))
+        this.traceAnchor(subject, key, keyChanged, moved, follow, timeMoved, placedMoved, position, rotation, frame, time, turning);
+
+        if (keyChanged || (moved && !follow))
         {
             this.anchorKey = key;
             this.anchorReplay = subject == null ? null : subject.replay();
@@ -376,6 +453,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
             return matrix;
         }
 
+        this.traceFallback = subject.path() != null;
+
         IEntity entity = subject.entity();
         FormRenderer renderer = FormUtilsClient.getRenderer(entity.getForm());
 
@@ -410,6 +489,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
     {
         super.reset();
 
+        this.noteInput("reset");
         this.anchorKey = null;
         this.anchorReplay = null;
         this.anchorTime = Float.NaN;

@@ -214,7 +214,7 @@ public class UITextureEditor extends UIPixelsEditor
             return file != null;
         });
 
-        UIOverlay.addOverlay(this.getContext(), panel, 530, 340);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     /** Called from UITexturePainter resize icon. Opens the resize overlay. */
@@ -249,7 +249,7 @@ public class UITextureEditor extends UIPixelsEditor
         
         UITextureExtractOverlayPanel panel = new UITextureExtractOverlayPanel(this.getTexture(), flattened);
         panel.onClose((e) -> flattened.delete());
-        UIOverlay.addOverlay(this.getContext(), panel, 200, 231);
+        UIOverlay.addOverlay(this.getContext(), panel);
     }
 
     public UITextureEditor saveCallback(Consumer<Link> saveCallback)

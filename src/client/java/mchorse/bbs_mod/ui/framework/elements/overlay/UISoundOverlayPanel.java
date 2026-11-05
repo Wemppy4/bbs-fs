@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.screenplay.UIAudioPlayer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UILikeableStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UILikedSoundList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
@@ -90,15 +91,17 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
                 return;
             }
             
-            UIPromptOverlayPanel renamePanel = new UIPromptOverlayPanel(
+            UIPromptPopup renamePanel = new UIPromptPopup(
                 UIKeys.GENERAL_RENAME,
                 UIKeys.GENERAL_RENAME,
                 (newName) -> this.renameAudio(soundName, newName)
             );
+
+            renamePanel.verb(UIKeys.GENERAL_RENAME);
             renamePanel.text.setText(soundName);
             renamePanel.text.filename();
             
-            UIOverlay.addOverlay(this.context, renamePanel);
+            this.context.replaceContextMenu(renamePanel);
         });
         
         likeableList.setRemoveCallback((soundName) ->
@@ -118,7 +121,7 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
                         this.deleteAudio(soundName);
                     }
                 }
-            );
+            ).verb(UIKeys.GENERAL_REMOVE).danger();
             
             UIOverlay.addOverlay(this.context, confirmPanel);
         });
@@ -180,15 +183,15 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
 
         this.folderButton = new UIIcon(Icons.FOLDER, (b) -> this.switchToMode(ViewMode.FOLDER));
         this.folderButton.tooltip(UIKeys.OVERLAYS_SOUNDS_FOLDER_MODE);
-        this.folderButton.highlight(() -> this.currentMode == ViewMode.FOLDER, Direction.LEFT);
+        this.folderButton.highlight(() -> this.currentMode == ViewMode.FOLDER, Direction.BOTTOM);
 
         this.addButton = new UIIcon(Icons.ADD, (b) -> this.switchToMode(ViewMode.ADD));
         this.addButton.tooltip(UIKeys.OVERLAYS_SOUNDS_ADD_MODE);
-        this.addButton.highlight(() -> this.currentMode == ViewMode.ADD, Direction.LEFT);
+        this.addButton.highlight(() -> this.currentMode == ViewMode.ADD, Direction.BOTTOM);
 
         this.likeButton = new UIIcon(Icons.HEART_ALT, (b) -> this.switchToMode(ViewMode.LIKE));
         this.likeButton.tooltip(UIKeys.OVERLAYS_SOUNDS_LIKE_MODE);
-        this.likeButton.highlight(() -> this.currentMode == ViewMode.LIKE, Direction.LEFT);
+        this.likeButton.highlight(() -> this.currentMode == ViewMode.LIKE, Direction.BOTTOM);
 
         this.icons.add(this.folderButton, this.addButton, this.likeButton);
 

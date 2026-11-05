@@ -45,6 +45,8 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.context.UINumberPopup;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -52,9 +54,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
 import mchorse.bbs_mod.ui.framework.elements.layout.UIDockLayout;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
@@ -637,7 +637,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.flushUndo();
 
-            UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.FILM_HISTORY_TITLE, this.getUndoHandler().getUndoManager(), this::getData, null), 200, 0.6F);
+            UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.FILM_HISTORY_TITLE, this.getUndoHandler().getUndoManager(), this::getData, null));
         });
 
         menu.action(Icons.ARROW_RIGHT, UIKeys.FILM_MOVE_TITLE, () ->
@@ -672,12 +672,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
             panel.difference(this::getMoveToPlayerOffset);
 
-            UIOverlay.addOverlay(this.getContext(), panel, 240, 140);
+            UIOverlay.addOverlay(this.getContext(), panel);
         });
 
         menu.action(Icons.TIME, UIKeys.FILM_INSERT_SPACE_TITLE, () ->
         {
-            UINumberOverlayPanel panel = new UINumberOverlayPanel(UIKeys.FILM_INSERT_SPACE_TITLE, UIKeys.FILM_INSERT_SPACE_DESCRIPTION, (d) ->
+            UINumberPopup panel = new UINumberPopup(UIKeys.FILM_INSERT_SPACE_TITLE, UIKeys.FILM_INSERT_SPACE_DESCRIPTION, (d) ->
             {
                 int tick = this.getCursor();
                 int ticks = d.intValue();
@@ -690,17 +690,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
             panel.value.limit(1).integer().setValue(1D);
 
-            UIOverlay.addOverlay(this.getContext(), panel);
+            this.getContext().replaceContextMenu(panel);
         });
 
         menu.action(Icons.GEAR, UIKeys.FILM_PLAYER_SETTINGS, () ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UIFilmPlayerSettingsOverlayPanel(this.getData(), this.getCursor()), 280, 0.4F);
+            UIOverlay.addOverlay(this.getContext(), new UIFilmPlayerSettingsOverlayPanel(this.getData(), this.getCursor()));
         });
 
         menu.action(Icons.HELP, L10n.lang("bbs.ui.film.details.button"), () ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UIFilmDetailsOverlayPanel(this.getData()), 300, 260);
+            UIOverlay.addOverlay(this.getContext(), new UIFilmDetailsOverlayPanel(this.getData()));
         });
     }
 
@@ -1077,16 +1077,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.duplicateFilm = new UIIcon(Icons.SCENE, (b) ->
         {
-            UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+            UIPromptPopup panel = new UIPromptPopup(
                 UIKeys.GENERAL_DUPE,
                 UIKeys.PANELS_MODALS_DUPE,
                 (str) -> this.dupeData(crudPanel.namesList.getPath(str).toString())
             );
 
+            panel.verb(UIKeys.GENERAL_DUPE);
             panel.text.setText(crudPanel.namesList.getCurrentFirst().getLast());
             panel.text.filename();
 
-            UIOverlay.addOverlay(this.getContext(), panel);
+            this.getContext().replaceContextMenu(panel);
         });
 
         crudPanel.icons.add(this.duplicateFilm);

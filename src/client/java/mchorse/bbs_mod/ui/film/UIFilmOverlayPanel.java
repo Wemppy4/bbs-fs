@@ -7,9 +7,9 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UIDataOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.repos.IRepository;
@@ -23,6 +23,7 @@ public class UIFilmOverlayPanel extends UIDataOverlayPanel<Film>
     public UIFilmOverlayPanel(IKey title, UIDataDashboardPanel<Film> panel, Consumer<String> callback)
     {
         super(title, panel, callback);
+        this.flex.w.max = 340;
 
         UIIcon backups = new UIIcon(Icons.REFRESH, (button) -> this.openBackups())
         {
@@ -36,12 +37,6 @@ public class UIFilmOverlayPanel extends UIDataOverlayPanel<Film>
         };
         backups.tooltip(UIKeys.FILM_BACKUPS_TITLE);
         this.icons.add(backups);
-    }
-
-    @Override
-    public int getPreferredWidth()
-    {
-        return 340;
     }
 
     private void openBackups()
@@ -98,7 +93,7 @@ public class UIFilmOverlayPanel extends UIDataOverlayPanel<Film>
 
                     /* Read before saving the open film: saving can replace the latest backup. */
                     String folder = id.substring(0, id.lastIndexOf('/') + 1);
-                    UIPromptOverlayPanel prompt = new UIPromptOverlayPanel(
+                    UIPromptPopup prompt = new UIPromptPopup(
                         UIKeys.FILM_BACKUPS_RESTORE, UIKeys.FILM_BACKUPS_DESCRIPTION, (value) ->
                     {
                         String target = folder + value.trim();
@@ -126,7 +121,7 @@ public class UIFilmOverlayPanel extends UIDataOverlayPanel<Film>
                     });
                     prompt.text.filename();
                     prompt.text.setText(name + "_restored_" + key.substring(key.lastIndexOf('/') + name.length() + 2));
-                    UIOverlay.addOverlay(context, prompt);
+                    context.replaceContextMenu(prompt);
                 });
             });
             UIOverlay.addOverlay(context, list);

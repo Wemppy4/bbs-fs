@@ -64,7 +64,7 @@ public class UIHotbarKeyframeFactory extends UIKeyframeFactory<Hotbar>
     {
         UIUnifiedPickOverlayPanel panel = UIUnifiedPickOverlayPanel.forItem((stack) -> this.setItem(slot, stack), this.hotbar.get(slot));
 
-        UIOverlay.addOverlay(this.getContext(), panel, 0.5F, 0.75F);
+        UIOverlay.addOverlay(this.getContext(), panel);
         UIUtils.playClick();
     }
 

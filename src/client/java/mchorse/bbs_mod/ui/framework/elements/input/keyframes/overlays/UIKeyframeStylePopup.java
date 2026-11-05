@@ -2,14 +2,13 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays;
 
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcons;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
@@ -27,7 +26,7 @@ import java.util.function.Consumer;
  * same panel serves the keyframes that are selected right now and the style in the settings that
  * every new keyframe is born with. Neither caller has to know what fields a style has.</p>
  */
-public class UIKeyframeStyleOverlayPanel extends UIOverlayPanel
+public class UIKeyframeStylePopup extends UIPopup
 {
     public UIIcons shapes;
     public UIColor color;
@@ -39,9 +38,9 @@ public class UIKeyframeStyleOverlayPanel extends UIOverlayPanel
     private final KeyframeStyle style;
     private final Consumer<KeyframeStyle> callback;
 
-    public UIKeyframeStyleOverlayPanel(KeyframeStyle style, Consumer<KeyframeStyle> callback)
+    public UIKeyframeStylePopup(KeyframeStyle style, Consumer<KeyframeStyle> callback)
     {
-        super(L10n.lang("bbs.ui.keyframes.keyframe_style.title"));
+        super(L10n.lang("bbs.ui.keyframes.keyframe_style.title"), 220);
 
         this.style = style.copy();
         this.callback = callback;
@@ -89,21 +88,14 @@ public class UIKeyframeStyleOverlayPanel extends UIOverlayPanel
 
         UIButton reset = new UIButton(L10n.lang("bbs.ui.keyframes.keyframe_style.reset"), (b) -> this.reset());
 
-        UIElement column = UI.column(
+        this.column.add(
             UI.label(L10n.lang("bbs.ui.keyframes.keyframe_style.shape")),
             this.shapes,
-            UI.label(L10n.lang("bbs.ui.keyframes.keyframe_style.color")).marginTop(6),
+            UI.label(L10n.lang("bbs.ui.keyframes.keyframe_style.color")),
             this.color,
-            this.filled.marginTop(6),
-            reset.marginTop(10)
+            this.filled,
+            reset
         );
-
-        column.relative(this.content).xy(6, 6).w(1F, -12).h(1F, -12);
-
-        this.content.add(column);
-
-        /* The picker lives next to the overlay, not inside it, so it would outlive the panel */
-        this.onClose((e) -> this.color.picker.removeFromParent());
     }
 
     /**

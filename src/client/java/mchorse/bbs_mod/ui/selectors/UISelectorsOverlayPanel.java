@@ -44,6 +44,7 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
     public UISelectorsOverlayPanel()
     {
         super(UIKeys.SELECTORS_TITLE);
+        this.wh(430, 300);
 
         this.selectors = new UISelectorList((l) -> this.setSelector(l.get(0), false));
         this.selectors.setList(BBSModClient.getSelectors().selectors);

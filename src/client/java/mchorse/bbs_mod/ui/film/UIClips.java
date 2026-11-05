@@ -30,7 +30,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.clips.renderer.IUIClipRenderer;
 import mchorse.bbs_mod.ui.film.clips.renderer.UIClipRenderers;
-import mchorse.bbs_mod.ui.film.markers.UIMarkerOverlayPanel;
+import mchorse.bbs_mod.ui.film.markers.UIMarkerPopup;
 import mchorse.bbs_mod.ui.film.markers.UIMarkersController;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -1277,7 +1277,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
 
         if (markers != null && marker != null)
         {
-            UIOverlay.addOverlay(this.getContext(), new UIMarkerOverlayPanel(marker), 220, 155);
+            this.getContext().replaceContextMenu(new UIMarkerPopup(marker));
         }
     }
 

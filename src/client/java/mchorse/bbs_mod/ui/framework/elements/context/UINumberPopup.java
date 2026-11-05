@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.ui.framework.elements.overlay;
+package mchorse.bbs_mod.ui.framework.elements.context;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -6,20 +6,21 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 
 import java.util.function.Consumer;
 
-public class UINumberOverlayPanel extends UIMessageBarOverlayPanel
+/** Asks for a number at the cursor: how many copies, how many ticks. */
+public class UINumberPopup extends UIInputPopup
 {
-    public UITrackpad value;
+    public final UITrackpad value;
 
     public Consumer<Double> callback;
 
-    public UINumberOverlayPanel(IKey title, IKey message, Consumer<Double> callback)
+    public UINumberPopup(IKey title, IKey message, Consumer<Double> callback)
     {
-        super(title, message);
+        super(title, message, UIPopup.WIDTH);
 
         this.callback = callback;
         this.value = new UITrackpad();
 
-        this.bar.prepend(this.value);
+        this.field(this.value);
     }
 
     @Override
@@ -31,10 +32,8 @@ public class UINumberOverlayPanel extends UIMessageBarOverlayPanel
     }
 
     @Override
-    public void confirm()
+    protected void apply()
     {
-        super.confirm();
-
         if (this.callback != null)
         {
             this.callback.accept(this.value.getValue());

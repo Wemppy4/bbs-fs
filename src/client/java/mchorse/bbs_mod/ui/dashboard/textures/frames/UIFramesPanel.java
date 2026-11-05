@@ -13,9 +13,8 @@ import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UINumberPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIStrip;
@@ -392,7 +391,7 @@ public class UIFramesPanel extends UIElement
             return;
         }
 
-        UINumberOverlayPanel panel = new UINumberOverlayPanel(UIKeys.TEXTURES_FRAMES_TIME_TITLE, UIKeys.TEXTURES_FRAMES_TIME_MESSAGE, (v) ->
+        UINumberPopup panel = new UINumberPopup(UIKeys.TEXTURES_FRAMES_TIME_TITLE, UIKeys.TEXTURES_FRAMES_TIME_MESSAGE, (v) ->
         {
             this.editor.setFrameTime(frames, v.intValue());
             this.sync();
@@ -400,7 +399,7 @@ public class UIFramesPanel extends UIElement
 
         panel.value.limit(0, MAX_TIME).integer().setValue(animation.timeOf(frames.get(0)));
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        this.getContext().replaceContextMenu(panel);
     }
 
     private void applyTime(int ticks)

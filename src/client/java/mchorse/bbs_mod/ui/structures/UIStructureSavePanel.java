@@ -66,6 +66,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
     public UIStructureSavePanel(String name, BiConsumer<String, Boolean> callback)
     {
         super(UIKeys.STRUCTURE_WAND_SAVE_TITLE);
+        this.wh(520, 300);
 
         this.callback = callback;
 

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.buttons;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.ITextColoring;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -12,6 +13,12 @@ import java.util.function.Consumer;
 
 public class UIButton extends UIClickable<UIButton> implements ITextColoring
 {
+    /** Narrowest a fitted button gets, so a two letter label still makes a target. */
+    private static final int FIT_MIN = 40;
+
+    /** Room on both sides of a fitted button's label. */
+    private static final int FIT_PADDING = 8;
+
     public IKey label;
 
     public int textColor = Colors.WHITE;
@@ -52,6 +59,19 @@ public class UIButton extends UIClickable<UIButton> implements ITextColoring
     {
         this.textColor = color;
         this.textShadow = shadow;
+
+        return this;
+    }
+
+    /**
+     * As wide as its label with some room on both sides, for a button that stands on its own
+     * at the end of a row or a dialog. Call it again after the label changes.
+     */
+    public UIButton fit()
+    {
+        int width = Batcher2D.getDefaultTextRenderer().getWidth(this.label.get()) + FIT_PADDING * 2;
+
+        this.w(Math.max(FIT_MIN, width));
 
         return this;
     }

@@ -2,12 +2,13 @@ package mchorse.bbs_mod.settings.ui;
 
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.settings.Settings;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeybindPresets;
 
@@ -22,6 +23,7 @@ public class UIKeybindPresetsOverlayPanel extends UIOverlayPanel
     public UIKeybindPresetsOverlayPanel(Settings settings, Runnable onLoaded)
     {
         super(L10n.lang("bbs.ui.config.keybind-presets.title"));
+        this.wh(320, 240);
 
         this.settings = settings;
         this.onLoaded = onLoaded;
@@ -69,7 +71,7 @@ public class UIKeybindPresetsOverlayPanel extends UIOverlayPanel
 
     private void promptSave()
     {
-        UIPromptOverlayPanel prompt = new UIPromptOverlayPanel(
+        UIPromptPopup prompt = new UIPromptPopup(
             L10n.lang("bbs.ui.config.keybind-presets.save"),
             L10n.lang("bbs.ui.config.keybind-presets.name"),
             (input) ->
@@ -85,14 +87,16 @@ public class UIKeybindPresetsOverlayPanel extends UIOverlayPanel
                         UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(
                             L10n.lang("bbs.ui.config.keybind-presets.save"),
                             L10n.lang("bbs.ui.config.keybind-presets.overwrite").format(name),
-                            (confirmed) -> { if (confirmed) this.save(name); }));
+                            (confirmed) -> { if (confirmed) this.save(name); }).verb(UIKeys.GENERAL_SAVE));
                     }
                     else this.save(name);
                 }
                 catch (IOException e) { this.error(); }
             });
 
-        UIOverlay.addOverlay(this.getContext(), prompt);
+        prompt.verb(UIKeys.GENERAL_SAVE);
+
+        this.getContext().replaceContextMenu(prompt);
     }
 
     private void save(String name)
@@ -134,7 +138,7 @@ public class UIKeybindPresetsOverlayPanel extends UIOverlayPanel
                     this.reload(null);
                 }
                 catch (IOException e) { this.error(); }
-            }));
+            }).verb(UIKeys.GENERAL_REMOVE).danger());
     }
 
     private void error()

@@ -327,7 +327,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
                 catch (Exception e)
                 {}
             }
-        });
+        }).verb(UIKeys.GENERAL_DOWNLOAD);
 
         if (!inputUrl.isEmpty())
         {

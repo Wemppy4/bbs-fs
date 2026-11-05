@@ -14,6 +14,7 @@ public class UICropOverlayPanel extends UIOverlayPanel
     public UICropOverlayPanel(Link texture, Vector4f crop)
     {
         super(UIKeys.FORMS_CROP_TITLE);
+        this.wh(0.5F, 0.5F);
 
         Texture t = BBSModClient.getTextures().getTexture(texture);
 

@@ -2,12 +2,11 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.L10n;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -16,7 +15,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
  * ({@link UIKeyframeSheet#getFilterKey()}) and stored in the settings, so it survives the session
  * and shows up on that track in every film.
  */
-public class UITrackStyleOverlayPanel extends UIOverlayPanel
+public class UITrackStylePopup extends UIPopup
 {
     public UITextbox name;
     public UIColor color;
@@ -24,9 +23,9 @@ public class UITrackStyleOverlayPanel extends UIOverlayPanel
     private final UIKeyframeSheet sheet;
     private final Runnable callback;
 
-    public UITrackStyleOverlayPanel(UIKeyframeSheet sheet, Runnable callback)
+    public UITrackStylePopup(UIKeyframeSheet sheet, Runnable callback)
     {
-        super(L10n.lang("bbs.ui.keyframes.track_style.title"));
+        super(L10n.lang("bbs.ui.keyframes.track_style.title"), 220);
 
         this.sheet = sheet;
         this.callback = callback;
@@ -50,21 +49,14 @@ public class UITrackStyleOverlayPanel extends UIOverlayPanel
 
         UIButton reset = new UIButton(L10n.lang("bbs.ui.keyframes.track_style.reset"), (b) -> this.reset());
 
-        UIElement column = UI.column(
+        this.column.add(
             UI.label(L10n.lang("bbs.ui.keyframes.track_style.key").format(key)).color(Colors.LIGHTER_GRAY),
-            UI.label(L10n.lang("bbs.ui.keyframes.track_style.name")).marginTop(6),
+            UI.label(L10n.lang("bbs.ui.keyframes.track_style.name")),
             this.name,
-            UI.label(L10n.lang("bbs.ui.keyframes.track_style.color")).marginTop(6),
+            UI.label(L10n.lang("bbs.ui.keyframes.track_style.color")),
             this.color,
-            reset.marginTop(10)
+            reset
         );
-
-        column.relative(this.content).xy(6, 6).w(1F, -12).h(1F, -12);
-
-        this.content.add(column);
-
-        /* The picker lives next to the overlay, not inside it, so it would outlive the panel */
-        this.onClose((e) -> this.color.picker.removeFromParent());
     }
 
     private void reset()

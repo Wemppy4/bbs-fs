@@ -758,8 +758,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
                                         UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
                                     },
-                                poseModelForm, sheet), 200, 197
-                            );
+                                poseModelForm, sheet));
                         }
                     });
 
@@ -806,7 +805,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                                 {
                                     this.updateChannelsList();
                                 }
-                            }), 240, 240);
+                            }));
                         });
                     }
                 }
@@ -828,7 +827,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                             keyToTitle
                     );
 
-                    UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
+                    UIOverlay.addOverlay(this.getContext(), panel);
 
                     panel.onClose(e ->
                     {

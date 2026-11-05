@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.ui.framework.elements.overlay;
+package mchorse.bbs_mod.ui.framework.elements.context;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -6,25 +6,24 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 
 import java.util.function.Consumer;
 
-public class UIPromptOverlayPanel extends UIMessageBarOverlayPanel
+/** Asks for a name, or any other line of text, at the cursor. */
+public class UIPromptPopup extends UIInputPopup
 {
-    public UITextbox text;
+    /** Wide enough for a file name next to a button that says "Rename". */
+    public static final int WIDTH = 200;
+
+    public final UITextbox text;
 
     public Consumer<String> callback;
 
-    public UIPromptOverlayPanel(IKey title, IKey message)
+    public UIPromptPopup(IKey title, IKey message, Consumer<String> callback)
     {
-        this(title, message, null);
-    }
-
-    public UIPromptOverlayPanel(IKey title, IKey message, Consumer<String> callback)
-    {
-        super(title, message);
+        super(title, message, WIDTH);
 
         this.callback = callback;
         this.text = new UITextbox(null);
 
-        this.bar.prepend(this.text);
+        this.field(this.text);
     }
 
     @Override
@@ -42,10 +41,8 @@ public class UIPromptOverlayPanel extends UIMessageBarOverlayPanel
     }
 
     @Override
-    public void confirm()
+    protected void apply()
     {
-        super.confirm();
-
         if (this.callback != null)
         {
             this.callback.accept(this.text.getText());

@@ -12,9 +12,6 @@ import java.util.function.BiConsumer;
  */
 public class UIStructureSaveMenu extends UIBaseMenu
 {
-    private static final int WIDTH = 520;
-    private static final int HEIGHT = 300;
-
     private final String name;
     private final BiConsumer<String, Boolean> callback;
 
@@ -34,6 +31,6 @@ public class UIStructureSaveMenu extends UIBaseMenu
         /* Confirmed or dismissed, there is nothing else on this screen to come back to */
         panel.onClose((e) -> this.closeThisMenu());
 
-        UIOverlay.addOverlay(this.context, panel, WIDTH, HEIGHT);
+        UIOverlay.addOverlay(this.context, panel);
     }
 }

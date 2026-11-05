@@ -73,6 +73,7 @@ public class UILanguageEditorOverlayPanel extends UIOverlayPanel
     public UILanguageEditorOverlayPanel()
     {
         super(UIKeys.LANGUAGE_EDITOR_TITLE.format(BBSSettings.language.get()));
+        this.wh(0.6F, 0.9F);
 
         this.target = getLangEditorFolder();
         this.target.mkdirs();

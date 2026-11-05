@@ -9,8 +9,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.graphics.window.ImageClipboard;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPromptPopup;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -109,7 +108,7 @@ public class UILayerElement extends UIElement
 
         menu.action(Icons.EDIT, UIKeys.TEXTURES_LAYERS_CONTEXT_RENAME, () ->
         {
-            UIPromptOverlayPanel prompt = new UIPromptOverlayPanel(
+            UIPromptPopup prompt = new UIPromptPopup(
                 UIKeys.TEXTURES_LAYERS_RENAME_TITLE,
                 UIKeys.TEXTURES_LAYERS_RENAME_MESSAGE,
                 (str) ->
@@ -125,9 +124,11 @@ public class UILayerElement extends UIElement
                     }
                 }
             );
+
+            prompt.verb(UIKeys.GENERAL_RENAME);
             prompt.text.setText(this.layer.name);
             prompt.text.textbox.moveCursorToEnd();
-            UIOverlay.addOverlay(this.getContext(), prompt);
+            this.getContext().replaceContextMenu(prompt);
         });
 
         menu.action(Icons.OUTLINE, UIKeys.TEXTURES_LAYERS_CONTEXT_SELECT, () ->

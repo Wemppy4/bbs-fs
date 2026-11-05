@@ -34,7 +34,7 @@ public class UITrackSearchOverlayPanel extends UIOverlayPanel
                 if (recent.size() > 20) recent.remove(recent.size() - 1);
             }
         });
-        var overlay = mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay.addOverlay(context, panel, 420, 338);
+        var overlay = mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay.addOverlay(context, panel);
         panel.relative(overlay).xy(0.5F, 0.5F).anchor(0.5F);
         panel.getFlex().w.max = Math.max(1, overlay.area.w - 12);
         panel.getFlex().h.max = Math.max(1, overlay.area.h - 12);
@@ -52,6 +52,7 @@ public class UITrackSearchOverlayPanel extends UIOverlayPanel
         List<String> recent, BiConsumer<TrackSearchEntry, Boolean> navigate)
     {
         super(L10n.lang("bbs.ui.film.track_search.title"));
+        this.wh(420, 338);
         this.entries = entries;
         this.currentPath = currentPath;
         this.recent = recent;

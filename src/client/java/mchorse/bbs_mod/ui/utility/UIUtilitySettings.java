@@ -105,7 +105,7 @@ public class UIUtilitySettings extends UIElement
 
     private void openLangEditor()
     {
-        UIOverlay.addOverlay(this.getContext(), new UILanguageEditorOverlayPanel(), 0.6F, 0.9F);
+        UIOverlay.addOverlay(this.getContext(), new UILanguageEditorOverlayPanel());
     }
 
     private void analyzeLanguageStrings()

@@ -6,17 +6,16 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.context.UIPopup;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 
-public class UIOnionSkinContextMenu extends UIContextMenu
+public class UIOnionSkinContextMenu extends UIPopup
 {
     public UIIcon enable;
     public UIIcon all;
@@ -26,13 +25,13 @@ public class UIOnionSkinContextMenu extends UIContextMenu
     public UITrackpad postFrames;
     public UIColor postColor;
 
-    private UIElement column;
-
     private UIFilmPanel panel;
     private ValueOnionSkin onionSkin;
 
     public UIOnionSkinContextMenu(UIFilmPanel panel, ValueOnionSkin onionSkin)
     {
+        super(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
+
         this.panel = panel;
         this.onionSkin = onionSkin;
 
@@ -75,30 +74,10 @@ public class UIOnionSkinContextMenu extends UIContextMenu
         });
         this.group.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_GROUP.format(this.onionSkin.group.get()));
 
-        UIElement row = UI.row(this.enable, this.all, this.group);
-
-        this.column = UI.column(5, 10,
-            row,
+        this.column.add(
+            UI.row(this.enable, this.all, this.group).h(UIConstants.ICON_SIZE),
             UI.row(this.preFrames, this.preColor).tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_PREV),
             UI.row(this.postFrames, this.postColor).tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_NEXT)
         );
-        this.column.relative(this).w(140);
-
-        this.add(this.column);
-        this.column.resize();
-    }
-
-    @Override
-    public boolean isEmpty()
-    {
-        return false;
-    }
-
-    @Override
-    public void setMouse(UIContext context)
-    {
-        this.xy(context.mouseX(), context.mouseY())
-            .wh(this.column.area.w, this.column.area.h)
-            .bounds(context.menu.overlay, 5);
     }
 }
