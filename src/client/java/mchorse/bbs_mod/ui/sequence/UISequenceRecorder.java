@@ -3,8 +3,10 @@ package mchorse.bbs_mod.ui.sequence;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.VideoExportSession;
 import mchorse.bbs_mod.film.sequence.FilmClip;
 import mchorse.bbs_mod.film.sequence.Sequence;
+import mchorse.bbs_mod.film.sequence.SequenceAssembler;
 import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
@@ -15,6 +17,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
@@ -57,6 +60,10 @@ public class UISequenceRecorder extends UIElement
 
     private VideoExportSettings settings;
     private String pictureStamp;
+
+    /** Puts the sequence together once the pieces are recorded, null until then */
+    private SequenceAssembler assembler;
+    private long assembleStartedAtMs;
 
     public UISequenceRecorder(UISequencePanel panel)
     {
@@ -172,7 +179,8 @@ public class UISequenceRecorder extends UIElement
         this.beganAtMs = System.currentTimeMillis();
         this.doneTicks = 0;
         this.currentTicks = 0;
-        this.totalTicks = assemble ? sequence.calculateDuration() : 0;
+        /* Only the pieces: putting them together takes a fraction of that, counted on its own */
+        this.totalTicks = 0;
 
         for (FilmClip clip : this.jobs)
         {
@@ -200,6 +208,12 @@ public class UISequenceRecorder extends UIElement
             this.session.cancel();
         }
 
+        if (this.assembler != null)
+        {
+            this.assembler.cancel();
+            this.assembler = null;
+        }
+
         this.finish(true);
     }
 
@@ -225,9 +239,7 @@ public class UISequenceRecorder extends UIElement
         if (this.assemble)
         {
             this.assemble = false;
-            this.currentTicks = this.panel.getData().calculateDuration();
-            this.currentTicksKnown = true;
-            this.recordSequence(this.panel.getData());
+            this.assembleSequence(this.panel.getData());
 
             return;
         }
@@ -260,13 +272,13 @@ public class UISequenceRecorder extends UIElement
 
         /* The film's previous piece makes way for the new one (the editor let go of it already) */
         String base = film.getId().replaceAll("[\\\\/:*?\"<>|]", "_");
-        File previous = SequenceExportSession.findVideo(folder, base);
+        File previous = VideoExportSession.findVideo(folder, base);
 
         this.panel.getRunner().shutdown();
 
         if (previous != null && !previous.delete())
         {
-            base = SequenceExportSession.uniqueName(folder, base);
+            base = VideoExportSession.uniqueName(folder, base);
         }
 
         VideoExportSettings s = this.settings;
@@ -345,7 +357,14 @@ public class UISequenceRecorder extends UIElement
      */
     private long getRemainingMs(float progress)
     {
-        if (this.session.isPart() && !this.currentTicksKnown && this.session.getEnd() > 0)
+        if (this.assembler != null)
+        {
+            long elapsed = System.currentTimeMillis() - this.assembleStartedAtMs;
+
+            return progress < 0.01F || elapsed < 1000L ? -1L : (long) (elapsed * (1F - progress) / progress);
+        }
+
+        if (!this.currentTicksKnown && this.session.getEnd() > 0)
         {
             this.totalTicks += this.session.getEnd() - this.currentTicks;
             this.currentTicks = this.session.getEnd();
@@ -369,10 +388,11 @@ public class UISequenceRecorder extends UIElement
     }
 
     /**
-     * The whole sequence out of the pieces. A film without a piece (of another world, not
-     * recorded there yet) comes out black, and the user hears which.
+     * The whole sequence out of the pieces, put together by ffmpeg without the game. A film
+     * without a piece (of another world, not recorded there yet) comes out black, and the user
+     * hears which.
      */
-    private void recordSequence(Sequence sequence)
+    private void assembleSequence(Sequence sequence)
     {
         UIContext context = this.panel.getContext();
         List<String> missing = new ArrayList<>();
@@ -391,43 +411,50 @@ public class UISequenceRecorder extends UIElement
         }
 
         VideoExportSettings s = this.settings;
-        /* Nothing of the game is heard while the pieces are put together */
-        VideoExportSettings whole = new VideoExportSettings(s.width(), s.height(), s.frameRate(), s.motionBlur(), s.heldFrames(), s.shutter(),
-            s.arguments(), s.argumentsAudio(), s.argumentsMux(), s.exportAudio(), false, s.exportPath(), s.filenameFormat());
+        String id = sequence.getId();
+        int duration = sequence.calculateDuration();
+        String base = StringUtils.resolveExportFilename(s.filenameFormat(), id.substring(id.lastIndexOf('/') + 1), s.width(), s.height(), s.getCaptureFrameRate(), duration);
 
         this.current = "";
-        this.session.setFinishedListener((cancelled) ->
+        this.assembler = new SequenceAssembler(sequence, s, VideoExportSession.uniqueName(s.getFolder(), base));
+        this.assembleStartedAtMs = System.currentTimeMillis();
+        this.assembler.start();
+    }
+
+    /**
+     * Once ffmpeg is done with the sequence: say how it went, and go on.
+     */
+    private void updateAssembler()
+    {
+        if (this.assembler == null || !this.assembler.isDone())
         {
-            if (cancelled)
-            {
-                this.finish(true);
-            }
-            else
-            {
-                File file = this.session.getRecordedVideo();
+            return;
+        }
 
-                if (file != null)
-                {
-                    this.panel.getContext().notifySuccess(UIKeys.SEQUENCE_RECORD_DONE.format(file.getName()));
-                }
+        File file = this.assembler.getResult();
+        UIContext context = this.panel.getContext();
 
-                this.next();
-            }
-        });
-        UIWorldPreview.applyExportSize(whole);
-        BBSRendering.scheduleAfterNextExportFrame(() ->
+        this.assembler = null;
+
+        if (file == null)
         {
-            if (!this.active)
+            if (context != null)
             {
-                return;
+                context.notifyError(UIKeys.SEQUENCE_RECORD_FAILED);
             }
 
-            if (!this.session.startSequence(whole, BBSRendering.getTexture().id, BBSRendering.getVideoWidth(), BBSRendering.getVideoHeight()))
-            {
-                this.session.setFinishedListener(null);
-                this.finish(true);
-            }
-        });
+            this.finish(false);
+
+            return;
+        }
+
+        if (context != null)
+        {
+            context.notifySuccess(UIKeys.SEQUENCE_RECORD_DONE.format(file.getName()));
+        }
+
+        BBSModClient.getVideoRecorder().playFinishEffects(file.getParentFile());
+        this.next();
     }
 
     private void finish(boolean cancelled)
@@ -474,6 +501,7 @@ public class UISequenceRecorder extends UIElement
 
         this.renderProgress(context, viewport);
         this.session.update();
+        this.updateAssembler();
     }
 
     /**
@@ -482,8 +510,8 @@ public class UISequenceRecorder extends UIElement
      */
     private void renderProgress(UIContext context, Area viewport)
     {
-        float progress = this.session.getProgress();
-        IKey label = this.session.isPart()
+        float progress = this.assembler == null ? this.session.getProgress() : this.assembler.getProgress();
+        IKey label = this.assembler == null
             ? UIKeys.SEQUENCE_RECORD_PART.format(this.done + 1, this.total)
             : UIKeys.SEQUENCE_RECORD_WHOLE;
         FontRenderer font = context.batcher.getFont();

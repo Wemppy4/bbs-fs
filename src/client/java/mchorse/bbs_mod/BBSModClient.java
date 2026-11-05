@@ -16,8 +16,6 @@ import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
-import mchorse.bbs_mod.camera.clips.misc.ImageClip;
-import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
 import mchorse.bbs_mod.camera.clips.misc.CurveClientClip;
 import mchorse.bbs_mod.camera.clips.misc.TrackerClientClip;
 import mchorse.bbs_mod.camera.clips.misc.SplineClientClip;
@@ -305,8 +303,8 @@ public class BBSModClient implements ClientModInitializer
     }
 
     /**
-     * The clips a sequence's timeline is made of: films, and the sound, pictures, videos and subtitles
-     * that go over them.
+     * The clips a sequence's timeline is made of: films and the sound over them. Nothing is drawn
+     * over the films, so the sequence's video is put together by ffmpeg alone.
      */
     public static ClipFactory getSequenceClipPalette()
     {
@@ -728,10 +726,7 @@ public class BBSModClient implements ClientModInitializer
         sequenceClips = new ClipFactory().category(ClipCategories.MISC);
         sequenceClips
             .register(Link.bbs("film"), FilmClip.class, new ClipFactoryData(Icons.FILM, 0x9d6cf0).in(ClipCategories.MISC))
-            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
-            .register(Link.bbs("image"), ImageClip.class, new ClipFactoryData(Icons.PICTURE, 0x2d4fd2).in(ClipCategories.MISC))
-            .register(Link.bbs("video"), VideoClientClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c).in(ClipCategories.MISC))
-            .register(Link.bbs("subtitle"), SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899).in(ClipCategories.MISC));
+            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC));
 
         /* The client-side registries, each followed by the event that lets addons add to it.
          * They used to fill themselves in static initialisers, so the moment depended on who

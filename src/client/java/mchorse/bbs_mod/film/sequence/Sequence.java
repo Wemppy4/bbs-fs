@@ -10,9 +10,9 @@ import java.util.List;
 
 /**
  * Films put in order on one timeline, the way they make up a video: each film is a clip
- * ({@link FilmClip}), next to the sound, the pictures and the subtitles that go over all of
- * them. The sequence plays the films one after another and records them into one video, with
- * its own export settings ({@link SequenceExport}).
+ * ({@link FilmClip}), next to the sound that goes over all of them. The sequence plays the films
+ * one after another and records them into one video, with its own export settings
+ * ({@link SequenceExport}).
  *
  * <p>Sequences are not kept in a world: the films of one video are often spread over several
  * worlds, so each film clip remembers its world instead.

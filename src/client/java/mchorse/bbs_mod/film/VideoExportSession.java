@@ -413,6 +413,50 @@ public abstract class VideoExportSession
     }
 
     /**
+     * A name no video in the folder has yet, so nothing gets overwritten (and ffmpeg never stops
+     * to ask about it).
+     */
+    public static String uniqueName(File folder, String base)
+    {
+        String candidate = base;
+
+        for (int i = 1; findVideo(folder, candidate) != null; i++)
+        {
+            candidate = base + " (" + i + ")";
+        }
+
+        return candidate;
+    }
+
+    /**
+     * The video recorded under the given base name: the extension is up to the encoder's
+     * arguments. Null when there is none.
+     */
+    public static File findVideo(File folder, String base)
+    {
+        File[] files = folder.listFiles();
+
+        if (files == null)
+        {
+            return null;
+        }
+
+        String prefix = (base + ".").toLowerCase();
+
+        for (File file : files)
+        {
+            String name = file.getName().toLowerCase();
+
+            if (file.isFile() && name.startsWith(prefix) && !isExportArtifact(name.substring(prefix.length())))
+            {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Whether a file named {@code <movie name>.<rest>} is a side product of an export -
      * the audio track, an encoder log or the leftover of a failed merge - rather than the
      * video itself. Shared so picking the recorded video and allocating a free movie name

@@ -4,7 +4,6 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.sequence.Sequence;
 import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.film.UIPlacementGizmo;
 import mchorse.bbs_mod.ui.film.UIWorldPreview;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -29,13 +28,9 @@ public class UISequencePreview extends UIWorldPreview
     public UIIcon shaders;
     public UIIcon record;
 
-    /** The frame of the selected picture, subtitle or video clip, to drag and scale it on screen */
-    private final UIPlacementGizmo placementGizmo;
-
     public UISequencePreview(UISequencePanel panel)
     {
         this.panel = panel;
-        this.placementGizmo = new UIPlacementGizmo(() -> this.panel.timeline, this.panel::getCursor);
 
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
@@ -97,33 +92,8 @@ public class UISequencePreview extends UIWorldPreview
         return !this.panel.recorder.isActive();
     }
 
-    @Override
-    protected boolean subMouseClicked(UIContext context)
-    {
-        Area area = this.getViewport();
-
-        if (area.isInside(context) && !this.isOverIcons(context) && this.placementGizmo.mouseClicked(context, area))
-        {
-            return true;
-        }
-
-        return super.subMouseClicked(context);
-    }
-
-    @Override
-    protected boolean subMouseReleased(UIContext context)
-    {
-        if (this.placementGizmo.mouseReleased(context))
-        {
-            return true;
-        }
-
-        return super.subMouseReleased(context);
-    }
-
     /**
-     * Over a frame with no film to show, what is missing there; over any frame, the gizmo of the
-     * selected overlay clip.
+     * Over a frame with no film to show, what is missing there.
      */
     @Override
     protected void renderFrame(UIContext context, Area area)
@@ -140,11 +110,6 @@ public class UISequencePreview extends UIWorldPreview
         }
 
         super.renderFrame(context, area);
-
-        if (!this.panel.recorder.isActive())
-        {
-            this.placementGizmo.render(context, area);
-        }
 
         String placeholder = this.panel.getPlaceholder();
 

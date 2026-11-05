@@ -1393,6 +1393,7 @@ public class UIKeys
     public static final IKey SEQUENCE_RECORD_MISSING = L10n.lang("bbs.ui.sequence.record.missing");
     public static final IKey SEQUENCE_RECORD_DONE = L10n.lang("bbs.ui.sequence.record.done");
     public static final IKey SEQUENCE_RECORD_CANCELLED = L10n.lang("bbs.ui.sequence.record.cancelled");
+    public static final IKey SEQUENCE_RECORD_FAILED = L10n.lang("bbs.ui.sequence.record.failed");
     public static final IKey SHAPE_KEYS_CONTEXT_COPY = L10n.lang("bbs.ui.shape_keys.context.copy");
     public static final IKey SHAPE_KEYS_CONTEXT_NAME = L10n.lang("bbs.ui.shape_keys.context.name");
     public static final IKey SHAPE_KEYS_CONTEXT_PASTE = L10n.lang("bbs.ui.shape_keys.context.paste");

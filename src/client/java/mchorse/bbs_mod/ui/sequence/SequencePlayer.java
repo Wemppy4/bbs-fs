@@ -14,8 +14,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
  * cursor is on plays live, on the tick of the film the clip shows. Its actions run on the server
  * the way the film editor runs them, so blocks get placed and actors spawned.
  *
- * <p>A film of another world, or one asked to play {@link #setPartsOnly(boolean) from its pieces
- * only}, plays nothing live: its recorded piece is shown instead (see
+ * <p>A film of another world plays nothing live: its recorded piece is shown instead (see
  * {@link SequenceCameraController}).
  *
  * <p>For recording a film's piece the player can also be told to play one film by itself, from
@@ -32,7 +31,6 @@ public class SequencePlayer
 
     private FilmClip soloClip;
     private int soloTick;
-    private boolean partsOnly;
 
     private boolean restartPending;
     private int lastRestartTick = -1;
@@ -101,28 +99,12 @@ public class SequencePlayer
         this.soloTick = tick;
     }
 
-    public boolean isPartsOnly()
-    {
-        return this.partsOnly;
-    }
-
-    /**
-     * Show every film as its recorded piece, the films of this world too: what the recording
-     * of the whole sequence puts together.
-     */
-    public void setPartsOnly(boolean partsOnly)
-    {
-        this.partsOnly = partsOnly;
-
-        this.sync();
-    }
-
     /**
      * Whether the given film clip plays live rather than as its piece.
      */
     public boolean canPlayLive(FilmClip clip)
     {
-        return !this.partsOnly && clip.isInCurrentWorld() && !clip.film.get().isEmpty();
+        return clip.isInCurrentWorld() && !clip.film.get().isEmpty();
     }
 
     /**

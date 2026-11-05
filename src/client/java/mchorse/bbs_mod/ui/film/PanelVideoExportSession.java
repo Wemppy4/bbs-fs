@@ -117,49 +117,6 @@ public class PanelVideoExportSession extends VideoExportSession
         return uniqueName(this.settings.getFolder(), base);
     }
 
-    /**
-     * Avoid overwriting a previous export - and, with it, hanging ffmpeg (whose default args
-     * carry no {@code -y}): when a file with this base name already exists, append " (n)".
-     */
-    private static String uniqueName(File folder, String base)
-    {
-        String candidate = base;
-
-        for (int i = 1; nameTaken(folder, candidate); i++)
-        {
-            candidate = base + " (" + i + ")";
-        }
-
-        return candidate;
-    }
-
-    private static boolean nameTaken(File folder, String base)
-    {
-        File[] files = folder.listFiles();
-
-        if (files == null)
-        {
-            return false;
-        }
-
-        String prefix = (base + ".").toLowerCase();
-
-        for (File file : files)
-        {
-            String name = file.getName().toLowerCase();
-
-            /* Only a video of an earlier export takes the name: the audio track this
-             * export just rendered sits in the same folder under the same base name and
-             * must not bump every audio export to a "(1)" */
-            if (name.startsWith(prefix) && !isExportArtifact(name.substring(prefix.length())))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     @Override
     protected void onWarmupStarted()
     {

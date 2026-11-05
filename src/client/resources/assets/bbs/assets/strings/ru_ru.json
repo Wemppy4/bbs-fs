@@ -1326,6 +1326,7 @@
 	"bbs.ui.sequence.record.missing": "Ещё не записаны, будут чёрными: %s",
 	"bbs.ui.sequence.record.done": "Секвенция записана: %s",
 	"bbs.ui.sequence.record.cancelled": "Запись секвенции остановлена",
+	"bbs.ui.sequence.record.failed": "Не удалось склеить секвенцию: подробности в логе ffmpeg",
 	"bbs.ui.film.video_recording": "Записывается %s, нажмите %s чтобы остановить...",
 	"bbs.ui.forms.categories.add_category-description": "Введите имя для категории форм:",
 	"bbs.ui.forms.categories.add_category-title": "Добавить категорию",
