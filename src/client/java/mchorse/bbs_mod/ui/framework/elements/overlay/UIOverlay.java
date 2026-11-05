@@ -143,6 +143,11 @@ public class UIOverlay extends UIElement
 
                 sizes.put(element.getClass().getSimpleName(), size);
             }
+            else
+            {
+                /* Sized once and then reset with Ctrl+click: back to opening at its own size */
+                sizes.remove(element.getClass().getSimpleName());
+            }
         }
     }
 

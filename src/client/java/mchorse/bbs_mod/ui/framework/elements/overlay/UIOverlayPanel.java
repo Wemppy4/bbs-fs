@@ -13,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Vector2i;
@@ -25,8 +26,11 @@ public class UIOverlayPanel extends UIElement
     /** Height of the bar on top: the title, the panel's own buttons and the close cross. */
     public static final int HEADER = 20;
 
-    /** Gap between the panel's buttons and the close cross, so a click meant for one isn't the other. */
-    private static final int CLOSE_GAP = 4;
+    /**
+     * Gap between the panel's buttons and the close cross, with a divider in the middle of it, so a
+     * click meant for one isn't the other. As wide as the separator in the panels' action bar.
+     */
+    private static final int CLOSE_GAP = 8;
 
     /** Side of the square grip in the bottom right corner. */
     private static final int GRIP = 10;
@@ -61,6 +65,14 @@ public class UIOverlayPanel extends UIElement
      * worth remembering and outranks the one the panel measures for itself.
      */
     private boolean resized;
+
+    /**
+     * The width and height the panel opened at, kept the moment a size the user picked is first
+     * put over them, so that Ctrl+click on the header can go back to them.
+     */
+    private final Flex.Unit initialWidth = new Flex.Unit();
+    private final Flex.Unit initialHeight = new Flex.Unit();
+    private boolean keptInitialSize;
 
     public UIOverlayPanel(IKey title)
     {
@@ -107,10 +119,42 @@ public class UIOverlayPanel extends UIElement
     /** Gives the panel the size the user picked for it on an earlier opening. */
     public void restoreSize(Vector2i size)
     {
+        this.keepInitialSize();
+
         this.flex.w.max = this.flex.h.max = 0;
         this.flex.w.set(0F, size.x);
         this.flex.h.set(0F, size.y);
         this.resized = true;
+    }
+
+    /** Back to the size the panel opened at, which also stops the picked one from being remembered. */
+    private void resetSize()
+    {
+        if (this.keptInitialSize)
+        {
+            copy(this.initialWidth, this.flex.w);
+            copy(this.initialHeight, this.flex.h);
+        }
+
+        this.resized = false;
+    }
+
+    private void keepInitialSize()
+    {
+        if (!this.keptInitialSize)
+        {
+            copy(this.flex.w, this.initialWidth);
+            copy(this.flex.h, this.initialHeight);
+
+            this.keptInitialSize = true;
+        }
+    }
+
+    private static void copy(Flex.Unit from, Flex.Unit to)
+    {
+        to.value = from.value;
+        to.offset = from.offset;
+        to.max = from.max;
     }
 
     /**
@@ -137,6 +181,8 @@ public class UIOverlayPanel extends UIElement
 
     private void dragSize(UIContext context)
     {
+        this.keepInitialSize();
+
         UIElement parent = this.getParent();
         float anchorX = this.flex.x.anchor;
         float anchorY = this.flex.y.anchor;
@@ -252,10 +298,12 @@ public class UIOverlayPanel extends UIElement
     {
         if (this.isOverHeader(context))
         {
+            /* Back where and how big it opened */
             if (Window.isCtrlPressed())
             {
                 this.flex.x.offset = this.initialOffsetX;
                 this.flex.y.offset = this.initialOffsetY;
+                this.resetSize();
 
                 this.getParent().resize();
 
@@ -336,6 +384,14 @@ public class UIOverlayPanel extends UIElement
 
         this.area.render(context.batcher, BBSSettings.raisedSurface());
         context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + HEADER, BBSSettings.chromeSurface());
+
+        /* Only a panel with buttons of its own has anything to keep apart from the cross */
+        if (this.close.isVisible() && this.icons.isVisible() && this.icons.area.w > 0)
+        {
+            int x = this.close.area.x - CLOSE_GAP / 2;
+
+            context.batcher.box(x, this.area.y + 3, x + 1, this.area.y + HEADER - 3, BBSSettings.dividerColor());
+        }
 
         if (this.close.isVisible() && this.close.area.isInside(context))
         {
