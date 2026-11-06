@@ -1,7 +1,9 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
+import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -14,6 +16,9 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class UIOnionSkinContextMenu extends UIPopup
 {
@@ -60,10 +65,16 @@ public class UIOnionSkinContextMenu extends UIPopup
                     return;
                 }
 
-                for (KeyframeChannel<?> channel : replay.properties.tracks.values())
-                {
-                    String property = channel.getId();
+                /* A bone stands for its form's whole pose, so all of a form's bones are one row. */
+                Set<String> groups = new LinkedHashSet<>();
 
+                for (TrackId track : replay.properties.tracks.keySet())
+                {
+                    groups.add(track.is(TrackKind.BONE) ? TrackId.property(track.formPath(), FormProperties.POSE_PROPERTY).toKey() : track.toKey());
+                }
+
+                for (String property : groups)
+                {
                     menu.action(Icons.FOLDER, IKey.constant(property), this.onionSkin.group.get().equals(property), () ->
                     {
                         this.onionSkin.group.set(property);

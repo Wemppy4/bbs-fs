@@ -6,25 +6,27 @@ import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmControllerContext;
 import mchorse.bbs_mod.film.FilmTarget;
+import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
-import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
-import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
 
 public class FilmEditorController extends BaseFilmController
 {
@@ -214,75 +216,116 @@ public class FilmEditorController extends BaseFilmController
         boolean isPlaying = this.controller.isPlaying();
         int ticks = replay.getTick(this.getTick());
         ValueOnionSkin onionSkin = this.controller.getOnionSkin();
-        BaseValue value = replay.properties.get(onionSkin.group.get());
 
-        if (value == null)
+        if (entity instanceof StubEntity && onionSkin.enabled.get() && (onionSkin.all.get() || current))
         {
-            value = replay.properties.get("pose");
-        }
+            NavigableSet<Integer> keys = this.getOnionTicks(replay, onionSkin.group.get());
 
-        if (value instanceof KeyframeChannel<?> pose && entity instanceof StubEntity)
-        {
-            boolean canRender = onionSkin.enabled.get();
-
-            if (!onionSkin.all.get())
+            if (!keys.isEmpty())
             {
-                canRender = canRender && current;
-            }
+                BBSProfiler.begin(BBSProfiler.Timer.ONION);
+                this.renderOnion(replay, keys.headSet(ticks, false).descendingSet(), onionSkin.preColor.get(), onionSkin.preFrames.get(), context, entity);
+                this.renderOnion(replay, keys.tailSet(ticks, false), onionSkin.postColor.get(), onionSkin.postFrames.get(), context, entity);
+                BBSProfiler.end(BBSProfiler.Timer.ONION);
 
-            if (canRender)
-            {
-                KeyframeSegment<?> segment = pose.findSegment(ticks);
+                float tick = ticks + this.getTransition(entity, context.tickDelta());
+                replay.keyframes.apply(isPlaying ? ticks : tick, entity);
+                Form form = entity.getForm();
+                replay.properties.applyProperties(form, tick);
 
-                if (segment != null)
+                /* Back on the current tick after the onion excursion. */
+                RenderFrame.invalidate();
+
+                if (!isPlaying)
                 {
-                    BBSProfiler.begin(BBSProfiler.Timer.ONION);
-                    this.renderOnion(replay, pose.getKeyframes().indexOf(segment.a), -1, pose, onionSkin.preColor.get(), onionSkin.preFrames.get(), context, isPlaying, entity);
-                    this.renderOnion(replay, pose.getKeyframes().indexOf(segment.b), 1, pose, onionSkin.postColor.get(), onionSkin.postFrames.get(), context, isPlaying, entity);
-                    BBSProfiler.end(BBSProfiler.Timer.ONION);
-
-                    float tick = ticks + this.getTransition(entity, context.tickDelta());
-                    replay.keyframes.apply(isPlaying ? ticks : tick, entity);
-                    Form form = entity.getForm();
-                    replay.properties.applyProperties(form, tick);
-
-                    /* Back on the current tick after the onion excursion. */
-                    RenderFrame.invalidate();
-
-                    if (!isPlaying)
-                    {
-                        entity.setPrevX(entity.getX());
-                        entity.setPrevY(entity.getY());
-                        entity.setPrevZ(entity.getZ());
-                        entity.setPrevYaw(entity.getYaw());
-                        entity.setPrevHeadYaw(entity.getHeadYaw());
-                        entity.setPrevBodyYaw(entity.getBodyYaw());
-                        entity.setPrevPitch(entity.getPitch());
-                    }
+                    entity.setPrevX(entity.getX());
+                    entity.setPrevY(entity.getY());
+                    entity.setPrevZ(entity.getZ());
+                    entity.setPrevYaw(entity.getYaw());
+                    entity.setPrevHeadYaw(entity.getHeadYaw());
+                    entity.setPrevBodyYaw(entity.getBodyYaw());
+                    entity.setPrevPitch(entity.getPitch());
                 }
             }
         }
     }
 
-    private void renderOnion(Replay replay, int index, int direction, KeyframeChannel<?> pose, int color, int frames, WorldRenderContext context, boolean isPlaying, IEntity entity)
+    /**
+     * The ticks that get a ghost. A form's pose is keyed on its pose track and on its bone tracks
+     * alike, so the pose group, or any one bone, stands for them all and a ghost is a whole column.
+     * A form with no such keys shows the poses of the replay's other forms: the character may well
+     * be a body part. Any other track is taken on its own.
+     */
+    private NavigableSet<Integer> getOnionTicks(Replay replay, String group)
     {
-        List<? extends Keyframe<?>> keyframes = pose.getKeyframes();
-        float alpha = Colors.getA(color);
+        NavigableSet<Integer> ticks = new TreeSet<>();
+        TrackId track = TrackId.parse(group);
 
-        for (; CollectionUtils.inRange(keyframes, index) && frames > 0; index += direction)
+        if (track != null && !isPoseTrack(track))
         {
-            Keyframe<?> keyframe = keyframes.get(index);
+            KeyframeChannel channel = replay.properties.get(track);
 
-            if (keyframe.getTick() == this.getTick())
+            if (channel != null)
             {
-                continue;
+                addTicks(ticks, channel);
+
+                return ticks;
             }
 
-            int tick1 = (int) keyframe.getTick();
-            replay.keyframes.apply(tick1, entity);
-            float tick = (int) keyframe.getTick();
+            track = null;
+        }
+
+        String formPath = track == null ? "" : track.formPath();
+
+        for (Map.Entry<TrackId, KeyframeChannel> entry : replay.properties.tracks.entrySet())
+        {
+            if (isPoseTrack(entry.getKey()) && entry.getKey().formPath().equals(formPath))
+            {
+                addTicks(ticks, entry.getValue());
+            }
+        }
+
+        if (ticks.isEmpty())
+        {
+            for (Map.Entry<TrackId, KeyframeChannel> entry : replay.properties.tracks.entrySet())
+            {
+                if (isPoseTrack(entry.getKey()))
+                {
+                    addTicks(ticks, entry.getValue());
+                }
+            }
+        }
+
+        return ticks;
+    }
+
+    private static boolean isPoseTrack(TrackId track)
+    {
+        return track.is(TrackKind.BONE) || (track.is(TrackKind.PROPERTY) && FormProperties.POSE_PROPERTY.equals(track.subject()));
+    }
+
+    private static void addTicks(NavigableSet<Integer> ticks, KeyframeChannel channel)
+    {
+        for (Object keyframe : channel.getKeyframes())
+        {
+            ticks.add((int) ((Keyframe) keyframe).getTick());
+        }
+    }
+
+    private void renderOnion(Replay replay, Iterable<Integer> ticks, int color, int frames, WorldRenderContext context, IEntity entity)
+    {
+        float alpha = Colors.getA(color);
+
+        for (int tick : ticks)
+        {
+            if (frames <= 0)
+            {
+                break;
+            }
+
+            replay.keyframes.apply(tick, entity);
             Form form = entity.getForm();
-            replay.properties.applyProperties(form, tick);
+            replay.properties.applyProperties(form, (float) tick);
 
             /* This pass re-poses the live entity for another tick; whatever the frame cache
              * holds for it no longer describes what is about to render. */
