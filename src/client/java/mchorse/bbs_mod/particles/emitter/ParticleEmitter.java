@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.math.IExpression;
 import mchorse.bbs_mod.math.Variable;
@@ -556,7 +557,9 @@ public class ParticleEmitter
             {
                 RenderSystem.enableBlend();
                 RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
-                RenderSystem.depthMask(false);
+                /* A deferred pack shades by depth: where there is none it paints the sky over
+                 * whatever was drawn, so the glow would vanish against the sky */
+                RenderSystem.depthMask(!BBSRendering.isIrisWorldShadersEnabled());
             }
             else
             {
