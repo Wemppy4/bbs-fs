@@ -30,7 +30,6 @@ public class UISearchList <T> extends UIElement
                     if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN)
                     {
                         UISearchList.this.list.moveSelection(key == GLFW.GLFW_KEY_UP ? -1 : 1);
-                        if (grid != null && grid.isVisible()) grid.revealSelection();
                         return true;
                     }
 

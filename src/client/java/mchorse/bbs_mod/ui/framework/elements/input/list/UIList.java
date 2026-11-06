@@ -53,6 +53,9 @@ public abstract class UIList <T> extends UIItems<T>
     /** Rows the user marked done: a green tick at the far end of the row and in the cell's corner. */
     public Predicate<T> done;
 
+    /** Told when the list brings its pick into view, for a second view of it that scrolls on its own. */
+    public Runnable onReveal;
+
     /** Room the done tick takes at the end of a row. */
     public static final int DONE_SLOT = 16;
 
@@ -662,6 +665,15 @@ public abstract class UIList <T> extends UIItems<T>
         this.setCurrent(visible.get(next));
         this.cursor = next;
         this.scrollIntoView(next);
+        this.notifyReveal();
+    }
+
+    private void notifyReveal()
+    {
+        if (this.onReveal != null)
+        {
+            this.onReveal.run();
+        }
     }
 
     public T getVisibleSelection()
@@ -795,6 +807,7 @@ public abstract class UIList <T> extends UIItems<T>
         if (!this.current.isEmpty())
         {
             this.scroll.setScroll(this.current.get(0) * this.scroll.scrollItemSize);
+            this.notifyReveal();
         }
     }
 

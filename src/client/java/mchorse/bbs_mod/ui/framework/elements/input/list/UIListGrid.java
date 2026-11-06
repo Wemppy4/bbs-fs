@@ -16,11 +16,15 @@ public class UIListGrid<T> extends UIItemGrid<T>
 {
     private final UIList<T> source;
 
+    /* The pick has to be brought into view as soon as the cells know where they are */
+    private boolean reveal;
+
     public UIListGrid(UIList<T> source)
     {
         super(values -> { if (!values.isEmpty() && source.callback != null) source.callback.accept(values); }, null,
             source.selection, source.drag, new GridLayout(0, 4, 4, 4, 4, 1F));
         this.source = source;
+        this.source.onReveal = this::revealSelection;
         this.setCellSize(72);
         this.context(() -> source.createContextMenu(this.getContext()));
     }
@@ -78,11 +82,59 @@ public class UIListGrid<T> extends UIItemGrid<T>
         return CellPainter.hasCaption(width) && CellPainter.captionFits(context, this.caption(item), width);
     }
 
+    /**
+     * Bring the pick into view. Waits for the next layout or frame, because a picker sets its
+     * value before it's opened, when the grid has no size to work out the cells from.
+     */
     public void revealSelection()
     {
-        this.relayout();
-        int index = this.visible().indexOf(this.source.getCurrentFirst());
-        if (index >= 0) this.scrollIntoView(index);
+        this.reveal = true;
+    }
+
+    /** Index of the pick among the cells if it's waiting to be revealed, otherwise -1. */
+    private int takeReveal()
+    {
+        if (!this.reveal)
+        {
+            return -1;
+        }
+
+        this.reveal = false;
+
+        return this.visible().indexOf(this.source.getCurrentFirst());
+    }
+
+    /** Laid out with the pick still waiting means a picker has just opened: straight to it, like the list. */
+    @Override
+    public void resize()
+    {
+        super.resize();
+
+        int index = this.takeReveal();
+
+        if (index >= 0)
+        {
+            this.scroll.setScroll(this.layout.getY(index) - this.layout.getGap());
+        }
+    }
+
+    /** Already on screen, the pick moved by the keyboard or a search: only as far as it takes. */
+    @Override
+    public void render(UIContext context)
+    {
+        if (this.reveal)
+        {
+            this.relayout();
+
+            int index = this.takeReveal();
+
+            if (index >= 0)
+            {
+                this.scrollIntoView(index);
+            }
+        }
+
+        super.render(context);
     }
 
     @Override
