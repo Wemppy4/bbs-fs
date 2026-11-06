@@ -559,7 +559,7 @@ public class ParticleEmitter
                 RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
                 /* A deferred pack shades by depth: where there is none it paints the sky over
                  * whatever was drawn, so the glow would vanish against the sky */
-                RenderSystem.depthMask(!BBSRendering.isIrisWorldShadersEnabled());
+                RenderSystem.depthMask(BBSRendering.isIrisWorldShadersEnabled());
             }
             else
             {
