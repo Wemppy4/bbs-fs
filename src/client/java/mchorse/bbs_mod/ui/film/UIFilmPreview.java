@@ -488,6 +488,7 @@ public class UIFilmPreview extends UIWorldPreview
         camera.view.set(this.panel.lastView);
         camera.projection.set(this.panel.lastProjection);
 
+        this.updateExportBands();
         this.renderFrame(context, area);
         this.updateIconsVisibility(context);
         this.hud.begin(area);

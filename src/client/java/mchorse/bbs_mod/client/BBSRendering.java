@@ -106,6 +106,11 @@ public class BBSRendering
     private static Texture texture;
     private static mchorse.bbs_mod.graphics.Framebuffer /* NECESSARY */ exportFramebuffer;
 
+    /* The proportions of the export frame an editor preview marks with bands over a render that
+     * fills its whole block (see UIWorldPreview), 0 when it doesn't. Set by the preview every
+     * frame it is drawn, dropped together with the custom size. */
+    private static float exportFrameAspect;
+
     private static Runnable pendingExportResolutionAction;
     private static int pendingExportFrames;
     private static volatile boolean holdingExportFrame;
@@ -148,6 +153,7 @@ public class BBSRendering
             pendingExportResolutionAction = null;
             pendingExportFrames = 0;
             holdingExportFrame = false;
+            exportFrameAspect = 0F;
         }
 
         int newWidth = !customSize ? 0 : w;
@@ -174,6 +180,53 @@ public class BBSRendering
         {
             resizeExtraFramebuffers();
         }
+    }
+
+    public static void setExportFrameAspect(float aspect)
+    {
+        exportFrameAspect = aspect;
+    }
+
+    /**
+     * How much taller the render is than the export frame marked inside it. The game spreads
+     * its vertical field of view over the render's whole height, while the video spreads it
+     * over the frame's: with bands above and below the frame, the camera has to be widened by
+     * this much for the frame to show what the video will. Bands at the sides don't need it,
+     * as the frame is as tall as the render, so this is 1 then.
+     */
+    public static float getExportFrameFovScale()
+    {
+        if (exportFrameAspect <= 0F || !customSize || holdingExportFrame)
+        {
+            return 1F;
+        }
+
+        float w = getVideoWidth();
+        float h = getVideoHeight();
+        float frameH = w / exportFrameAspect;
+
+        /* Sides rounded to even pixels make a frame of the render's own proportions a pixel
+         * or two off; that is no band. */
+        return h - frameH <= 2F ? 1F : h / frameH;
+    }
+
+    /**
+     * The given vertical field of view (degrees) widened for the export frame's bands, see
+     * {@link #getExportFrameFovScale()}.
+     */
+    public static double widenFovForExportFrame(double fov)
+    {
+        float scale = getExportFrameFovScale();
+
+        if (scale <= 1F)
+        {
+            return fov;
+        }
+
+        double half = Math.toRadians(fov) / 2D;
+        double widened = Math.toDegrees(Math.atan(Math.tan(half) * scale) * 2D);
+
+        return Math.min(widened, 170D);
     }
 
     public static Texture getTexture()

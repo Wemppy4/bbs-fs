@@ -57,7 +57,7 @@ public class GameRendererMixin
 
         if (controller.getCurrent() != null && !BBSRendering.isIrisShadowPass())
         {
-            info.setReturnValue(controller.getFOV());
+            info.setReturnValue(BBSRendering.widenFovForExportFrame(controller.getFOV()));
         }
     }
 
