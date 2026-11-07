@@ -496,6 +496,12 @@ public class ServerNetwork
             }
             else if (state == ActionState.RESTART)
             {
+                /* Takes down a copy of the film playing in this player's world. Sent ahead of the
+                 * cast below, because a client forgets a stopped film's actors: sent after, it wiped
+                 * the map it had just been given and nothing told it again, so a sequence, which
+                 * reads that map, left every actor's shell to draw itself over the film's body. */
+                sendStopFilm(player, filmId);
+
                 ActionPlayer actionPlayer = actions.getPlayer(filmId);
 
                 /* The same editor asking for the same film from the top only wants it rewound.
@@ -534,8 +540,6 @@ public class ServerNetwork
 
                     actionPlayer.goTo(0, tick);
                 }
-
-                sendStopFilm(player, filmId);
             }
             else if (state == ActionState.STOP)
             {
