@@ -59,6 +59,16 @@ public class OrbitFilmCameraController extends OrbitViewportController
     private int placedTick;
     private int anchorPlacedTick;
 
+    /*
+     * The body the anchor last read, and whether a new one is still waiting for the film's next
+     * tick. Rebuilding the actors (a restart on seek, an undo, toggling a replay) swaps the body
+     * under the same subject, and until the film has placed it once its place says nothing: a
+     * body seen standing elsewhere was neither edited nor taken there by time, and whichever of
+     * the two the orbit took it for, the camera stayed behind by that much for good.
+     */
+    private IEntity anchorEntity;
+    private boolean awaitingPlacement;
+
     public OrbitFilmCameraController(UIFilmController controller)
     {
         super();
@@ -317,7 +327,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
             return;
         }
 
-        String decision = keyChanged ? "KEY" : !moved ? "-" : follow ? "FOLLOW" : "REBASE";
+        String decision = keyChanged ? "KEY" : this.awaitingPlacement ? "HOLD" : !moved ? "-" : follow ? "FOLLOW" : "REBASE";
         String why = (timeMoved ? "t" : "") + (placedMoved ? "p" : "") + (this.controller.isControlling() ? "h" : "") + (this.controller.isRecording() ? "r" : "");
         float dot = Math.abs(rotation.x * this.anchorRotation.x + rotation.y * this.anchorRotation.y + rotation.z * this.anchorRotation.z + rotation.w * this.anchorRotation.w);
         float dr = (float) Math.toDegrees(2D * Math.acos(Math.min(1F, dot)));
@@ -364,6 +374,9 @@ public class OrbitFilmCameraController extends OrbitViewportController
      * <p>Time moves the actor's place a tick later than its pose (see {@link #placedTick}).
      * Taking that late step for an edit left the camera where the jump started, and the subject
      * walked out of the middle of the screen by however far it had gone.</p>
+     *
+     * <p>A body the actors were just rebuilt with waits for the film's next tick
+     * (see {@link #awaitingPlacement}): the anchor holds until then and judges the place it gets.</p>
      */
     @Override
     protected void updateAnchor(float transition)
@@ -414,8 +427,18 @@ public class OrbitFilmCameraController extends OrbitViewportController
 
         boolean moved = !position.equals(this.anchorPosition) || !rotation.equals(this.anchorRotation);
         boolean keyChanged = !Objects.equals(key, this.anchorKey);
+        IEntity entity = subject == null ? null : subject.entity();
+
+        /* A new subject is a rebase whatever its body, so only the same one can be waiting. */
+        this.awaitingPlacement = !keyChanged && (this.awaitingPlacement || entity != this.anchorEntity);
+        this.anchorEntity = entity;
 
         this.traceAnchor(subject, key, keyChanged, moved, follow, timeMoved, placedMoved, position, rotation, frame, time, turning);
+
+        if (this.awaitingPlacement)
+        {
+            return;
+        }
 
         if (keyChanged || (moved && !follow))
         {
@@ -472,6 +495,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
     public void markActorsPlaced()
     {
         this.placedTick = this.controller.panel.getCursor();
+        this.awaitingPlacement = false;
     }
 
     private Matrix4f getBoneFrame(Subject subject, float transition)
@@ -493,6 +517,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
         this.anchorKey = null;
         this.anchorReplay = null;
         this.anchorTime = Float.NaN;
+        this.anchorEntity = null;
+        this.awaitingPlacement = false;
     }
 
     /**
