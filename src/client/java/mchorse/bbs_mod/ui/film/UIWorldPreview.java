@@ -40,6 +40,7 @@ public class UIWorldPreview extends UIElement
 {
     private static final int SIZE_MODE_EXPORT = 0;
     private static final int SIZE_MODE_CUSTOM = 1;
+    private static final int SIZE_MODE_AUTO = 2;
 
     public UIElement icons;
 
@@ -50,6 +51,12 @@ public class UIWorldPreview extends UIElement
 
     /** Everything drawn over the frame goes through here - see {@link PreviewHud}. */
     protected final PreviewHud hud = new PreviewHud();
+
+    /** The export's frame inside the viewport, see {@link #getExportFrame(Area)}. */
+    private final Area exportFrame = new Area();
+
+    /** Whether the bands were on last frame, to give the render its size when they switch. */
+    private boolean exportBands;
 
     /**
      * Sets the world render to the size of the given export settings, rounded up to even sides.
@@ -121,8 +128,9 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * The export the preview frames: in the export size mode the world renders at its size, and
-     * whenever the preview {@link #isFramingExport() frames the export} at its proportions.
+     * The export the preview frames: in the export size mode the world renders at its size,
+     * otherwise its frame is marked by bands while the preview {@link #isFramingExport() frames
+     * the export}.
      */
     protected VideoExportSettings getExportSettings()
     {
@@ -130,12 +138,23 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * Whether the preview shows the export's proportions even when it renders at its own size
-     * on screen (the film editor while the camera is edited).
+     * Whether the preview marks the export's frame when it renders at a size of its own (the
+     * film editor with a film open, the sequence editor).
      */
     protected boolean isFramingExport()
     {
         return false;
+    }
+
+    /**
+     * Whether the export's frame is marked inside the render by bands: while the preview
+     * {@link #isFramingExport() frames the export}, unless the render already is the export's
+     * size (the export size mode).
+     */
+    protected boolean isShowingExportBands()
+    {
+        return BBSSettings.editorPreviewSizeMode.get() != SIZE_MODE_EXPORT
+            && this.isFramingExport();
     }
 
     /**
@@ -186,23 +205,8 @@ public class UIWorldPreview extends UIElement
         {
             float scale = BBSSettings.editorPreviewResolutionScale.get();
 
-            if (this.isFramingExport())
-            {
-                VideoExportSettings export = this.getExportSettings();
-                int previewW = Math.max(2, this.area.w);
-                int previewH = Math.max(2, this.area.h);
-                int exportW = Math.max(2, export.width());
-                int exportH = Math.max(2, export.height());
-                Vector2i resized = Vectors.resize(exportW / (float) exportH, previewW, previewH);
-
-                w = Math.max(2, (int) (resized.x * scale));
-                h = Math.max(2, (int) (resized.y * scale));
-            }
-            else
-            {
-                w = Math.max(2, (int) (this.area.w * scale));
-                h = Math.max(2, (int) (this.area.h * scale));
-            }
+            w = Math.max(2, (int) (this.area.w * scale));
+            h = Math.max(2, (int) (this.area.h * scale));
         }
 
         if (w % 2 != 0) w++;
@@ -229,6 +233,56 @@ public class UIWorldPreview extends UIElement
         area.setPos(this.area.mx() - area.w / 2, this.area.my() - area.h / 2);
 
         return area;
+    }
+
+    /**
+     * The export's frame inside the given viewport: as big as fits at the export's proportions,
+     * in its middle, while the {@link #isShowingExportBands() bands} are up, the viewport itself
+     * otherwise. The guides are drawn in it.
+     */
+    public Area getExportFrame(Area viewport)
+    {
+        this.exportFrame.copy(viewport);
+
+        if (this.isShowingExportBands() && !this.isSizeLocked())
+        {
+            VideoExportSettings export = this.getExportSettings();
+            float aspect = Math.max(2, export.width()) / (float) Math.max(2, export.height());
+            Vector2i size = Vectors.resize(aspect, viewport.w, viewport.h);
+
+            this.exportFrame.setSize(size.x, size.y);
+            this.exportFrame.setPos(viewport.mx() - size.x / 2, viewport.my() - size.y / 2);
+        }
+
+        return this.exportFrame;
+    }
+
+    /**
+     * Keeps the render's size and the camera in step with the bands: switching them on or off
+     * (a film opened or closed, the size mode changed) resizes the render, and while they are up
+     * the world is told the frame's proportions so the camera widens to them
+     * ({@link BBSRendering#getExportFrameFovScale()}). Called every frame the preview is drawn.
+     */
+    protected void updateExportBands()
+    {
+        boolean bands = this.isShowingExportBands();
+
+        if (bands != this.exportBands)
+        {
+            this.exportBands = bands;
+            this.applySize();
+        }
+
+        float aspect = 0F;
+
+        if (bands && !this.isSizeLocked())
+        {
+            VideoExportSettings export = this.getExportSettings();
+
+            aspect = Math.max(2, export.width()) / (float) Math.max(2, export.height());
+        }
+
+        BBSRendering.setExportFrameAspect(aspect);
     }
 
     /**
@@ -281,6 +335,7 @@ public class UIWorldPreview extends UIElement
     {
         Area area = this.getViewport();
 
+        this.updateExportBands();
         this.renderFrame(context, area);
         this.updateIconsVisibility(context);
         this.hud.begin(area);
@@ -313,9 +368,16 @@ public class UIWorldPreview extends UIElement
         }
     }
 
-    /** The framing guides switched on in the settings: thirds, centre lines, crosshair. */
-    protected void renderGuides(UIContext context, Area area)
+    /**
+     * The framing guides switched on in the settings: thirds, centre lines, crosshair, all in
+     * the export's frame, with the bands around it while they are up.
+     */
+    protected void renderGuides(UIContext context, Area viewport)
     {
+        Area area = this.getExportFrame(viewport);
+
+        this.renderExportBands(context, viewport, area);
+
         if (BBSSettings.editorRuleOfThirds.get())
         {
             int guidesColor = BBSSettings.editorGuidesColor.get();
@@ -345,6 +407,22 @@ public class UIWorldPreview extends UIElement
             context.batcher.box(x - 4, y - 1, x + 3, y, Colors.setA(Colors.WHITE, 0.5F));
             context.batcher.box(x - 1, y - 4, x, y + 3, Colors.setA(Colors.WHITE, 0.5F));
         }
+    }
+
+    /** Shades the viewport outside the export's frame. */
+    protected void renderExportBands(UIContext context, Area viewport, Area frame)
+    {
+        if (frame.w == viewport.w && frame.h == viewport.h)
+        {
+            return;
+        }
+
+        int color = Colors.setA(0, BBSSettings.editorPreviewExportBandsOpacity.get());
+
+        if (viewport.y < frame.y) context.batcher.box(viewport.x, viewport.y, viewport.ex(), frame.y, color);
+        if (frame.ey() < viewport.ey()) context.batcher.box(viewport.x, frame.ey(), viewport.ex(), viewport.ey(), color);
+        if (viewport.x < frame.x) context.batcher.box(viewport.x, frame.y, frame.x, frame.ey(), color);
+        if (frame.ex() < viewport.ex()) context.batcher.box(frame.ex(), frame.y, viewport.ex(), frame.ey(), color);
     }
 
     /** The shade behind the icon bar, while it is up. */

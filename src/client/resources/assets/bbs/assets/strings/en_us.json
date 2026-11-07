@@ -607,6 +607,8 @@
 	"bbs.config.viewport.preview_custom_height-comment": "Custom preview render height, used when preview size mode is set to Custom.",
 	"bbs.config.viewport.preview_resolution_scale": "Preview resolution multiplier",
 	"bbs.config.viewport.preview_resolution_scale-comment": "Preview scale: higher is sharper but uses more GPU.",
+	"bbs.config.viewport.preview_export_bands_opacity": "Export bands opacity",
+	"bbs.config.viewport.preview_export_bands_opacity-comment": "Unless the preview renders at the export size, the world fills the whole preview and the export frame is marked with bands; the camera is widened so the frame shows exactly what the video will. Opacity of the bands (0 is invisible, 1 is opaque).",
 	"bbs.config.viewport.preview_selection_hud": "Selection info in preview",
 	"bbs.config.viewport.preview_icons_auto_hide": "Auto-hide preview icons",
 	"bbs.config.viewport.preview_selection_hud-comment": "Show the selected replay, gizmo, and form in the preview corner.",

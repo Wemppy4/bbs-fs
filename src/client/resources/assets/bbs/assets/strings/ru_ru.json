@@ -605,6 +605,8 @@
 	"bbs.config.viewport.preview_custom_height-comment": "Пользовательская высота рендера превью, используется в режиме «Пользовательское».",
 	"bbs.config.viewport.preview_resolution_scale": "Умножитель разрешения превью",
 	"bbs.config.viewport.preview_resolution_scale-comment": "Масштаб превью: выше — чётче, но больше нагрузка на GPU.",
+	"bbs.config.viewport.preview_export_bands_opacity": "Прозрачность полос экспорта",
+	"bbs.config.viewport.preview_export_bands_opacity-comment": "Если превью рендерится не в размере экспорта, мир занимает весь блок превью, а кадр экспорта отмечен полосами; обзор камеры расширяется так, что в рамке ровно то, что попадёт в видео. Непрозрачность полос (0 — невидимы, 1 — сплошные).",
 	"bbs.config.viewport.preview_selection_hud": "Сведения о выделении в превью",
 	"bbs.config.viewport.preview_icons_auto_hide": "Прятать иконки превью",
 	"bbs.config.viewport.preview_selection_hud-comment": "Показывать выбранный реплей, гизмо и форму в углу превью.",
