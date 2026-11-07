@@ -218,7 +218,6 @@ public class BBSSettings {
 	public static ValueInt editorPreviewCustomWidth;
 	public static ValueInt editorPreviewCustomHeight;
 	public static ValueFloat editorPreviewResolutionScale;
-	public static ValueBoolean editorPreviewExportBands;
 	public static ValueFloat editorPreviewExportBandsOpacity;
 	public static ValueBoolean editorClipAutoName;
 	public static ValueBoolean editorClipPaletteIcons;
@@ -885,7 +884,6 @@ public class BBSSettings {
 		editorPreviewCustomWidth = builder.getInt("preview_custom_width", 1280, 2, 16384);
 		editorPreviewCustomHeight = builder.getInt("preview_custom_height", 720, 2, 16384);
 		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 1F, 3F).slider();
-		editorPreviewExportBands = builder.getBoolean("preview_export_bands", false);
 		editorPreviewExportBandsOpacity = builder.getFloat("preview_export_bands_opacity", 0.5F, 0F, 1F).slider();
 		editorClipPreview = builder.getBoolean("clip_preview", true);
 		editorPreviewIconsAutoHide = builder.getBoolean("preview_icons_auto_hide", false);

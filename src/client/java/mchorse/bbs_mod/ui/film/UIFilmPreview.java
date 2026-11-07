@@ -393,11 +393,11 @@ public class UIFilmPreview extends UIWorldPreview
         }
     }
 
-    /** While the camera is edited, the preview shows the export's proportions. */
+    /** With a film open (camera and recording editors alike), the export's frame is marked. */
     @Override
     protected boolean isFramingExport()
     {
-        return this.panel.cameraEditor.isVisible();
+        return this.panel.getData() != null;
     }
 
     @Override

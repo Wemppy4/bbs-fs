@@ -481,11 +481,13 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         {
             return BBSSettings.editorPreviewSizeMode.get() == 1;
         }
-        else if (value == BBSSettings.editorPreviewResolutionScale
-            || value == BBSSettings.editorPreviewExportBands
-            || value == BBSSettings.editorPreviewExportBandsOpacity)
+        else if (value == BBSSettings.editorPreviewResolutionScale)
         {
             return BBSSettings.editorPreviewSizeMode.get() == 2;
+        }
+        else if (value == BBSSettings.editorPreviewExportBandsOpacity)
+        {
+            return BBSSettings.editorPreviewSizeMode.get() != 0;
         }
 
         return true;

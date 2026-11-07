@@ -128,8 +128,9 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * The export the preview frames: in the export size mode the world renders at its size, and
-     * whenever the preview {@link #isFramingExport() frames the export} at its proportions.
+     * The export the preview frames: in the export size mode the world renders at its size,
+     * otherwise its frame is marked by bands while the preview {@link #isFramingExport() frames
+     * the export}.
      */
     protected VideoExportSettings getExportSettings()
     {
@@ -137,8 +138,8 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * Whether the preview shows the export's proportions even when it renders at its own size
-     * on screen (the film editor while the camera is edited).
+     * Whether the preview marks the export's frame when it renders at a size of its own (the
+     * film editor with a film open, the sequence editor).
      */
     protected boolean isFramingExport()
     {
@@ -146,14 +147,13 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * Whether the render fills the whole preview and the export's frame is marked inside it by
-     * bands, the way it was done before the render took the export's proportions. Only in the
-     * automatic size mode, while the preview {@link #isFramingExport() frames the export}.
+     * Whether the export's frame is marked inside the render by bands: while the preview
+     * {@link #isFramingExport() frames the export}, unless the render already is the export's
+     * size (the export size mode).
      */
     protected boolean isShowingExportBands()
     {
-        return BBSSettings.editorPreviewExportBands.get()
-            && BBSSettings.editorPreviewSizeMode.get() == SIZE_MODE_AUTO
+        return BBSSettings.editorPreviewSizeMode.get() != SIZE_MODE_EXPORT
             && this.isFramingExport();
     }
 
@@ -205,23 +205,8 @@ public class UIWorldPreview extends UIElement
         {
             float scale = BBSSettings.editorPreviewResolutionScale.get();
 
-            if (this.isFramingExport() && !this.isShowingExportBands())
-            {
-                VideoExportSettings export = this.getExportSettings();
-                int previewW = Math.max(2, this.area.w);
-                int previewH = Math.max(2, this.area.h);
-                int exportW = Math.max(2, export.width());
-                int exportH = Math.max(2, export.height());
-                Vector2i resized = Vectors.resize(exportW / (float) exportH, previewW, previewH);
-
-                w = Math.max(2, (int) (resized.x * scale));
-                h = Math.max(2, (int) (resized.y * scale));
-            }
-            else
-            {
-                w = Math.max(2, (int) (this.area.w * scale));
-                h = Math.max(2, (int) (this.area.h * scale));
-            }
+            w = Math.max(2, (int) (this.area.w * scale));
+            h = Math.max(2, (int) (this.area.h * scale));
         }
 
         if (w % 2 != 0) w++;
@@ -274,7 +259,7 @@ public class UIWorldPreview extends UIElement
 
     /**
      * Keeps the render's size and the camera in step with the bands: switching them on or off
-     * (the setting, or the camera editor coming up) resizes the render, and while they are up
+     * (a film opened or closed, the size mode changed) resizes the render, and while they are up
      * the world is told the frame's proportions so the camera widens to them
      * ({@link BBSRendering#getExportFrameFovScale()}). Called every frame the preview is drawn.
      */
