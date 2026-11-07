@@ -68,7 +68,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     public UIElement clipArea;
     public UISequenceRecorder recorder;
 
-    private final Camera camera = new Camera();
     private final SequenceCameraController runner = new SequenceCameraController(this);
     private final SequenceFilms filmCache = new SequenceFilms();
     private final SequencePlayer player = new SequencePlayer(this);
@@ -745,10 +744,15 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         return null;
     }
 
+    /**
+     * The camera where the sequence put it this frame: the runner places the world camera
+     * itself. A camera of its own here was never filled and stood at 0, 0, 0, so "player
+     * follows the camera" put the player under the ground at the world's origin.
+     */
     @Override
     public Camera getCamera()
     {
-        return this.camera;
+        return BBSModClient.getCameraController().camera;
     }
 
     @Override
