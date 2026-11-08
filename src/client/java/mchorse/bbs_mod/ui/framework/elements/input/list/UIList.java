@@ -80,7 +80,7 @@ public abstract class UIList <T> extends UIItems<T>
     }
 
     /** The tree guides: a hairline, so the shape of the tree reads without competing with the rows. */
-    private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
+    public static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
 
     /** Nothing shorter than this, whatever the scale — a row still has to fit a line of text. */
     private static final int ROW_MIN_HEIGHT = 10;
