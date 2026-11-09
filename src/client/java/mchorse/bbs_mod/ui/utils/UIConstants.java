@@ -9,7 +9,10 @@ public final class UIConstants
     /** Height of standard form controls: trackpad, button, textbox, keybind, color strip. */
     public static final int CONTROL_HEIGHT = 16;
 
-    /** Size of an icon button: the 16px glyph with room around it — what a {@code UIIcon} is built at. */
+    /**
+     * Size of an icon button: the 16px glyph with room around it — what a {@code UIIcon} is built at.
+     * Too tall for a row of controls: an icon beside a button or a field is {@link UI#icon}.
+     */
     public static final int ICON_SIZE = 20;
 
     /** Base spacing between related elements (within a row, or label + control). */

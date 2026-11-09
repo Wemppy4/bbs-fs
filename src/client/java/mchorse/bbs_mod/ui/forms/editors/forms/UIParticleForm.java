@@ -35,7 +35,7 @@ public class UIParticleForm extends UIForm<ParticleForm>
 
             UITexturePicker.open(this.getContext(), texture, (l) -> this.form.texture.set(l));
         });
-        UIIcon openFolder = new UIIcon(Icons.FOLDER, (b) -> UIUtils.openParticleFolder(this.form.effect.get()));
+        UIIcon openFolder = UI.icon(Icons.FOLDER, (b) -> UIUtils.openParticleFolder(this.form.effect.get()));
 
         openFolder.tooltip(L10n.lang("bbs.ui.forms.editors.particle.open_folder"));
 

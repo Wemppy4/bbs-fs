@@ -46,7 +46,7 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         super(editor);
 
         this.structure = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_structure"), (b) -> this.openStructurePicker());
-        this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
+        this.openFolder = UI.icon(Icons.FOLDER, (b) ->
         {
             File folder = StructureManager.getAssetsFolder();
 

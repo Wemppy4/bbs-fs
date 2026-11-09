@@ -116,7 +116,7 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
             }
         });
 
-        UIIcon openFolder = new UIIcon(Icons.FOLDER, (b) -> UIUtils.openModelFolder(this.form.model.get()));
+        UIIcon openFolder = UI.icon(Icons.FOLDER, (b) -> UIUtils.openModelFolder(this.form.model.get()));
 
         openFolder.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER);
 

@@ -288,7 +288,7 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
             UIPropTransform zoomTransform = new UIPropTransform();
             UITextbox cmdZoomOn = new UITextbox(10000, (t) -> gun.cmdZoomOn = t);
             UITextbox cmdZoomOff = new UITextbox(10000, (t) -> gun.cmdZoomOff = t);
-            UIIcon fovInterp = new UIIcon(Icons.GRAPH, (b) ->
+            UIIcon fovInterp = UI.icon(Icons.GRAPH, (b) ->
             {
                 this.context.replaceContextMenu(new UIInterpolationContextMenu(gun.fovInterp));
             });

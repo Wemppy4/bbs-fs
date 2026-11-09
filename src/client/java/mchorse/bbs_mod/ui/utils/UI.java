@@ -10,6 +10,8 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.resizers.layout.LabelRowResizer;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.function.Consumer;
+
 public class UI
 {
     public static UIElement row(UIElement... elements)
@@ -153,6 +155,20 @@ public class UI
         scrollView.add(elements);
 
         return scrollView;
+    }
+
+    /**
+     * An icon button that sits in a row beside a button, trackpad or textbox. A plain
+     * {@link UIIcon} is {@link UIConstants#ICON_SIZE} tall, which makes such a row taller
+     * than its controls and leaves a gap under them; this one is control-sized.
+     */
+    public static UIIcon icon(Icon icon, Consumer<UIIcon> callback)
+    {
+        UIIcon element = new UIIcon(icon, callback);
+
+        element.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+
+        return element;
     }
 
     /** A row's marker, drawn the way the transform editor draws its own: white, not a button. */
