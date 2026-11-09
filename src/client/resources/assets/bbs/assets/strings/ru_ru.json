@@ -1623,6 +1623,7 @@
 	"bbs.ui.forms.editors.structure.title": "Структура",
 	"bbs.ui.forms.editors.structure.pick_structure": "Выбрать структуру...",
 	"bbs.ui.forms.editors.structure.open_folder": "Открыть папку структур BBS",
+	"bbs.ui.forms.editors.particle.open_folder": "Открыть папку эффекта частиц",
 	"bbs.ui.forms.editors.structure.pick_biome": "Выбрать биом...",
 	"bbs.ui.forms.editors.structure.origin": "Якорь",
 	"bbs.ui.forms.editors.trail.length": "Длинна",

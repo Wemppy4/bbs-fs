@@ -13,9 +13,11 @@ import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPicker;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.shapes.UIShapeKeys;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
 
@@ -114,7 +116,11 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
             }
         });
 
-        this.options.add(this.pickModel, this.pick, this.poseEditor);
+        UIIcon openFolder = new UIIcon(Icons.FOLDER, (b) -> UIUtils.openModelFolder(this.form.model.get()));
+
+        openFolder.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER);
+
+        this.options.add(UI.row(this.pickModel, openFolder), this.pick, this.poseEditor);
 
         this.buildCemSection();
     }

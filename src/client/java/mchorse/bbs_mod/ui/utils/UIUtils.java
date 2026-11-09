@@ -83,6 +83,20 @@ public class UIUtils
         return folder != null && (folder.isDirectory() || folder.mkdirs()) && openFolder(folder);
     }
 
+    /** The folder holding the effect's file: the world's copy when the world has one, else the main library's. */
+    public static boolean openParticleFolder(String effect)
+    {
+        if (effect == null || effect.isEmpty())
+        {
+            return false;
+        }
+
+        File file = BBSModClient.getParticles().getFile(effect);
+        File folder = file == null ? null : file.getParentFile();
+
+        return folder != null && (folder.isDirectory() || folder.mkdirs()) && openFolder(folder);
+    }
+
     private static boolean runSysCommand(String... command)
     {
         try
