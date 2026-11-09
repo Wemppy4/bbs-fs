@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelVertex;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -579,9 +580,60 @@ public class WeldBinding
         /* Whether the two sides share shading normals along the seam (the patch buffer resolves it after the walk). */
         public final boolean smooth;
 
+        /* Whether the bands bend along a curve (see ModelWeld#curve); false too when the bands are too thin to carry one. */
+        public final boolean curve;
+
         /* Twist already present between the two faces in the rest pose (rotated cubes), subtracted from the
          * live measurement so only ANIMATED twist deforms the band. */
         private final float restTwist;
+
+        /* The curve mode's rest: each cube's rest matrix (bone x cube rotate) and its inverse, which turn a
+         * captured matrix into the pose's change since rest; the band lengths (local units, the same the
+         * mesh measures its points in); where the seam sits along the curve; the curve at rest, a cubic
+         * Bezier from the far end of the target's band to the far end of the source's, its handles along
+         * each bone; and, per source corner, how far the target's matched corner sat from it at rest. */
+        private final Matrix4f targetRest = new Matrix4f();
+        private final Matrix4f sourceRest = new Matrix4f();
+        private final Matrix4f targetRestInverse = new Matrix4f();
+        private final Matrix4f sourceRestInverse = new Matrix4f();
+        private final float targetBand;
+        private final float sourceBand;
+        private final float seamParameter;
+        private final Vector3f[] restCurve = vectors(4);
+        private final Vector3f[] restGap = vectors(4);
+
+        /* Rigid world matrices of the two cubes, captured with the faces; the curve is built from them. */
+        public final Matrix4f capturedTargetMatrix = new Matrix4f();
+        public final Matrix4f capturedSourceMatrix = new Matrix4f();
+
+        /* The curve of the frame: its control points, each end's rotation since rest and what's left of its
+         * linear change once that's taken out (a scale), and the turn that cancels the tangent mismatch at
+         * either end so the band meets its rigid cube exactly. Ready only when the seam is (both bones
+         * shown) and neither cube's pose mirrors. */
+        public boolean curveReady;
+        private final Vector3f[] poseCurve = vectors(4);
+        private final Quaternionf targetRotation = new Quaternionf();
+        private final Quaternionf sourceRotation = new Quaternionf();
+        private final Matrix3f targetStretch = new Matrix3f();
+        private final Matrix3f sourceStretch = new Matrix3f();
+        private final Quaternionf startFix = new Quaternionf();
+        private final Quaternionf endFix = new Quaternionf();
+
+        /* Scratch of the curve, reused every frame and every point. */
+        private final Matrix4f poseMatrix = new Matrix4f();
+        private final Matrix3f linear = new Matrix3f();
+        private final Matrix3f stretch = new Matrix3f();
+        private final Quaternionf turn = new Quaternionf();
+        private final Vector3f restPoint = new Vector3f();
+        private final Vector3f restTangent = new Vector3f();
+        private final Vector3f tangent = new Vector3f();
+        private final float[] faceParams = new float[2];
+
+        /* The last ring asked for, kept for the next point on it; NaN (no ring) once the curve changes. */
+        private float ringParameter = Float.NaN;
+        private final Quaternionf ring = new Quaternionf();
+        private final Vector3f ringCentre = new Vector3f();
+        private final Vector3f ringRestCentre = new Vector3f();
 
         /* Rigid world poses of the two faces, captured each frame before any snapping. */
         public final Vector3f[] capturedSourceWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
@@ -631,6 +683,60 @@ public class WeldBinding
             Vector3f restTargetAxis = targetGroupRest.transformDirection(new Vector3f(this.targetFaceNormal)).normalize();
 
             this.restTwist = this.twistBetween(sourceRestWorld, targetRestWorld, restSourceAxis, restTargetAxis);
+
+            this.targetRest.set(restCubeMatrix(targetGroupRest, targetCube));
+            this.sourceRest.set(restCubeMatrix(sourceGroupRest, sourceCube));
+            this.targetRest.invert(this.targetRestInverse);
+            this.sourceRest.invert(this.sourceRestInverse);
+            this.targetBand = this.falloff * this.targetAxisExtent;
+            this.sourceBand = this.falloff * this.sourceAxisExtent;
+
+            for (int k = 0; k < 4; k++)
+            {
+                this.restGap[k].set(targetRestWorld[this.sourceToTarget[k]]).sub(sourceRestWorld[k]);
+            }
+
+            this.curve = weld.curve && this.layOutRestCurve(this.targetRest, this.sourceRest);
+
+            float targetLength = this.targetRest.transformDirection(new Vector3f(this.targetFaceNormal)).length() * this.targetBand;
+            float sourceLength = this.sourceRest.transformDirection(new Vector3f(this.sourceFaceNormal)).length() * this.sourceBand;
+
+            this.seamParameter = targetLength + sourceLength > EPS ? targetLength / (targetLength + sourceLength) : 0.5F;
+        }
+
+        /**
+         * Lay the curve out at rest: from the target band's far end, the middle of its welded face pushed a
+         * band into the cube, to the source band's far end, with each handle a third of the way along its
+         * own bone — a straight line run at an even pace when the bones line up. Whether there is a curve to
+         * speak of: two bands too thin to span anything have none.
+         */
+        private boolean layOutRestCurve(Matrix4f targetRest, Matrix4f sourceRest)
+        {
+            if (this.targetBand < EPS || this.sourceBand < EPS)
+            {
+                return false;
+            }
+
+            Vector3f targetEnd = average(this.targetCorners).sub(new Vector3f(this.targetFaceNormal).mul(this.targetBand));
+            Vector3f sourceEnd = average(this.sourceCorners).sub(new Vector3f(this.sourceFaceNormal).mul(this.sourceBand));
+
+            targetRest.transformPosition(targetEnd, this.restCurve[0]);
+            sourceRest.transformPosition(sourceEnd, this.restCurve[3]);
+
+            float span = this.restCurve[0].distance(this.restCurve[3]);
+
+            if (span < EPS)
+            {
+                return false;
+            }
+
+            Vector3f targetAxis = targetRest.transformDirection(new Vector3f(this.targetFaceNormal)).normalize();
+            Vector3f sourceAxis = sourceRest.transformDirection(new Vector3f(this.sourceFaceNormal)).normalize();
+
+            this.restCurve[1].set(targetAxis).mul(span / 3F).add(this.restCurve[0]);
+            this.restCurve[2].set(sourceAxis).mul(span / 3F).add(this.restCurve[3]);
+
+            return true;
         }
 
         public void resetCapture()
@@ -638,6 +744,7 @@ public class WeldBinding
             this.sourceCaptured = false;
             this.targetCaptured = false;
             this.seamReady = false;
+            this.curveReady = false;
         }
 
         /**
@@ -654,6 +761,7 @@ public class WeldBinding
 
             cube.transformDirection(this.capturedTargetNormalWorld.set(this.targetFaceNormal)).normalize();
             bone.transformDirection(this.capturedTargetBoneAxis.set(this.targetFaceNormal)).normalize();
+            this.capturedTargetMatrix.set(cube);
             this.targetCaptured = true;
         }
 
@@ -666,6 +774,7 @@ public class WeldBinding
             }
 
             bone.transformDirection(this.capturedSourceBoneAxis.set(this.sourceFaceNormal)).normalize();
+            this.capturedSourceMatrix.set(cube);
             this.sourceCaptured = true;
         }
 
@@ -717,6 +826,145 @@ public class WeldBinding
 
             this.applyTwist();
             this.seamReady = true;
+            this.curveReady = this.curve && this.computeCurve();
+        }
+
+        /**
+         * The curve of the frame. Each end of the rest curve rides its own cube's change since rest (a
+         * rigid band end stays put on its cube), and each handle turns and stretches with that cube, so the
+         * curve leaves either band end along its bone. Each end's rotation is read off its linear change,
+         * whatever is left of it (a scale) is kept apart, so a ring can turn between the two and stretch
+         * between the two. False, and the shear stands in, when a cube's pose mirrors it: no rotation
+         * carries a mirror.
+         */
+        private boolean computeCurve()
+        {
+            this.ringParameter = Float.NaN;
+
+            if (!this.endPose(this.capturedTargetMatrix, this.targetRestInverse, this.targetRotation, this.targetStretch, this.restCurve[0], this.restCurve[1], this.poseCurve[0], this.poseCurve[1]))
+            {
+                return false;
+            }
+
+            if (!this.endPose(this.capturedSourceMatrix, this.sourceRestInverse, this.sourceRotation, this.sourceStretch, this.restCurve[3], this.restCurve[2], this.poseCurve[3], this.poseCurve[2]))
+            {
+                return false;
+            }
+
+            /* Read off a linear change, a rotation need not carry the rest tangent exactly onto the posed one
+             * (a scale across the bone tilts it): the turn that does at either end, undone there, so the
+             * band ends meet their cubes exactly. Identity whenever the bones only turn and move. */
+            this.endFix(0F, this.targetRotation, this.startFix);
+            this.endFix(1F, this.sourceRotation, this.endFix);
+
+            return true;
+        }
+
+        /** One end of the curve: its rotation and stretch since rest, its point and its handle, posed. */
+        private boolean endPose(Matrix4f captured, Matrix4f restInverse, Quaternionf rotation, Matrix3f stretch, Vector3f restEnd, Vector3f restHandle, Vector3f end, Vector3f handle)
+        {
+            captured.mul(restInverse, this.poseMatrix);
+            this.poseMatrix.get3x3(this.linear);
+
+            if (this.linear.determinant() <= EPS_SQ * EPS_SQ)
+            {
+                return false;
+            }
+
+            this.linear.getNormalizedRotation(rotation);
+            stretch.set(rotation).transpose().mul(this.linear);
+
+            this.poseMatrix.transformPosition(restEnd, end);
+            this.linear.transform(handle.set(restHandle).sub(restEnd)).add(end);
+
+            return true;
+        }
+
+        /** The turn undoing, at parameter {@code u}, what the bare rotation leaves between the rest tangent carried and the posed one. */
+        private void endFix(float u, Quaternionf rotation, Quaternionf dest)
+        {
+            bezierTangent(this.restCurve, u, this.restTangent);
+            bezierTangent(this.poseCurve, u, this.tangent);
+            rotation.transform(this.restTangent);
+
+            if (this.restTangent.lengthSquared() < EPS_SQ || this.tangent.lengthSquared() < EPS_SQ)
+            {
+                dest.identity();
+
+                return;
+            }
+
+            dest.rotationTo(this.restTangent.normalize(), this.tangent.normalize()).conjugate();
+        }
+
+        /**
+         * Where a band point lands when the band bends along the curve. The point, given in its cube's local
+         * space with its distance from the welded plane, stands on a ring across the bone: the target's
+         * band runs from the curve's start to the seam, the source's from the seam to the end, each in
+         * proportion to its length. The ring sits on the curve at that spot, turned between the two bones
+         * (twist and all) and then onto the curve's tangent, stretched between the two, and the point keeps
+         * its offset from the rest curve on it. {@code restShift} moves the point at rest first: a source
+         * point closes the gap its face had to the target's (see {@link #restGapAt}), faded the way the
+         * shear fades it, so at rest the band is what the shear draws there.
+         */
+        public Vector3f curvePoint(boolean source, Vector3f local, float distance, Vector3f restShift, Vector3f dest)
+        {
+            float u = source
+                ? 1F - (1F - distance / this.sourceBand) * (1F - this.seamParameter)
+                : (1F - distance / this.targetBand) * this.seamParameter;
+
+            u = MathUtils.clamp(u, 0F, 1F);
+
+            /* A ring is a function of u alone, and points come in rings (a rail's pair, a face's row). */
+            if (u != this.ringParameter)
+            {
+                this.ring(u);
+            }
+
+            Vector3f offset = (source ? this.sourceRest : this.targetRest).transformPosition(local, this.restPoint).add(restShift).sub(this.ringRestCentre);
+
+            this.ring.transform(this.stretch.transform(offset));
+
+            return dest.set(this.ringCentre).add(offset);
+        }
+
+        /**
+         * The ring at {@code u}: its centre on the rest curve and on the posed one, and its turn — between
+         * the bones' rotations, then the end fix, then the swing that takes the rest tangent so turned onto
+         * the curve's (at either end the swing is what the fix undoes) — and stretch.
+         */
+        private void ring(float u)
+        {
+            this.ringParameter = u;
+
+            bezier(this.restCurve, u, this.ringRestCentre);
+            bezier(this.poseCurve, u, this.ringCentre);
+
+            this.targetRotation.slerp(this.sourceRotation, u, this.ring);
+
+            bezierTangent(this.restCurve, u, this.restTangent);
+            bezierTangent(this.poseCurve, u, this.tangent);
+            this.ring.transform(this.restTangent);
+            this.ring.premul(this.startFix.slerp(this.endFix, u, this.turn));
+
+            if (this.restTangent.lengthSquared() > EPS_SQ && this.tangent.lengthSquared() > EPS_SQ)
+            {
+                this.ring.premul(this.turn.rotationTo(this.restTangent.normalize(), this.tangent.normalize()));
+            }
+
+            this.targetStretch.lerp(this.sourceStretch, u, this.stretch);
+        }
+
+        /**
+         * How far a point of the source's welded face had to go at rest to reach the target's face: the
+         * corners' gaps, bilinear over the face. Zero for faces that fit; a skin's jacket layers often sit a
+         * hair apart.
+         */
+        public Vector3f restGapAt(Vector3f local, Vector3f dest)
+        {
+            float[] st = faceParams(this.sourceCorners, local, this.faceParams);
+
+            return bilerp(this.restGap, IDENTITY_ORDER, st[0], st[1], dest);
         }
 
         /**
@@ -886,16 +1134,14 @@ public class WeldBinding
             return -1;
         }
 
-        /* The seam is indexed by target corner, so the target face reads it in place. */
-        private static final int[] TARGET_ORDER = {0, 1, 2, 3};
-
         /**
          * Seam position for a point on the target cube's welded plane — bilinear over the face rect, so
          * inset geometry at the joint rides the seam too, not only the four exact corners.
          */
         public Vector3f seamAtTarget(Vector3f local, Vector3f dest)
         {
-            return this.seamAt(this.targetCorners, TARGET_ORDER, local, dest);
+            /* The seam is indexed by target corner, so the target face reads it in place. */
+            return this.seamAt(this.targetCorners, IDENTITY_ORDER, local, dest);
         }
 
         public Vector3f seamAtSource(Vector3f local, Vector3f dest)
@@ -905,42 +1151,107 @@ public class WeldBinding
 
         private Vector3f seamAt(Vector3f[] corners, int[] order, Vector3f local, Vector3f dest)
         {
-            Vector3f c0 = corners[0];
-            Vector3f c1 = corners[1];
-            Vector3f c3 = corners[3];
-            float e1x = c1.x - c0.x;
-            float e1y = c1.y - c0.y;
-            float e1z = c1.z - c0.z;
-            float e2x = c3.x - c0.x;
-            float e2y = c3.y - c0.y;
-            float e2z = c3.z - c0.z;
-            float dx = local.x - c0.x;
-            float dy = local.y - c0.y;
-            float dz = local.z - c0.z;
-            float l1 = e1x * e1x + e1y * e1y + e1z * e1z;
-            float l2 = e2x * e2x + e2y * e2y + e2z * e2z;
+            float[] st = faceParams(corners, local, this.faceParams);
 
-            /* A face inset to a line has a degenerate edge — park that param mid-seam. */
-            float s = l1 > EPS_SQ ? (dx * e1x + dy * e1y + dz * e1z) / l1 : 0.5F;
-            float t = l2 > EPS_SQ ? (dx * e2x + dy * e2y + dz * e2z) / l2 : 0.5F;
-
-            s = Math.max(0F, Math.min(1F, s));
-            t = Math.max(0F, Math.min(1F, t));
-
-            Vector3f s0 = this.seam[order[0]];
-            Vector3f s1 = this.seam[order[1]];
-            Vector3f s2 = this.seam[order[2]];
-            Vector3f s3 = this.seam[order[3]];
-            float w0 = (1F - s) * (1F - t);
-            float w1 = s * (1F - t);
-            float w2 = s * t;
-            float w3 = (1F - s) * t;
-
-            return dest.set(
-                s0.x * w0 + s1.x * w1 + s2.x * w2 + s3.x * w3,
-                s0.y * w0 + s1.y * w1 + s2.y * w2 + s3.y * w3,
-                s0.z * w0 + s1.z * w1 + s2.z * w2 + s3.z * w3
-            );
+            return bilerp(this.seam, order, st[0], st[1], dest);
         }
+    }
+
+    private static final float EPS = 1.0e-4F;
+
+    /* Corners in their own order, for a bilerp over values indexed like the face's corners. */
+    private static final int[] IDENTITY_ORDER = {0, 1, 2, 3};
+
+    /**
+     * Where a point stands over a face's rect: s along corners 0 to 1, t along 0 to 3, both clamped to the
+     * face, so inset geometry at the joint reads the nearest spot of it.
+     */
+    private static float[] faceParams(Vector3f[] corners, Vector3f local, float[] dest)
+    {
+        Vector3f c0 = corners[0];
+        Vector3f c1 = corners[1];
+        Vector3f c3 = corners[3];
+        float e1x = c1.x - c0.x;
+        float e1y = c1.y - c0.y;
+        float e1z = c1.z - c0.z;
+        float e2x = c3.x - c0.x;
+        float e2y = c3.y - c0.y;
+        float e2z = c3.z - c0.z;
+        float dx = local.x - c0.x;
+        float dy = local.y - c0.y;
+        float dz = local.z - c0.z;
+        float l1 = e1x * e1x + e1y * e1y + e1z * e1z;
+        float l2 = e2x * e2x + e2y * e2y + e2z * e2z;
+
+        /* A face inset to a line has a degenerate edge — park that param mid-seam. */
+        float s = l1 > EPS_SQ ? (dx * e1x + dy * e1y + dz * e1z) / l1 : 0.5F;
+        float t = l2 > EPS_SQ ? (dx * e2x + dy * e2y + dz * e2z) / l2 : 0.5F;
+
+        dest[0] = Math.max(0F, Math.min(1F, s));
+        dest[1] = Math.max(0F, Math.min(1F, t));
+
+        return dest;
+    }
+
+    /** Bilinear blend of four points over a face, {@code order} naming which point stands at each face corner. */
+    private static Vector3f bilerp(Vector3f[] points, int[] order, float s, float t, Vector3f dest)
+    {
+        Vector3f s0 = points[order[0]];
+        Vector3f s1 = points[order[1]];
+        Vector3f s2 = points[order[2]];
+        Vector3f s3 = points[order[3]];
+        float w0 = (1F - s) * (1F - t);
+        float w1 = s * (1F - t);
+        float w2 = s * t;
+        float w3 = (1F - s) * t;
+
+        return dest.set(
+            s0.x * w0 + s1.x * w1 + s2.x * w2 + s3.x * w3,
+            s0.y * w0 + s1.y * w1 + s2.y * w2 + s3.y * w3,
+            s0.z * w0 + s1.z * w1 + s2.z * w2 + s3.z * w3
+        );
+    }
+
+    /** A point of the cubic Bezier through four control points. */
+    private static Vector3f bezier(Vector3f[] p, float u, Vector3f dest)
+    {
+        float v = 1F - u;
+        float a = v * v * v;
+        float b = 3F * v * v * u;
+        float c = 3F * v * u * u;
+        float d = u * u * u;
+
+        return dest.set(
+            p[0].x * a + p[1].x * b + p[2].x * c + p[3].x * d,
+            p[0].y * a + p[1].y * b + p[2].y * c + p[3].y * d,
+            p[0].z * a + p[1].z * b + p[2].z * c + p[3].z * d
+        );
+    }
+
+    /** The cubic Bezier's derivative at {@code u}: which way, and how fast, it runs there. */
+    private static Vector3f bezierTangent(Vector3f[] p, float u, Vector3f dest)
+    {
+        float v = 1F - u;
+        float a = 3F * v * v;
+        float b = 6F * v * u;
+        float c = 3F * u * u;
+
+        return dest.set(
+            (p[1].x - p[0].x) * a + (p[2].x - p[1].x) * b + (p[3].x - p[2].x) * c,
+            (p[1].y - p[0].y) * a + (p[2].y - p[1].y) * b + (p[3].y - p[2].y) * c,
+            (p[1].z - p[0].z) * a + (p[2].z - p[1].z) * b + (p[3].z - p[2].z) * c
+        );
+    }
+
+    private static Vector3f[] vectors(int count)
+    {
+        Vector3f[] vectors = new Vector3f[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            vectors[i] = new Vector3f();
+        }
+
+        return vectors;
     }
 }

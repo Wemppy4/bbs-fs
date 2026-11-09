@@ -1485,17 +1485,32 @@ public class UIModelConfigEditor extends UIElement
             UI.row(this.bonePicker(weld.targetBone::get, (bone) -> this.setWeldBone(weld, false, bone), this::refreshWelds), this.facePicker(weld.targetFace, this::refreshWelds))
         );
         this.fillPairs(weld);
+
+        /* What a curve doesn't use stays in place, greyed out, so the section doesn't jump when it's switched. */
+        UIElement angle = UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld));
+        UIElement share = UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld));
+        UIElement twist = this.weldTwist(weld);
+
         this.weldBend.add(
-            UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld)),
+            angle,
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF, this.weldFalloff(weld)),
-            UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
-            this.weldTwist(weld),
-            this.weldSmooth(weld)
+            share,
+            twist,
+            this.weldSmooth(weld),
+            this.weldCurve(weld)
         );
 
         for (UIElement body : new UIElement[] {this.weldBones, this.weldPairs, this.weldBend})
         {
             UIUtils.setEnabledDeep(body, picked != null);
+        }
+
+        if (picked != null && weld.curve.get())
+        {
+            for (UIElement unused : new UIElement[] {angle, share, twist})
+            {
+                UIUtils.setEnabledDeep(unused, false);
+            }
         }
 
         this.resizePage(Tab.WELDS);
@@ -1894,6 +1909,20 @@ public class UIModelConfigEditor extends UIElement
     private UIToggle weldSmooth(WeldValue weld)
     {
         return this.toggle(UIKeys.MODEL_EDITOR_WELD_SMOOTH, () -> weld.smooth, this::invalidateWelds);
+    }
+
+    /** Switching it changes which of the section's fields apply, so the section is filled again. */
+    private UIToggle weldCurve(WeldValue weld)
+    {
+        UIToggle toggle = this.toggle(UIKeys.MODEL_EDITOR_WELD_CURVE, () -> weld.curve, () ->
+        {
+            this.invalidateWelds();
+            this.fillWeld();
+        });
+
+        toggle.tooltip(UIKeys.MODEL_EDITOR_WELD_CURVE_TOOLTIP);
+
+        return toggle;
     }
 
     private void addWeld()
