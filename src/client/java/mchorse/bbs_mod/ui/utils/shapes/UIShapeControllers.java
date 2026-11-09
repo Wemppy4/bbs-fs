@@ -69,10 +69,9 @@ public class UIShapeControllers extends UIElement
             field.getEvents().register(mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent.class, e -> this.boundary.run());
         }
         /* The pose editor's mirror edit (Shift+F): one switch for bones and controllers alike. */
-        this.mirror = new UIIcon(Icons.CONVERT, b -> this.toggleMirror());
+        this.mirror = UI.icon(Icons.CONVERT, b -> this.toggleMirror());
         this.mirror.highlight(BBSSettings.poseMirrorEdit::get, Direction.BOTTOM);
         this.mirror.tooltip(key("mirror"));
-        this.mirror.wh(20, 20);
         this.keys().register(Keys.TRANSFORMATIONS_MIRROR_EDIT, this::toggleMirror).strict().category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
         this.column(4).vertical().stretch();
         this.add(this.list, UI.row(this.height, this.shift, this.tilt, this.mirror));

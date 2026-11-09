@@ -46,7 +46,7 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
             UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.audio.get()));
         });
 
-        this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
+        this.openFolder = UI.icon(Icons.FOLDER, (b) ->
         {
             Link link = this.clip.audio.get();
             File file = BBSMod.getAudioFolder();
@@ -64,7 +64,7 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
             UIUtils.openFolder(file);
         });
 
-        this.extendDuration = new UIIcon(Icons.RIGHTLOAD, (b) -> this.extendToMediaDuration());
+        this.extendDuration = UI.icon(Icons.RIGHTLOAD, (b) -> this.extendToMediaDuration());
         this.extendDuration.tooltip(UIKeys.CAMERA_PANELS_AUDIO_EXTEND_DURATION);
 
         this.offset = this.trackpad(this.clip.offset);

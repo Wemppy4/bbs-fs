@@ -35,7 +35,7 @@ public class UILabelFormPanel extends UIFormPanel<LabelForm>
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.form.font.get()));
         });
-        UIIcon openFontFolder = new UIIcon(Icons.FOLDER, (b) ->
+        UIIcon openFontFolder = UI.icon(Icons.FOLDER, (b) ->
         {
             File folder = FontManager.getFolder();
 

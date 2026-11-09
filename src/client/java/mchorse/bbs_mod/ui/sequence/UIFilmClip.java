@@ -45,7 +45,7 @@ public class UIFilmClip extends UIClip<FilmClip>
         super.registerUI();
 
         this.pickFilm = new UIButton(UIKeys.SEQUENCE_CLIP_PICK_FILM, (b) -> this.pickFilm());
-        this.fit = new UIIcon(Icons.RIGHTLOAD, (b) -> this.fitToFilm());
+        this.fit = UI.icon(Icons.RIGHTLOAD, (b) -> this.fitToFilm());
         this.fit.tooltip(UIKeys.SEQUENCE_CLIP_FIT);
 
         this.offset = this.trackpad(this.clip.offset);

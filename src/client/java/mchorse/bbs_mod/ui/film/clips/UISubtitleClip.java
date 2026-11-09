@@ -72,7 +72,7 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.font.get()));
         });
-        this.openFontFolder = new UIIcon(Icons.FOLDER, (b) ->
+        this.openFontFolder = UI.icon(Icons.FOLDER, (b) ->
         {
             File folder = FontManager.getFolder();
 
