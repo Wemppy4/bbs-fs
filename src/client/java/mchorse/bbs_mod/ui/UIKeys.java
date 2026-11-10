@@ -1142,6 +1142,10 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_CURVE = L10n.lang("bbs.ui.model_editor.weld.curve");
     public static final IKey MODEL_EDITOR_WELD_CURVE_TOOLTIP = L10n.lang("bbs.ui.model_editor.weld.curve_tooltip");
     public static final IKey MODEL_EDITOR_WELD_ADD = L10n.lang("bbs.ui.model_editor.weld.add");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_COPY = L10n.lang("bbs.ui.model_editor.welds.context.copy");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_PASTE = L10n.lang("bbs.ui.model_editor.welds.context.paste");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_RESET = L10n.lang("bbs.ui.model_editor.welds.context.reset");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_SAVE = L10n.lang("bbs.ui.model_editor.welds.context.save");
     public static final IKey MODEL_EDITOR_WELD_REMOVE = L10n.lang("bbs.ui.model_editor.weld.remove");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.source_bone");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.target_bone");
