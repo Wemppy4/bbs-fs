@@ -741,6 +741,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 case PHYSICS -> this.applyPhysics(entity, model, transition, world);
                 case SPLINE -> this.applySpline(model);
                 case LIMITS -> this.applyConstraints(model);
+                case WELDS -> model.followWelds();
             }
         }
     }

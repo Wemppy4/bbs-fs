@@ -1287,10 +1287,29 @@ public class UIModelConfigEditor extends UIElement
         });
         inside.tooltip(UIKeys.MODEL_EDITOR_BONE_INSIDE_CARRIER_TOOLTIP);
 
+        UIToggle follow = new UIToggle(UIKeys.MODEL_EDITOR_BONE_FOLLOW_WELDS, picked != null && config.weldFollowers.get().contains(bone), (t) ->
+        {
+            BaseValue.edit(config.weldFollowers, (v) ->
+            {
+                if (t.getValue())
+                {
+                    config.weldFollowers.get().add(bone);
+                }
+                else
+                {
+                    config.weldFollowers.get().remove(bone);
+                }
+            });
+
+            this.fillBone();
+        });
+        follow.tooltip(UIKeys.MODEL_EDITOR_BONE_FOLLOW_WELDS_TOOLTIP);
+
         this.bonePanel.removeAll();
         this.bonePanel.add(
             visible,
             inside,
+            follow,
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_MIRROR, this.bonePicker(() -> picked == null ? "" : this.mirrorOf(bone), (other) -> this.setMirror(bone, other), this::fillBone)),
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_PICKING, this.bonePicker(() -> picked == null ? "" : config.pickingOverrides.get().getOrDefault(bone, ""), (other) -> this.setPickingOverride(bone, other), this::fillBone))
         );
