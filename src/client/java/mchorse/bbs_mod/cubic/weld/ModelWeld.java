@@ -40,12 +40,20 @@ public class ModelWeld
     public final boolean smooth;
 
     /**
+     * Whether the bands bend along one smooth curve between the bones, the way a bendy bone does, instead
+     * of shearing toward a seam that creases. The curve runs from the far end of one band to the far end
+     * of the other, so it wants a wide band; the share, the twist switch and the max angle don't apply
+     * (twist spreads along the curve on its own).
+     */
+    public final boolean curve;
+
+    /**
      * Which cubes weld to which, picked by hand: with a pair whose both cubes are picked, only the pairs
      * weld; without one, every cube with the welded face does, paired by how the faces fit at rest.
      */
     public final List<Pair> pairs;
 
-    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle, float seamFalloff, float parentShare, boolean twist, boolean smooth, List<Pair> pairs)
+    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle, float seamFalloff, float parentShare, boolean twist, boolean smooth, boolean curve, List<Pair> pairs)
     {
         this.sourceBone = sourceBone;
         this.sourceFace = sourceFace;
@@ -56,6 +64,7 @@ public class ModelWeld
         this.parentShare = parentShare;
         this.twist = twist;
         this.smooth = smooth;
+        this.curve = curve;
         this.pairs = List.copyOf(pairs);
     }
 

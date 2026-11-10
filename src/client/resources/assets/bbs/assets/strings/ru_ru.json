@@ -1935,6 +1935,8 @@
 	"bbs.ui.model_editor.weld.parent_share": "Доля родителя",
 	"bbs.ui.model_editor.weld.twist": "Распределять твист",
 	"bbs.ui.model_editor.weld.smooth": "Гладкий шов",
+	"bbs.ui.model_editor.weld.curve": "Изгиб дугой",
+	"bbs.ui.model_editor.weld.curve_tooltip": "Кубы гнутся одной плавной дугой между костями, как гибкая кость в Блендере, а не углом на шве. Нужна широкая полоса: чем шире «Ширина изгиба», тем круглее. Макс. угол, доля родителя и твист здесь не используются, твист распределяется по дуге сам.",
 	"bbs.ui.model_editor.weld.add": "Добавить шов",
 	"bbs.ui.model_editor.weld.remove": "Удалить шов",
 	"bbs.ui.model_editor.weld.issue.source_bone": "Кость-источник не найдена",

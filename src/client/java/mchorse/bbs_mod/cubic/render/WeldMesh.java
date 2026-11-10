@@ -108,6 +108,7 @@ public class WeldMesh
     private final Vector3f[] rigid = vectors(4);
     private final Vector3f[] cornerNormals = vectors(4);
     private final Vector3f seamPosition = new Vector3f();
+    private final Vector3f restShift = new Vector3f();
     private final Vector3f tangentS = new Vector3f();
     private final Vector3f tangentT = new Vector3f();
     private final Vector3f normal = new Vector3f();
@@ -148,8 +149,18 @@ public class WeldMesh
         /* The falloff weight at every grid point: full at the seam, none a band away. */
         private float[] weights;
 
-        /* Per deform: whether the seam is built, and its displacement at each corner (zero off its plane). */
+        /* A curved seam on the same plane of the cube as an earlier one (a torso's bottom welded to both
+         * legs): the earlier takes the face, the way it takes the corners on the shear. */
+        private boolean shadowed;
+
+        /* A curved seam's source side, at rest: how far each corner on the plane goes to meet the target's
+         * face (zero elsewhere) — what the shear moves it by at rest, faded across the quad the same way. */
+        private final Vector3f[] restGap = vectors(4);
+
+        /* Per deform: whether the seam is built, whether it bends along its curve, and its displacement at
+         * each corner (zero off its plane, and unused by a curve). */
         private boolean active;
+        private boolean curve;
         private final Vector3f[] displacement = vectors(4);
 
         private Snap(SnapDef def)
@@ -419,6 +430,24 @@ public class WeldMesh
             }
 
             snap.weights = new float[quad.pointCount()];
+
+            if (snap.def.layer().curve)
+            {
+                for (int j = 0; j < k; j++)
+                {
+                    SnapDef earlier = snaps[j].def;
+
+                    snap.shadowed |= earlier.faceNormal().equals(snap.def.faceNormal()) && Math.abs(earlier.weldPlane() - snap.def.weldPlane()) < PLANE_EPS;
+                }
+
+                for (int i = 0; i < 4 && snap.def.source(); i++)
+                {
+                    if (snap.onPlane[i])
+                    {
+                        snap.def.layer().restGapAt(quad.corners[i], snap.restGap[i]);
+                    }
+                }
+            }
 
             for (int row = 0; row <= quad.nT; row++)
             {
@@ -770,6 +799,7 @@ public class WeldMesh
         for (Snap snap : quad.snaps)
         {
             snap.active = snap.def.layer().seamReady;
+            snap.curve = snap.active && snap.def.layer().curveReady;
 
             for (Vector3f displacement : snap.displacement)
             {
@@ -777,17 +807,20 @@ public class WeldMesh
             }
         }
 
-        /* The first seam lying on a corner claims it. */
+        /* The first seam lying on a corner claims it; a curve claims it too, and moves its points itself. */
         for (int i = 0; i < 4; i++)
         {
             for (Snap snap : quad.snaps)
             {
                 if (snap.active && snap.onPlane[i])
                 {
-                    WeldBinding.Layer layer = snap.def.layer();
-                    Vector3f seam = snap.def.source() ? layer.seamAtSource(quad.corners[i], this.seamPosition) : layer.seamAtTarget(quad.corners[i], this.seamPosition);
+                    if (!snap.curve)
+                    {
+                        WeldBinding.Layer layer = snap.def.layer();
+                        Vector3f seam = snap.def.source() ? layer.seamAtSource(quad.corners[i], this.seamPosition) : layer.seamAtTarget(quad.corners[i], this.seamPosition);
 
-                    snap.displacement[i].set(seam).sub(r[i]);
+                        snap.displacement[i].set(seam).sub(r[i]);
+                    }
 
                     break;
                 }
@@ -939,7 +972,8 @@ public class WeldMesh
     /**
      * One grid point's position: bilinearly interpolate the rigid position across the four corners (s along
      * 0->1, t along 0->3), then add EACH seam's interpolated displacement scaled by that seam's OWN falloff
-     * weight at the point.
+     * weight at the point. A curved seam's displacement is where its curve puts the point, less the rigid
+     * position, anywhere within its band.
      */
     private void resolvePosition(Quad quad, int col, int row)
     {
@@ -949,12 +983,44 @@ public class WeldMesh
         int local = row * (quad.nS + 1) + col;
         int p = (quad.offset + local) * 3;
 
-        float x = bilerp(r[0].x, r[1].x, r[2].x, r[3].x, s, t);
-        float y = bilerp(r[0].y, r[1].y, r[2].y, r[3].y, s, t);
-        float z = bilerp(r[0].z, r[1].z, r[2].z, r[3].z, s, t);
+        float rx = bilerp(r[0].x, r[1].x, r[2].x, r[3].x, s, t);
+        float ry = bilerp(r[0].y, r[1].y, r[2].y, r[3].y, s, t);
+        float rz = bilerp(r[0].z, r[1].z, r[2].z, r[3].z, s, t);
+        float x = rx;
+        float y = ry;
+        float z = rz;
 
         for (Snap snap : quad.snaps)
         {
+            if (snap.curve)
+            {
+                float distance = bilerp(snap.cornerDistance, s, t);
+
+                if (!snap.shadowed && distance < snap.def.band())
+                {
+                    Vector3f[] c = quad.corners;
+                    Vector3f[] g = snap.restGap;
+                    float w = snap.weights[local];
+                    Vector3f point = this.sample.set(
+                        bilerp(c[0].x, c[1].x, c[2].x, c[3].x, s, t),
+                        bilerp(c[0].y, c[1].y, c[2].y, c[3].y, s, t),
+                        bilerp(c[0].z, c[1].z, c[2].z, c[3].z, s, t)
+                    );
+                    Vector3f shift = this.restShift.set(
+                        w * bilerp(g[0].x, g[1].x, g[2].x, g[3].x, s, t),
+                        w * bilerp(g[0].y, g[1].y, g[2].y, g[3].y, s, t),
+                        w * bilerp(g[0].z, g[1].z, g[2].z, g[3].z, s, t)
+                    );
+
+                    snap.def.layer().curvePoint(snap.def.source(), point, distance, shift, this.seamPosition);
+                    x += this.seamPosition.x - rx;
+                    y += this.seamPosition.y - ry;
+                    z += this.seamPosition.z - rz;
+                }
+
+                continue;
+            }
+
             float w = snap.active ? snap.weights[local] : 0F;
 
             if (w > 0F)

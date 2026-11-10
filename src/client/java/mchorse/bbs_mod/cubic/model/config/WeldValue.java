@@ -36,6 +36,9 @@ public class WeldValue extends ValueGroup
     /** Off by default: older configs keep their hard crease, and a rounded look is a choice per joint. */
     public final ValueBoolean smooth = new ValueBoolean("smooth", false);
 
+    /** Off by default: a weld creases at its seam unless asked to bend along a curve, see {@link ModelWeld#curve}. */
+    public final ValueBoolean curve = new ValueBoolean("curve", false);
+
     /** The cubes welded by hand, see {@link ModelWeld#pairs}; none, and the weld takes every cube as it always did. */
     public final Pairs pairs = new Pairs("pairs");
 
@@ -52,6 +55,7 @@ public class WeldValue extends ValueGroup
         this.add(this.parentShare);
         this.add(this.twist);
         this.add(this.smooth);
+        this.add(this.curve);
         this.add(this.pairs);
     }
 
@@ -88,6 +92,7 @@ public class WeldValue extends ValueGroup
             this.parentShare.get(),
             this.twist.get(),
             this.smooth.get(),
+            this.curve.get(),
             this.pairs.get()
         );
     }
