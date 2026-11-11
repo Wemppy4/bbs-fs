@@ -559,14 +559,9 @@ public class GizmoDrag
             transform.translate.set(0F, 0F, 0F);
             Vector3f origin = new Vector3f(worldPositionSampler.get());
 
-            transform.translate.set(1F, 0F, 0F);
-            Vector3f cx = new Vector3f(worldPositionSampler.get()).sub(origin);
-
-            transform.translate.set(0F, 1F, 0F);
-            Vector3f cy = new Vector3f(worldPositionSampler.get()).sub(origin);
-
-            transform.translate.set(0F, 0F, 1F);
-            Vector3f cz = new Vector3f(worldPositionSampler.get()).sub(origin);
+            Vector3f cx = translateAxis(transform, worldPositionSampler, origin, 0);
+            Vector3f cy = translateAxis(transform, worldPositionSampler, origin, 1);
+            Vector3f cz = translateAxis(transform, worldPositionSampler, origin, 2);
 
             return new Matrix3f(
                 cx.x, cx.y, cx.z,
@@ -578,6 +573,27 @@ public class GizmoDrag
         {
             transform.translate.set(saved);
         }
+    }
+
+    /**
+     * How the bone moves for a step along one axis of its translate. A bone resting at the edge of a
+     * limit (a face slider of a rig, at the top of its track) does not move a step outward, so the
+     * axis would read as frozen and the gizmo could not move it inward either: then the step back
+     * is measured instead.
+     */
+    private static Vector3f translateAxis(Transform transform, Supplier<Vector3f> sampler, Vector3f origin, int axis)
+    {
+        transform.translate.set(0F, 0F, 0F).setComponent(axis, 1F);
+        Vector3f forward = new Vector3f(sampler.get()).sub(origin);
+
+        if (forward.lengthSquared() > 1.0E-12F)
+        {
+            return forward;
+        }
+
+        transform.translate.set(0F, 0F, 0F).setComponent(axis, -1F);
+
+        return new Vector3f(origin).sub(sampler.get());
     }
 
     /**
