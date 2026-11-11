@@ -183,6 +183,18 @@ public class UIActionsConfigEditor extends UIElement
     {
         super.applyUndoData(data);
 
-        this.pickAction(data.getString("action"), true);
+        /* The values are refilled either way; the lists only scroll to an action undo switched to. */
+        String action = data.getString("action");
+        boolean same = action.equals(this.actions.getCurrentFirst());
+        double actionsScroll = this.actions.scroll.getScroll();
+        double animationsScroll = this.animations.list.scroll.getScroll();
+
+        this.pickAction(action, !same);
+
+        if (same)
+        {
+            this.actions.scroll.setScroll(actionsScroll);
+            this.animations.list.scroll.setScroll(animationsScroll);
+        }
     }
 }

@@ -66,6 +66,7 @@ import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.forms.editors.utils.UISetupFaceOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollSnapshot;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
@@ -1239,6 +1240,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
     private void pickForm(UIForms.FormEntry entry)
     {
+        this.pickForm(entry, false);
+    }
+
+    private void pickForm(UIForms.FormEntry entry, boolean keepView)
+    {
         if (entry == null)
         {
             this.bodyPartEditor.setVisible(false);
@@ -1254,7 +1260,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         }
 
         this.resizeSidebar();
-        this.switchEditor(entry.getForm());
+        this.switchEditor(entry.getForm(), keepView);
     }
 
     /** The panel the body parts are docked under, or null while they sit in the left sidebar. */
@@ -1441,6 +1447,16 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
     public boolean switchEditor(Form form)
     {
+        return this.switchEditor(form, false);
+    }
+
+    /**
+     * @param keepView the same form is shown again (undo refills the editor this way): the lists and
+     *                 options keep their scroll instead of starting from the top. The same form object
+     *                 always counts as that.
+     */
+    private boolean switchEditor(Form form, boolean keepView)
+    {
         UIForm editor = createPanel(form);
 
         if (editor == null)
@@ -1451,9 +1467,15 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         editor.setUndoId("form_panel");
 
         Class<?> activePanel = this.editor == null ? null : this.editor.getActivePanelClass();
+        ScrollSnapshot scrolls = null;
 
         if (this.editor != null)
         {
+            if ((keepView || this.editor.form == form) && this.editor.getClass() == editor.getClass())
+            {
+                scrolls = ScrollSnapshot.of(this.editor);
+            }
+
             this.editor.removeFromParent();
         }
 
@@ -1465,6 +1487,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.editor.startEdit(form, activePanel);
         this.editor.full(this.formEditor).resize();
         this.refillState();
+
+        if (scrolls != null)
+        {
+            scrolls.apply(this.editor);
+        }
 
         return true;
     }
@@ -1547,17 +1574,34 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     {
         super.applyUndoData(data);
 
+        /* The same body part stays where the user has scrolled the list and the options to; only
+         * another one is scrolled to. The editor is still rebuilt: that is what shows the restored values. */
+        int index = data.getInt("body_part");
+        boolean same = index == this.formsList.getIndex();
+        double listScroll = this.formsList.scroll.getScroll();
+
         this.refreshFormList();
 
-        UIForms.FormEntry bodyPart = CollectionUtils.getSafe(this.formsList.getList(), data.getInt("body_part"));
+        UIForms.FormEntry bodyPart = CollectionUtils.getSafe(this.formsList.getList(), index);
 
         if (bodyPart != null)
         {
-            this.formsList.setCurrentScroll(bodyPart);
-            this.pickForm(bodyPart);
-        }
+            if (same)
+            {
+                this.formsList.setCurrent(bodyPart);
+                this.formsList.scroll.setScroll(listScroll);
+            }
+            else
+            {
+                this.formsList.setCurrentScroll(bodyPart);
+            }
 
-        this.refillState();
+            this.pickForm(bodyPart, same);
+        }
+        else
+        {
+            this.refillState();
+        }
     }
 
     public void preFormRender(UIContext context, Form form)

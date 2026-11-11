@@ -28,6 +28,7 @@ public class GlslDynamicOptionsTest
         lexerRoundTrip();
         booleanOption();
         switchedOffOption();
+        switchedOffIndentedOption();
         valueOption();
         floatOptionInCondition();
         hoisting();
@@ -122,6 +123,28 @@ public class GlslDynamicOptionsTest
         contains(result, "} else {", "#else became an else");
         check("0".equals(result.values.get("BLOOM")), "BLOOM is off in the source");
         valid(result, "switchedOffOption");
+    }
+
+    /** Iris puts "//" in front of an off option's whole line, an indented commented one too */
+    private static void switchedOffIndentedOption()
+    {
+        String source = String.join("\n",
+            "#version 130",
+            "//  //#define DOF",
+            "void main() {",
+            "    #ifdef DOF",
+            "    gl_FragColor = vec4(1.0);",
+            "    #else",
+            "    gl_FragColor = vec4(0.0);",
+            "    #endif",
+            "}",
+            "");
+        GlslDynamicOptions.Result result = transform(source, bool("DOF"));
+
+        contains(result, "if ((bbs_DOF != 0)) {", "#ifdef of an indented off option became an if");
+        check(result.uniforms.containsKey("DOF"), "DOF is a uniform");
+        check("0".equals(result.values.get("DOF")), "DOF is off in the source");
+        valid(result, "switchedOffIndentedOption");
     }
 
     private static void valueOption()

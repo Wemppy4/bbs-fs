@@ -304,6 +304,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_KEYS_START_RECORDING = L10n.lang("bbs.ui.film.controller.keys.start_recording");
     public static final IKey FILM_CONTROLLER_KEYS_ATTACH_ORBIT = L10n.lang("bbs.ui.film.controller.keys.attach_orbit");
     public static final IKey FILM_CONTROLLER_ORBIT_TURNS_WITH_ANCHOR = L10n.lang("bbs.ui.film.controller.orbit_turns_with_anchor");
+    public static final IKey FILM_CONTROLLER_ORBIT_PIN_TO_BONE = L10n.lang("bbs.ui.film.controller.orbit_pin_to_bone");
     public static final IKey FILM_CONTROLLER_ORBIT_WALL_CUT = L10n.lang("bbs.ui.film.controller.orbit_wall_cut");
     public static final IKey FILM_CONTROLLER_ORBIT_WALL_CUT_DEPTH = L10n.lang("bbs.ui.film.controller.orbit_wall_cut_depth");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_ORTHO = L10n.lang("bbs.ui.film.controller.keys.toggle_ortho");
@@ -1142,6 +1143,10 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_CURVE = L10n.lang("bbs.ui.model_editor.weld.curve");
     public static final IKey MODEL_EDITOR_WELD_CURVE_TOOLTIP = L10n.lang("bbs.ui.model_editor.weld.curve_tooltip");
     public static final IKey MODEL_EDITOR_WELD_ADD = L10n.lang("bbs.ui.model_editor.weld.add");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_COPY = L10n.lang("bbs.ui.model_editor.welds.context.copy");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_PASTE = L10n.lang("bbs.ui.model_editor.welds.context.paste");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_RESET = L10n.lang("bbs.ui.model_editor.welds.context.reset");
+    public static final IKey MODEL_EDITOR_WELDS_CONTEXT_SAVE = L10n.lang("bbs.ui.model_editor.welds.context.save");
     public static final IKey MODEL_EDITOR_WELD_REMOVE = L10n.lang("bbs.ui.model_editor.weld.remove");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.source_bone");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.target_bone");
@@ -1189,6 +1194,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_BONE_VISIBLE = L10n.lang("bbs.ui.model_editor.bone.visible");
     public static final IKey MODEL_EDITOR_BONE_INSIDE_CARRIER = L10n.lang("bbs.ui.model_editor.bone.inside_carrier");
     public static final IKey MODEL_EDITOR_BONE_INSIDE_CARRIER_TOOLTIP = L10n.lang("bbs.ui.model_editor.bone.inside_carrier_tooltip");
+    public static final IKey MODEL_EDITOR_BONE_FOLLOW_WELDS = L10n.lang("bbs.ui.model_editor.bone.follow_welds");
+    public static final IKey MODEL_EDITOR_BONE_FOLLOW_WELDS_TOOLTIP = L10n.lang("bbs.ui.model_editor.bone.follow_welds_tooltip");
     public static final IKey MODEL_EDITOR_BONE_MIRROR = L10n.lang("bbs.ui.model_editor.bone.mirror");
     public static final IKey MODEL_EDITOR_BONE_PICKING = L10n.lang("bbs.ui.model_editor.bone.picking");
     public static final IKey MODEL_EDITOR_SNEAKING = L10n.lang("bbs.ui.model_editor.sneaking");

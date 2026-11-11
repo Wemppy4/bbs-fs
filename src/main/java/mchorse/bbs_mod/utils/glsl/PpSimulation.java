@@ -23,7 +23,9 @@ import java.util.regex.Pattern;
  */
 class PpSimulation
 {
-    private static final Pattern COMMENTED_DEFINE = Pattern.compile("^//+\\s*#define\\s+(\\w+)\\s*(//.*)?$", Pattern.DOTALL);
+    /** Iris switches an option off by putting "//" in front of its whole line, so an indented
+     * "  //#define NAME" that's off arrives as "//  //#define NAME" */
+    private static final Pattern COMMENTED_DEFINE = Pattern.compile("^(?:/{2,}+\\s*+)++#define\\s+(\\w+)\\s*(//.*)?$", Pattern.DOTALL);
 
     final List<GlslToken> tokens;
     final GlslDirective[] directives;

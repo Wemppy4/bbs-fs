@@ -398,13 +398,11 @@ public class UIKeyframeEditor extends UITimelinePanel
     {
         super.applyUndoData(data);
 
-        KeyframeState state = new KeyframeState();
+        /* Only the picked keys come back: zoom, scroll and the graph mode stay as the user has them
+         * now. Restoring the whole view jumped the timeline back to where it stood at the edit. */
+        this.view.applySelection(data.getMap("selection"));
 
-        state.extra = data.getMap("extra");
-
-        this.view.applyState(state);
-
-        /* Restore after applyState has selected the track and rebuilt its properties panel. */
+        /* Restore after the keys are picked and their properties panel is built. */
         if (this.editor instanceof UIPoseKeyframeFactory pose && data.has("bones"))
         {
             pose.poseEditor.restoreSelection(DataStorageUtils.stringListFromData(data.get("bones")));
@@ -416,8 +414,10 @@ public class UIKeyframeEditor extends UITimelinePanel
     {
         super.collectUndoData(data);
 
-        KeyframeState keyframeState = this.view.cacheState();
-        data.put("extra", keyframeState.extra);
+        MapType selection = new MapType();
+
+        this.view.cacheSelection(selection);
+        data.put("selection", selection);
 
         if (this.editor instanceof UIPoseKeyframeFactory pose)
         {

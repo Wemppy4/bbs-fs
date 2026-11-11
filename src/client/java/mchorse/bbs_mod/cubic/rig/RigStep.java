@@ -65,7 +65,9 @@ public enum RigStep
     /** Bone limits, the last word on a bone's rotation. Keyed per bone, not by a form property. */
     LIMITS("limits", Icons.LOCKED,
         List.of("constraints"),
-        List.of());
+        List.of()),
+    /** Bones riding a curved weld (the model's {@code follow_welds}): seated on the bent surface once the pose is final. */
+    WELDS(null, null, List.of(), List.of());
 
     /** The steps an animator sets up, each a section of the rig tab, in the frame's order. */
     public static final List<RigStep> SYSTEMS = List.of(SHAKE, IK, PHYSICS, SPLINE, LIMITS);
@@ -120,13 +122,13 @@ public enum RigStep
     public static final Set<RigStep> CHANNELS = steps(SHAKE);
 
     /** The render: every step over the channels. */
-    public static final Set<RigStep> RENDER = steps(IK, HOOK, PHYSICS, SPLINE, LIMITS);
+    public static final Set<RigStep> RENDER = steps(IK, HOOK, PHYSICS, SPLINE, LIMITS, WELDS);
 
     /**
      * The matrix readers (anchors, the gizmo, trackers, the shadow): no simulation and no limits.
      * The gizmo probes this pass with nudged channels, so it has to stay stateless.
      */
-    public static final Set<RigStep> READERS = steps(IK, HOOK, SPLINE);
+    public static final Set<RigStep> READERS = steps(IK, HOOK, SPLINE, WELDS);
 
     /** The IK bake: the chains alone, it keys only what they solve. */
     public static final Set<RigStep> BAKE = steps(IK);
@@ -163,7 +165,7 @@ public enum RigStep
         {
             case SHAKE -> anyBone(form, FormBone::hasShake);
             case IK -> anyBone(form, FormBone::hasChain);
-            case HOOK -> false;
+            case HOOK, WELDS -> false;
             case PHYSICS -> anyBone(form, FormBone::hasPhysicsChain);
             case SPLINE -> !form.splines.getAll().isEmpty();
             case LIMITS -> anyBone(form, (bone) -> !bone.constraints.get().isDefault());
@@ -193,7 +195,7 @@ public enum RigStep
         {
             case SHAKE -> ModelShakeRuntime.claim(model, form, owners);
             case IK -> ModelIKRuntime.claim(model, form, owners);
-            case HOOK -> {}
+            case HOOK, WELDS -> {}
             case PHYSICS -> ModelPhysicsRuntime.claim(model, form, owners);
             case SPLINE -> ModelSplineRuntime.claim(model, form, owners);
             case LIMITS -> ModelConstraintsRuntime.claim(model, form, owners);

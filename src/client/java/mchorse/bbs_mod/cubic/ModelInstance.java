@@ -310,6 +310,22 @@ public class ModelInstance implements IModelInstance
         return this.weldMesh;
     }
 
+    /** Seat the bones the config lists on the curved welds above them (see {@link WeldMesh#follow}). */
+    public void followWelds()
+    {
+        if (this.config.weldFollowers.get().isEmpty() || !(this.model instanceof Model model))
+        {
+            return;
+        }
+
+        WeldMesh weldMesh = this.getWeldMesh();
+
+        if (weldMesh != null)
+        {
+            weldMesh.follow(model, this.config.weldFollowers.get());
+        }
+    }
+
     /** Drop the resolved welds and their bands; both rebuild from the current cubes and config on next use. */
     private void resetWelds()
     {

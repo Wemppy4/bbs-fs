@@ -29,8 +29,8 @@ import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.interps.Lerps;
 
 /**
- * The film's orbit: what it turns around is what is selected - the bone picked in the editor,
- * else the body part open on the timeline, else the selected replay as a whole - and, while
+ * The film's orbit: what it turns around is the bone it was pinned to from its menu, else what
+ * is selected - the body part open on the timeline, else the selected replay as a whole - and, while
  * attached, the orbit hangs off that same thing, so the camera rides along as it moves.
  * Everything about flying the viewport itself lives in {@link OrbitViewportController}.
  */
@@ -68,6 +68,14 @@ public class OrbitFilmCameraController extends OrbitViewportController
      */
     private IEntity anchorEntity;
     private boolean awaitingPlacement;
+
+    /*
+     * The bone the orbit was pinned to from its menu, and whose replay it is. Unlike a pick in
+     * the pose, it stays put until it is unpinned or another film is opened, whatever is
+     * selected meanwhile - pinning is a decision, not a side effect of editing.
+     */
+    private Replay pinnedReplay;
+    private String pinnedBone;
 
     public OrbitFilmCameraController(UIFilmController controller)
     {
@@ -130,20 +138,31 @@ public class OrbitFilmCameraController extends OrbitViewportController
     /* What it turns around */
 
     /**
-     * What is selected in the replay editor: the body part the timeline shows, else the replay
-     * itself ({@code path} null). A part counts only below the form's root - the root is the
-     * replay. A bone picked in a pose doesn't count: the centre would jump with every pick.
+     * What the orbit holds on to: the pinned bone ({@code bone} true), else what is selected in
+     * the replay editor - the body part the timeline shows, else the replay itself ({@code path}
+     * null). A part counts only below the form's root - the root is the replay. A bone merely
+     * picked in a pose doesn't count: the centre would jump with every pick.
      */
-    private record Subject(Replay replay, IEntity entity, String path)
+    private record Subject(Replay replay, IEntity entity, String path, boolean bone)
     {
         public String key(boolean turning)
         {
-            return this.replay.getId() + "|" + this.path + "|" + turning;
+            return this.replay.getId() + "|" + this.path + "|" + this.bone + "|" + turning;
         }
     }
 
     private Subject getSubject()
     {
+        if (this.pinnedBone != null)
+        {
+            IEntity pinned = this.resolveEntity(this.pinnedReplay);
+
+            if (pinned != null)
+            {
+                return new Subject(this.pinnedReplay, pinned, this.pinnedBone, true);
+            }
+        }
+
         Replay replay = this.controller.panel.replayEditor.getReplay();
         IEntity entity = replay == null ? null : this.resolveEntity(replay);
 
@@ -154,7 +173,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
 
         String part = this.controller.panel.replayEditor.getActiveBodyPart();
 
-        return new Subject(replay, entity, part.isEmpty() ? null : part);
+        return new Subject(replay, entity, part.isEmpty() ? null : part, false);
     }
 
     @Override
@@ -197,12 +216,19 @@ public class OrbitFilmCameraController extends OrbitViewportController
         return center == null ? super.getOrbitCenter(transition) : new Vector3d(center);
     }
 
-    /** The middle of the selected body part; null for the replay itself. */
+    /** Where the pinned bone is (where its gizmo sits), or the middle of the selected body part; null for the replay itself. */
     private Vector3f getSelectionCenter(Subject subject, float transition)
     {
         if (subject.path() == null)
         {
             return null;
+        }
+
+        if (subject.bone())
+        {
+            Matrix4f matrix = this.getBoneFrame(subject, transition);
+
+            return matrix == null ? null : matrix.getTranslation(new Vector3f());
         }
 
         Vector3d center = this.getPoseCenter(subject.entity(), subject.path(), transition);
@@ -232,6 +258,51 @@ public class OrbitFilmCameraController extends OrbitViewportController
     public void toggleAttachment()
     {
         BBSSettings.editorOrbitAttached.set(!BBSSettings.editorOrbitAttached.get());
+
+        this.updateAnchor(this.getCurrentTransition());
+    }
+
+    /* The pinned bone */
+
+    /** The bone selected in the replay editor right now, if any. */
+    private String getSelectedBone()
+    {
+        return this.controller.panel.replayEditor.getReplay() == null ? null : this.controller.getEditTarget().boneOrNull();
+    }
+
+    public boolean isPinnedToBone()
+    {
+        return this.pinnedBone != null;
+    }
+
+    /** Whether there is anything to pin or unpin: a pinned bone, or a bone selected right now. */
+    public boolean canPinToBone()
+    {
+        return this.isPinnedToBone() || this.getSelectedBone() != null;
+    }
+
+    /**
+     * Pins the orbit to the bone selected right now and attaches it, so the camera rides along
+     * with that bone; with the pinned bone itself (or nothing) selected, unpins it. The anchor
+     * is rebased either way, so the camera doesn't move when the centre changes hands.
+     */
+    public void togglePinToBone()
+    {
+        Replay replay = this.controller.panel.replayEditor.getReplay();
+        String bone = this.getSelectedBone();
+
+        if (bone == null || (replay == this.pinnedReplay && bone.equals(this.pinnedBone)))
+        {
+            this.pinnedReplay = null;
+            this.pinnedBone = null;
+        }
+        else
+        {
+            this.pinnedReplay = replay;
+            this.pinnedBone = bone;
+
+            BBSSettings.editorOrbitAttached.set(true);
+        }
 
         this.updateAnchor(this.getCurrentTransition());
     }
@@ -392,7 +463,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
                 /* The selected replay isn't in the scene right now: stay with the last one. */
                 IEntity entity = this.resolveEntity(this.anchorReplay);
 
-                subject = entity == null ? null : new Subject(this.anchorReplay, entity, null);
+                subject = entity == null ? null : new Subject(this.anchorReplay, entity, null, false);
             }
         }
 
@@ -519,6 +590,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
         this.anchorTime = Float.NaN;
         this.anchorEntity = null;
         this.awaitingPlacement = false;
+        this.pinnedReplay = null;
+        this.pinnedBone = null;
     }
 
     /**

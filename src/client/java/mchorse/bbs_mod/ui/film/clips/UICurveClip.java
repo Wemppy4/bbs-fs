@@ -224,7 +224,7 @@ public class UICurveClip extends UIClip<CurveClip>
     @Override
     public void applyUndoData(MapType data)
     {
-        if (data.getString("embed").equals("curve"))
+        if (data.getString("embed").equals("curve") && !this.keyframes.hasParent())
         {
             this.editor.embedView(this.keyframes);
         }

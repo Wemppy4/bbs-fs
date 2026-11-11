@@ -467,7 +467,8 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         boolean global = block.getProperties().isGlobal();
 
         block.getProperties().fromData((MapType) data.copy());
-        this.fill(block, true);
+        /* The list scrolls only to a block undo switched to, not back to the one already picked. */
+        this.fill(block, block != this.modelBlock);
         this.save(block);
 
         if (global != block.getProperties().isGlobal())

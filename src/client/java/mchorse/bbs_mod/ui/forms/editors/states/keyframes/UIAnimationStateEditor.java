@@ -19,6 +19,7 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.states.AnimationState;
+import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -655,14 +656,29 @@ public class UIAnimationStateEditor extends UIElement
     {
         super.collectUndoData(data);
         this.partSelection.write(data);
+        data.putInt("state", this.root == null || this.state == null ? -1 : this.root.states.getList().indexOf(this.state));
     }
 
+    /**
+     * The state is looked up again by its place: undoing the states list itself builds new state
+     * objects, and re-binding the old one left the timeline editing a state no longer in the form.
+     */
     @Override
     public void applyUndoData(MapType data)
     {
         super.applyUndoData(data);
         this.partSelection.read(data);
-        this.setState(this.state);
+
+        Form form = this.editor.form;
+        List<AnimationState> states = form == null ? null : form.states.getList();
+        AnimationState state = states == null ? null : CollectionUtils.getSafe(states, data.getInt("state", -1));
+
+        if (state == null && states != null && states.contains(this.state))
+        {
+            state = this.state;
+        }
+
+        this.setState(state);
     }
 
     public boolean clickViewport(UIContext context, StencilFormFramebuffer stencil)

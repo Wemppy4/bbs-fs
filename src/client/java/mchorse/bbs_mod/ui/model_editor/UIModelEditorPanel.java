@@ -28,6 +28,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollSnapshot;
 import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -822,9 +823,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
      */
     private void afterUndo()
     {
+        /* The pages are refilled from scratch, but it is the same model: lists and pages stay
+         * scrolled where they were instead of jumping to the top on every Ctrl+Z. */
+        ScrollSnapshot config = ScrollSnapshot.of(this.configEditor);
+        ScrollSnapshot model = ScrollSnapshot.of(this.modelEditor);
+
         this.data.rebuild();
         this.refresh();
         this.fillEditors();
+        this.resize();
+
+        config.apply(this.configEditor);
+        model.apply(this.modelEditor);
     }
 
     private void openModelFolder()

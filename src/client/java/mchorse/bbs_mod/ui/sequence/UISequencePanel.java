@@ -457,14 +457,22 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     @Override
     protected void fillData(Sequence data)
     {
-        this.setPlaying(false);
-
-        /* A fresh sequence starts a fresh history; the re-bind an undo itself performs keeps it. */
+        /* A fresh sequence starts a fresh history and stopped; the re-bind an undo itself performs
+         * keeps both, playback included — Ctrl+Z during playback used to stop it. */
         if (!this.applyingUndo)
         {
+            this.setPlaying(false);
             this.undoManager = data == null ? null : new UndoManager<>(100);
             this.undoSnapshot = data == null ? null : data.toData().asMap();
             this.cursor = 0;
+        }
+
+        /* Undo rebuilds every clip from data, so the picked one is carried over by its place */
+        MapType picked = new MapType();
+
+        if (this.applyingUndo)
+        {
+            this.timeline.collectUndoData(picked);
         }
 
         this.player.stop();
@@ -472,6 +480,11 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.runner.setWork(data == null ? null : data.clips);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
+
+        if (this.applyingUndo && data != null)
+        {
+            this.timeline.applyUndoData(picked);
+        }
 
         /* The docks show their panels only with a sequence open: re-read that gate now */
         this.dock.setupFlex(true);

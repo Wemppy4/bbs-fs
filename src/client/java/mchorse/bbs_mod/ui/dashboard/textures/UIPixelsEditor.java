@@ -1519,7 +1519,13 @@ public class UIPixelsEditor extends UICanvasEditor
         /* Frames may have come or gone with the snapshot */
         this.updateWindow(false);
         this.wasChanged();
-        this.layersChangedCallback.run();
+
+        /* A stroke only changes pixels: rebuilding the layer rows for it dropped the focus of a
+         * field being typed into there on every Ctrl+Z. */
+        if (!(undo instanceof PixelsUndo))
+        {
+            this.layersChangedCallback.run();
+        }
     }
 
     public UIPixelsEditor layersChangedCallback(Runnable callback)

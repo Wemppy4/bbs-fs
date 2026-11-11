@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
@@ -40,6 +41,7 @@ import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSection;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeShapeSection;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSpaceSection;
 import mchorse.bbs_mod.ui.particles.utils.MolangSyntaxHighlighter;
+import mchorse.bbs_mod.ui.particles.utils.UIMolangExpression;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -77,6 +79,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
 
     private UICopyPasteController layoutPresetsController;
     private String molangId;
+    private UIMolangExpression molangOpener;
 
     /* Undo by whole-scheme snapshots. The sections write raw component fields — the scheme is a
      * ValueGroup only at its shell, the particle data underneath is plain objects — so the value
@@ -233,8 +236,39 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     {
         /* The MoLang editor is its own dock panel (always present); editing just swaps its target. */
         this.molangId = id;
+        this.molangOpener = id == null ? null : this.findMolangOpener();
         this.textEditor.callback = callback;
         this.textEditor.setText(expression == null ? "" : expression.toString());
+    }
+
+    /**
+     * The field that was clicked to open the editor: the one under the mouse, since opening is a
+     * click on it. Undo rebinds the sections to a freshly parsed scheme, and clicking the same field
+     * again is what points the editor at the expression in that scheme.
+     */
+    private UIMolangExpression findMolangOpener()
+    {
+        UIContext context = this.getContext();
+        UIMolangExpression[] found = {null};
+
+        if (context != null)
+        {
+            this.visitChildren(UIMolangExpression.class, false, (field) ->
+            {
+                if (field.area.isInside(context)) found[0] = field;
+            });
+        }
+
+        return found[0];
+    }
+
+    private boolean contains(UIElement element)
+    {
+        boolean[] found = {false};
+
+        this.visitChildren(UIElement.class, false, (child) -> found[0] |= child == element);
+
+        return found[0];
     }
 
     @Override
@@ -475,11 +509,22 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
             this.undoSnapshot = data == null ? null : ParticleScheme.toData(data);
         }
 
+        /* Undo swaps in a freshly parsed scheme: the expression being edited is opened again in it
+         * (closing it is for opening another scheme), and the preview keeps its particles in flight. */
+        UIMolangExpression opener = this.applyingUndo ? this.molangOpener : null;
+
         this.editMoLang(null, null, null);
 
         if (this.data != null)
         {
-            this.renderer.setScheme(this.data);
+            if (this.applyingUndo)
+            {
+                this.renderer.replaceScheme(this.data);
+            }
+            else
+            {
+                this.renderer.setScheme(this.data);
+            }
 
             for (UIParticleSchemeSection section : this.sections)
             {
@@ -490,6 +535,12 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
             this.emitterView.resize();
             this.particleView.resize();
             this.appearanceView.resize();
+
+            if (opener != null && opener.callback != null && this.contains(opener))
+            {
+                opener.callback.accept(opener);
+                this.molangOpener = opener;
+            }
         }
         else
         {

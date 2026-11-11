@@ -156,7 +156,7 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
     {
         super.applyUndoData(data);
 
-        if (data.getString("embed").equals("keyframe"))
+        if (data.getString("embed").equals("keyframe") && !this.keyframes.hasParent())
         {
             this.editor.embedView(this.keyframes);
         }

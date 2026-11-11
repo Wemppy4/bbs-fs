@@ -68,6 +68,19 @@ public class UIParticleSchemeRenderer extends UIModelRenderer
         this.emitter.setScheme(scheme);
     }
 
+    /** The same effect in another state (undo): the emitter keeps running, see {@link ParticleEmitter#replaceScheme}. */
+    public void replaceScheme(ParticleScheme scheme)
+    {
+        if (this.emitter == null || this.emitter.scheme == null || scheme == null)
+        {
+            this.setScheme(scheme);
+        }
+        else
+        {
+            this.emitter.replaceScheme(scheme);
+        }
+    }
+
     @Override
     public void render(UIContext context)
     {
