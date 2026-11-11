@@ -1702,7 +1702,7 @@ public class UIKeyframes extends UITimelineCanvas
             }
         }
 
-        if (this.dragging > 0)
+        if (this.dragging > 0 && this.draggingData != null)
         {
             this.submitKeyframes(true);
             this.currentGraph.pickSelected();
@@ -1897,7 +1897,9 @@ public class UIKeyframes extends UITimelineCanvas
         }
         else if (this.dragging == 1)
         {
-            if (this.currentGraph.getSelected() != null)
+            /* Only a drag that started on a keyframe moves keys; from empty space it moves the view,
+             * even while keys stay selected (a click on empty space keeps the selection). */
+            if (this.draggingData != null && this.currentGraph.getSelected() != null)
             {
                 this.currentGraph.dragKeyframes(context, this.draggingData, this.initialX, this.initialY, this.originalT, this.originalV);
             }
