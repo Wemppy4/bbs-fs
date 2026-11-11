@@ -1108,6 +1108,7 @@
 	"bbs.ui.film.controller.keys.toggle_actions": "Редактор действий",
 	"bbs.ui.film.controller.keys.attach_orbit": "Привязать орбиту",
 	"bbs.ui.film.controller.orbit_turns_with_anchor": "Вращаться вместе с якорем",
+	"bbs.ui.film.controller.orbit_pin_to_bone": "Прикрепить к выбранной кости",
 	"bbs.ui.film.controller.orbit_wall_cut": "Срезать стены перед центром",
 	"bbs.ui.film.controller.orbit_wall_cut_depth": "Срез: %s бл.",
 	"bbs.ui.film.controller.keys.toggle_ortho": "Ортогональная камера",

@@ -1113,6 +1113,7 @@
 	"bbs.ui.film.controller.keys.toggle_actions": "Toggle actions editor",
 	"bbs.ui.film.controller.keys.attach_orbit": "Attach orbit",
 	"bbs.ui.film.controller.orbit_turns_with_anchor": "Rotate with anchor",
+	"bbs.ui.film.controller.orbit_pin_to_bone": "Attach to selected bone",
 	"bbs.ui.film.controller.orbit_wall_cut": "Cut walls in front of the centre",
 	"bbs.ui.film.controller.orbit_wall_cut_depth": "Cut: %s blocks",
 	"bbs.ui.film.controller.keys.toggle_ortho": "Orthographic camera",
