@@ -164,6 +164,30 @@ public class ParticleEmitter
         }
     }
 
+    /**
+     * Put another version of the same effect under this emitter without starting it over: the age
+     * and the particles in flight stay, only the components and the expressions' variables change.
+     * {@link #setScheme} restarts, which is right for a new effect and wrong for an undo.
+     */
+    public void replaceScheme(ParticleScheme scheme)
+    {
+        this.scheme = scheme;
+
+        if (this.scheme.emitterInitializes == null)
+        {
+            this.scheme.setup();
+        }
+
+        this.lit = true;
+        this.setupVariables();
+        this.setEmitterVariables(0);
+
+        for (IComponentEmitterInitialize component : this.scheme.emitterInitializes)
+        {
+            component.apply(this);
+        }
+    }
+
     public void setUserVariables(float a, float b, float c, float d, float e, float f)
     {
         this.user1 = a;

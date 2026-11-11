@@ -457,11 +457,11 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     @Override
     protected void fillData(Sequence data)
     {
-        this.setPlaying(false);
-
-        /* A fresh sequence starts a fresh history; the re-bind an undo itself performs keeps it. */
+        /* A fresh sequence starts a fresh history and stopped; the re-bind an undo itself performs
+         * keeps both, playback included — Ctrl+Z during playback used to stop it. */
         if (!this.applyingUndo)
         {
+            this.setPlaying(false);
             this.undoManager = data == null ? null : new UndoManager<>(100);
             this.undoSnapshot = data == null ? null : data.toData().asMap();
             this.cursor = 0;
