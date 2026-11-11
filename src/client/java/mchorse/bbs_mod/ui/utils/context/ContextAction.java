@@ -17,9 +17,6 @@ public class ContextAction
     public int[] keys;
     public int order = -1;
 
-    /** Whether a line sets this row apart from the one above: it starts another group of the menu. */
-    public boolean divided;
-
     public ContextAction(Icon icon, IKey label, Runnable runnable)
     {
         this.icon = icon;
@@ -62,11 +59,6 @@ public class ContextAction
         String label = font.limitToWidth(this.label.get(), w - 24);
 
         context.batcher.text(label, x + 22, y + (h - font.getHeight()) / 2 + 1, Colors.WHITE, false);
-
-        if (this.divided)
-        {
-            context.batcher.box(x + 2, y, x + w - 2, y + 1, Colors.mulRGB(Colors.WHITE, 0.1F));
-        }
     }
 
     protected void renderBackground(UIContext context, int x, int y, int w, int h, boolean hover, boolean selected)

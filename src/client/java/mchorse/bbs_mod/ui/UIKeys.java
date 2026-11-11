@@ -958,7 +958,6 @@ public class UIKeys
     public static final IKey KEYFRAMES_CONTEXT_ROUND = L10n.lang("bbs.ui.keyframes.context.round");
     public static final IKey KEYFRAMES_CONTEXT_SELECT_ALL = L10n.lang("bbs.ui.keyframes.context.select_all");
     public static final IKey KEYFRAMES_CONTEXT_SPREAD = L10n.lang("bbs.ui.keyframes.context.spread");
-    public static final IKey KEYFRAMES_CONTEXT_TRACK = L10n.lang("bbs.ui.keyframes.context.track");
     public static final IKey KEYFRAMES_CONTEXT_TRACK_STYLE = L10n.lang("bbs.ui.keyframes.context.track_style");
     public static final IKey KEYFRAMES_EMPTY_ADD = L10n.lang("bbs.ui.keyframes.empty_add");
     public static final IKey KEYFRAMES_EMPTY_PICK = L10n.lang("bbs.ui.keyframes.empty_pick");

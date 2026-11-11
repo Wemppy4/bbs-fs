@@ -169,6 +169,11 @@ public class UITrackerClip extends UIClip<TrackerClientClip>
             context.getTransition()
         );
 
+        if (frame != null && this.clip.followsPositionOnly())
+        {
+            frame.worldAxes();
+        }
+
         if (frame != null && this.clip.relative.get())
         {
             if (!this.clip.isEvaluated())

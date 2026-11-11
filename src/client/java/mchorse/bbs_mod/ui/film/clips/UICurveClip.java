@@ -60,17 +60,12 @@ public class UICurveClip extends UIClip<CurveClip>
             menu.icon(MenuVerb.ADD, this::openPicker).label(UIKeys.CAMERA_PANELS_CURVE_ADD);
 
             UIKeyframeSheet sheet = this.keyframes.view.getGraph().getSheet(this.getContext().mouseX, this.getContext().mouseY);
-            boolean keysSelected = this.keyframes.view.getGraph().getSelected() != null;
 
-            /* With keys selected, the bar's cross on the timeline removes those keys */
-            if (sheet != null && (!keysSelected || this.keyframes.view.isOverTrackName(this.getContext())))
+            menu.icon(MenuVerb.REMOVE, () ->
             {
-                menu.icon(MenuVerb.REMOVE, () ->
-                {
-                    this.clip.channels.removeChannel(sheet.channel);
-                    this.fillData();
-                }).label(UIKeys.CAMERA_PANELS_CURVE_REMOVE);
-            }
+                this.clip.channels.removeChannel(sheet.channel);
+                this.fillData();
+            }).label(UIKeys.CAMERA_PANELS_CURVE_REMOVE).enabled(sheet != null);
         });
 
         this.edit = new UIButton(UIKeys.CAMERA_PANELS_EDIT_KEYFRAMES, (b) -> this.openKeyframes());
