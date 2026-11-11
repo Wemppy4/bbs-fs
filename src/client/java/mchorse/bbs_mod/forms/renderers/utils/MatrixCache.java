@@ -38,6 +38,12 @@ public class MatrixCache
         this.entries.put(path, new MatrixCacheEntry(matrix, origin, evaluatedRotation));
     }
 
+    /** A bone's frames, marked when the bone stands apart from the body (see {@link MatrixCacheEntry#offBody}). */
+    public void put(String path, Matrix4f matrix, Matrix4f origin, Vector3f evaluatedRotation, boolean offBody)
+    {
+        this.entries.put(path, new MatrixCacheEntry(matrix, origin, evaluatedRotation, null, offBody));
+    }
+
     /** A form's own frames, with the pivot its transform turns about (see {@link MatrixCacheEntry#placement}). */
     public void putForm(String path, Matrix4f matrix, Matrix4f origin, Vector3f pivot)
     {

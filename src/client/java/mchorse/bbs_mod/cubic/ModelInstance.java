@@ -662,7 +662,7 @@ public class ModelInstance implements IModelInstance
                 );
                 origin.rotateY(MathUtils.PI);
 
-                bones.put(group.id, matrix, origin, evaluatedChannelRotation(group.current, group.orient, true));
+                bones.put(group.id, matrix, origin, evaluatedChannelRotation(group.current, group.orient, true), group.offBody);
             }
         }
         else if (this.model instanceof BOBJModel model)

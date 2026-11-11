@@ -14,17 +14,25 @@ import org.joml.Vector3f;
  *
  * <p>{@code pivot} is set for a form's frames only: the form's pivot in those frames' units,
  * see {@link #placement(boolean)}.</p>
+ *
+ * <p>{@code offBody} marks a bone that stands apart from the body
+ * ({@link mchorse.bbs_mod.cubic.data.model.ModelGroup#offBody}).</p>
  */
-public record MatrixCacheEntry(Matrix4f matrix, Matrix4f origin, Vector3f evaluatedRotation, Vector3f pivot)
+public record MatrixCacheEntry(Matrix4f matrix, Matrix4f origin, Vector3f evaluatedRotation, Vector3f pivot, boolean offBody)
 {
     public MatrixCacheEntry(Matrix4f matrix, Matrix4f origin)
     {
-        this(matrix, origin, null, null);
+        this(matrix, origin, null, null, false);
     }
 
     public MatrixCacheEntry(Matrix4f matrix, Matrix4f origin, Vector3f evaluatedRotation)
     {
-        this(matrix, origin, evaluatedRotation, null);
+        this(matrix, origin, evaluatedRotation, null, false);
+    }
+
+    public MatrixCacheEntry(Matrix4f matrix, Matrix4f origin, Vector3f evaluatedRotation, Vector3f pivot)
+    {
+        this(matrix, origin, evaluatedRotation, pivot, false);
     }
 
     /**
