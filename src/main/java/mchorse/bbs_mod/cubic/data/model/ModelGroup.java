@@ -26,6 +26,12 @@ public class ModelGroup implements IMapSerializable, RigBone
     public List<ModelMesh> meshes = new ArrayList<>();
     public boolean visible = true;
     public boolean poseVisible = true;
+    /**
+     * The bone stands apart from the body it rigs: an IK pole, a look target, a handle for the
+     * rig's settings. It is posed like any bone, but says nothing about where the body is, so the
+     * orbit leaves it out of the body's middle. Set by whoever builds the model; not saved.
+     */
+    public boolean offBody;
     public int index = -1;
 
     public float lighting = 0F;

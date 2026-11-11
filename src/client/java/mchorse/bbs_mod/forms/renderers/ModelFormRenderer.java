@@ -1335,7 +1335,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             o.set(stack.peek().getPositionMatrix());
             stack.pop();
 
-            matrices.put(StringUtils.combinePaths(prefix, entry.getKey()), matrix, o, entry.getValue().evaluatedRotation());
+            matrices.put(StringUtils.combinePaths(prefix, entry.getKey()), matrix, o, entry.getValue().evaluatedRotation(), entry.getValue().offBody());
         }
 
         /* Recursively do the same thing with body parts */

@@ -604,7 +604,9 @@ public class OrbitFilmCameraController extends OrbitViewportController
      * about a form that never declared one, and not from the anchor bone, whose pivot sits
      * wherever the model editor left it (for a rig anchored at the waist, already half way up;
      * for a head, at the neck rather than at the eyes worn on it).
-     * The pose is the one thing that always describes the form as it is right now.</p>
+     * The pose is the one thing that always describes the form as it is right now.
+     * Bones the model marks as standing apart from the body (IK poles, look targets, settings
+     * handles) are left out.</p>
      *
      * @param part the body part's path, or empty for the whole form
      * @return null only for a body part that isn't in the form; the whole form falls back to
@@ -663,7 +665,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
             Matrix4f matrix = entry.getValue().matrix();
             String key = entry.getKey();
 
-            if (matrix == null || (part.isEmpty() ? key.isEmpty() : !key.startsWith(prefix)))
+            /* A pole or a look target set out in front of a rig would pull the middle off the body. */
+            if (matrix == null || entry.getValue().offBody() || (part.isEmpty() ? key.isEmpty() : !key.startsWith(prefix)))
             {
                 continue;
             }
