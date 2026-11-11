@@ -48,7 +48,11 @@ public class TrackerFrame
     /** Tracked bone's position, relative to {@link #origin}. */
     private final Vector3f bone = new Vector3f();
 
-    /** Tracked bone's orientation. Carries the pose's scale, like the bone matrix does. */
+    /**
+     * Axes the offset (and relative mode's travel) is laid along: the tracked
+     * bone's orientation, carrying the pose's scale like the bone matrix does,
+     * or the world's ones after {@link #worldAxes()}.
+     */
     private final Matrix3d rotation = new Matrix3d();
 
     /** {@link #rotation} with the scale stripped off, for angle math (see {@link #solveAngles}). */
@@ -123,6 +127,22 @@ public class TrackerFrame
 
         normalize(this.rotationOnly);
         this.angleDelta.identity();
+    }
+
+    /**
+     * Lay the offset along the world's axes instead of the bone's, so the camera
+     * follows where the bone goes but not how it turns: a bone that sways (a run
+     * cycle's torso) would otherwise swing a distant camera around it like a
+     * lever. Only angles are affected by the bone's orientation after this.
+     *
+     * <p>Must come before {@link #relative}, which lays its travel along the
+     * same axes.</p>
+     */
+    public TrackerFrame worldAxes()
+    {
+        this.rotation.identity();
+
+        return this;
     }
 
     /**

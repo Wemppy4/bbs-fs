@@ -68,6 +68,11 @@ public class TrackerClientClip extends TrackerClip
             return;
         }
 
+        if (this.followsPositionOnly())
+        {
+            frame.worldAxes();
+        }
+
         if (this.relative.get())
         {
             frame.relative(position, this.position);
@@ -98,6 +103,16 @@ public class TrackerClientClip extends TrackerClip
     public boolean isActive(int bit)
     {
         return (this.active.get() >> bit & 1) == 1;
+    }
+
+    /**
+     * Whether the tracker drives none of the angles, i.e. the camera should only
+     * follow the bone around, and so the offset is kept in world axes (see
+     * {@link TrackerFrame#worldAxes()}).
+     */
+    public boolean followsPositionOnly()
+    {
+        return !this.isActive(3) && !this.isActive(4) && !this.isActive(5);
     }
 
     @Override
