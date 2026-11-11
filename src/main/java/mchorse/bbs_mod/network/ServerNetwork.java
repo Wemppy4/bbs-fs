@@ -80,6 +80,7 @@ public class ServerNetwork
     public static final Identifier CLIENT_REQUEST_FILM_RESYNC = new Identifier(BBSMod.MOD_ID, "c18");
     public static final Identifier CLIENT_STRUCTURE_SAVED = new Identifier(BBSMod.MOD_ID, "c19");
     public static final Identifier CLIENT_STRUCTURE_CUT = new Identifier(BBSMod.MOD_ID, "c20");
+    public static final Identifier CLIENT_STRUCTURE_RESTORED = new Identifier(BBSMod.MOD_ID, "c21");
 
     public static final Identifier SERVER_MODEL_BLOCK_FORM_PACKET = new Identifier(BBSMod.MOD_ID, "s1");
     public static final Identifier SERVER_MODEL_BLOCK_TRANSFORMS_PACKET = new Identifier(BBSMod.MOD_ID, "s2");
@@ -99,6 +100,7 @@ public class ServerNetwork
     public static final Identifier SERVER_CUT_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s16");
     public static final Identifier SERVER_CONVERT_MODEL_BLOCK = new Identifier(BBSMod.MOD_ID, "s17");
     public static final Identifier SERVER_PLAYER_FOLLOW_SPECTATOR = new Identifier(BBSMod.MOD_ID, "s18");
+    public static final Identifier SERVER_RESTORE_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s19");
 
     /** The game mode each player had before following the camera as a spectator */
     private static final Map<UUID, GameMode> followModes = new HashMap<>();
@@ -130,6 +132,7 @@ public class ServerNetwork
         ServerPlayNetworking.registerGlobalReceiver(SERVER_CUT_STRUCTURE, (server, player, handler, buf, responder) -> handleCutStructure(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_CONVERT_MODEL_BLOCK, (server, player, handler, buf, responder) -> handleConvertModelBlock(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_PLAYER_FOLLOW_SPECTATOR, (server, player, handler, buf, responder) -> handleFollowSpectator(server, player, buf));
+        ServerPlayNetworking.registerGlobalReceiver(SERVER_RESTORE_STRUCTURE, (server, player, handler, buf, responder) -> handleRestoreStructure(server, player, buf));
     }
 
     /* Handlers */
@@ -171,6 +174,38 @@ public class ServerNetwork
             reply.writeString(name);
 
             ServerPlayNetworking.send(player, CLIENT_STRUCTURE_CUT, reply);
+        });
+    }
+
+    /**
+     * The cut the other way round: a structure form's file put back into the world as blocks, at
+     * the spot the form stands. The pivot arrives as the form's position and anchor; where its
+     * footprint lands is worked out here, from the file's own size.
+     */
+    private static void handleRestoreStructure(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
+    {
+        String id = buf.readString();
+        double x = buf.readDouble();
+        double y = buf.readDouble();
+        double z = buf.readDouble();
+        float originX = buf.readFloat();
+        float originY = buf.readFloat();
+        float originZ = buf.readFloat();
+
+        if (!PermissionUtils.arePanelsAllowed(server, player))
+        {
+            return;
+        }
+
+        server.execute(() ->
+        {
+            boolean placed = StructureSaver.place(player.getServerWorld(), id, x, y, z, originX, originY, originZ);
+            PacketByteBuf reply = PacketByteBufs.create();
+
+            reply.writeBoolean(placed);
+            reply.writeString(id);
+
+            ServerPlayNetworking.send(player, CLIENT_STRUCTURE_RESTORED, reply);
         });
     }
 

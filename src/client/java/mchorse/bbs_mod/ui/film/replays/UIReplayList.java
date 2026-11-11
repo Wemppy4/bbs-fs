@@ -25,6 +25,7 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueForm;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.structure.StructureCut;
 import mchorse.bbs_mod.forms.structure.StructureManager;
 import mchorse.bbs_mod.forms.structure.StructureSelection;
@@ -172,6 +173,11 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 if (film != null)
                 {
                     menu.action(Icons.SHIFT_TO, UIKeys.SCENE_REPLAYS_CONTEXT_MOVE_TO_CATEGORY, this::openMoveToCategoryContextMenu);
+                }
+
+                if (film != null && this.getSelectedReplayFirst().form.get() instanceof StructureForm)
+                {
+                    menu.action(Icons.STRUCTURE, UIKeys.STRUCTURE_RESTORE_TITLE, this::restoreStructureFromReplay);
                 }
 
                 menu.action(Icons.ALL_DIRECTIONS, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS, this::processReplays);
@@ -1760,6 +1766,43 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }).verb(UIKeys.GENERAL_CUT).danger());
     }
 
+    /**
+     * The cut the other way round: the selected replay's structure goes back into the world as
+     * blocks where the replay stands at the cursor, and the replay goes, so the shot doesn't show
+     * the build twice.
+     */
+    private void restoreStructureFromReplay()
+    {
+        Film film = this.panel.getData();
+        Replay replay = this.getSelectedReplayFirst();
+
+        if (film == null || replay == null || !(replay.form.get() instanceof StructureForm form))
+        {
+            return;
+        }
+
+        String id = form.structure.get();
+        float tick = this.panel.getCursor();
+        double x = replay.keyframes.x.interpolate(tick);
+        double y = replay.keyframes.y.interpolate(tick);
+        double z = replay.keyframes.z.interpolate(tick);
+        IKey message = UIKeys.STRUCTURE_RESTORE_CONFIRM.format(id);
+
+        UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(UIKeys.STRUCTURE_RESTORE_TITLE, message, (confirmed) ->
+        {
+            if (confirmed)
+            {
+                StructureCut.restore(id, x, y, z, form.origin.get(), (ok) ->
+                {
+                    if (ok && this.panel.getData() == film && film.replays.getList().contains(replay))
+                    {
+                        this.removeReplays(Collections.singletonList(replay));
+                    }
+                });
+            }
+        }).verb(UIKeys.STRUCTURE_RESTORE_VERB).danger());
+    }
+
     /** The cut region's form, dropped in at the very spot it was cut from. */
     private void addStructureReplay(String id, BlockPos min, Vec3i size)
     {
@@ -1836,8 +1879,12 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
+        this.removeReplays(new ArrayList<>(this.getSelectedReplays()));
+    }
+
+    private void removeReplays(List<Replay> removing)
+    {
         Film film = this.panel.getData();
-        List<Replay> removing = new ArrayList<>(this.getSelectedReplays());
         Replay focus = removing.get(0);
         int globalFocus = film.replays.getList().indexOf(focus);
 

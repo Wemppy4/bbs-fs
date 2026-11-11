@@ -89,6 +89,7 @@ public class ClientNetwork
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_REQUEST_FILM_RESYNC, (client, handler, buf, responseSender) -> handleRequestFilmResync(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_SAVED, (client, handler, buf, responseSender) -> handleStructureSaved(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_CUT, (client, handler, buf, responseSender) -> handleStructureCut(client, buf));
+        ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_RESTORED, (client, handler, buf, responseSender) -> handleStructureRestored(client, buf));
     }
 
     /* Handlers */
@@ -100,6 +101,15 @@ public class ClientNetwork
         String name = buf.readString();
 
         client.execute(() -> StructureCut.onCut(ok, name));
+    }
+
+    /** The server's answer to putting a cut build back: whether the blocks went in. */
+    private static void handleStructureRestored(MinecraftClient client, PacketByteBuf buf)
+    {
+        boolean ok = buf.readBoolean();
+        String id = buf.readString();
+
+        client.execute(() -> StructureCut.onRestored(ok, id));
     }
 
     /** The server's answer to the wand: whether the file got written, and under which id. */
@@ -566,6 +576,22 @@ public class ClientNetwork
         buf.writeBlockPos(to);
 
         ClientPlayNetworking.send(ServerNetwork.SERVER_CUT_STRUCTURE, buf);
+    }
+
+    /** Put a structure form's file back into the world as blocks, where the form stands. */
+    public static void sendRestoreStructure(String id, double x, double y, double z, float originX, float originY, float originZ)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeString(id);
+        buf.writeDouble(x);
+        buf.writeDouble(y);
+        buf.writeDouble(z);
+        buf.writeFloat(originX);
+        buf.writeFloat(originY);
+        buf.writeFloat(originZ);
+
+        ClientPlayNetworking.send(ServerNetwork.SERVER_RESTORE_STRUCTURE, buf);
     }
 
     public static void sendSaveStructure(String name, BlockPos from, BlockPos to)
