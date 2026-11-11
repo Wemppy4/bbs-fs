@@ -35,7 +35,8 @@ public class GlslPackHarness
 {
     private static final Pattern INCLUDE = Pattern.compile("^\\s*#\\s*include\\s+\"([^\"]+)\"");
     private static final Pattern VALUE_OPTION = Pattern.compile("^\\s*#define\\s+(\\w+)\\s+(-?[\\w.]+)\\s*//(.*)$");
-    private static final Pattern BOOLEAN_OPTION = Pattern.compile("^\\s*(//+)?\\s*#define\\s+(\\w+)\\s*(//.*)?$");
+    /* Leading comments repeat once Iris switched an indented "  //#define X" off: "//  //#define X" */
+    private static final Pattern BOOLEAN_OPTION = Pattern.compile("^\\s*+((?:/{2,}+\\s*+)++)?#define\\s+(\\w+)\\s*(//.*)?$");
     private static final Pattern IFDEF = Pattern.compile("^\\s*#\\s*(ifdef|ifndef)\\s+(\\w+)\\s*$");
     private static final Pattern LIST = Pattern.compile("\\[([^\\]]*)\\]");
     private static final Pattern NUMBER = Pattern.compile("^-?(\\d+\\.?\\d*|\\.\\d+)f?$");
@@ -253,10 +254,8 @@ public class GlslPackHarness
             }
         }
 
-        if (!values.isEmpty())
-        {
-            files.replaceAll((path, text) -> set(text));
-        }
+        /* Iris goes over every option line, not just the changed ones */
+        files.replaceAll((path, text) -> set(text));
 
         return files;
     }
@@ -279,12 +278,23 @@ public class GlslPackHarness
             {
                 line = line.substring(0, value.start(2)) + values.get(value.group(1)) + line.substring(value.end(2));
             }
-            else if (bool.matches() && (values.containsKey(bool.group(2)) && !values.get(bool.group(2)).matches("-?[\\d.]+")))
+            else if (bool.matches())
             {
-                /* On/off: "//#define X" when off, "#define X" when on */
-                String define = line.substring(bool.start(1) < 0 ? line.indexOf('#') : bool.end(1));
+                /* On/off, as Iris' OptionAnnotatedSource does: an off option gets "//" in front of
+                 * its whole line, even one already commented ("  //#define X" -> "//  //#define X"),
+                 * an on one loses its leading comment */
+                String chosen = values.get(bool.group(2));
+                boolean commented = bool.start(1) >= 0;
+                boolean on = chosen == null || chosen.matches("-?[\\d.]+") ? !commented : chosen.equals("true");
 
-                line = line.substring(0, bool.start(1) < 0 ? line.indexOf('#') : bool.start(1)) + (values.get(bool.group(2)).equals("true") ? "" : "//") + define;
+                if (on && commented)
+                {
+                    line = line.substring(bool.end(1));
+                }
+                else if (!on)
+                {
+                    line = "//" + line;
+                }
             }
 
             builder.append(line).append(end).append('\n');
