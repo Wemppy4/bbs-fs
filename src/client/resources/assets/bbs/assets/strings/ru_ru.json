@@ -1746,7 +1746,6 @@
 	"bbs.ui.keyframes.context.round": "Округлить тики кадров",
 	"bbs.ui.keyframes.context.select_all": "Выбрать всё",
 	"bbs.ui.keyframes.context.spread": "Равномерно раставить ключевые кадры",
-	"bbs.ui.keyframes.context.track": "Дорожка...",
 	"bbs.ui.keyframes.context.track_style": "Оформление дорожки...",
 	"bbs.ui.keyframes.track_style.title": "Оформление дорожки",
 	"bbs.ui.keyframes.track_style.key": "Ключ: %s",

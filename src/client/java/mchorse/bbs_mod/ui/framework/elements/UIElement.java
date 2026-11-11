@@ -659,17 +659,8 @@ public class UIElement implements IUIElement, IUndoElement
             consumer.accept(manager);
         }
 
-        this.arrangeContextMenu(context, manager);
-
         return manager.create();
     }
-
-    /**
-     * The last word on the rows everyone has put into this element's context menu, for an element
-     * whose menu depends on more than who added what.
-     */
-    protected void arrangeContextMenu(UIContext context, ContextMenuManager menu)
-    {}
 
     /* Resizer methods */
 
