@@ -107,6 +107,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         if (this.shapeOverlay.click(context)) return true;
         if (this.splineOverlay.pick(context.mouseX, context.mouseY) != null) return this.pickSplinePoint(context);
         Pair<mchorse.bbs_mod.forms.forms.Form, String> bone = this.pickRigHandle(context);
+        if (bone != null && context.mouseButton == 0 && this.orbit.enabled) return this.panel.replayEditor.deferViewportPick(context, bone);
         return bone != null && this.panel.replayEditor.pickViewportPair(context, bone);
     }
 
