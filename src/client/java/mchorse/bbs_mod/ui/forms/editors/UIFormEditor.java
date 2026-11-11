@@ -121,10 +121,16 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     public void renderMarkup(UIContext context)
     {
         this.markup.begin(this.renderer.area);
-        RigMarkup.draw(this.markup, this.renderer.getRigMarkup(), this::isPickedBone);
+        RigMarkup.draw(this.markup, this.renderer.getRigMarkup(), this::isShownRig, this::isPickedBone);
         this.renderSplineOverlay(context);
         this.renderShapeControllers(context);
         this.markup.flush(context);
+    }
+
+    /** Only the picked body part shows its controls; a part that is no model leaves everyone's. */
+    private boolean isShownRig(ModelForm form)
+    {
+        return this.editor == null || !(this.editor.form instanceof ModelForm) || this.editor.form == form;
     }
 
     /** Whether the bone is the one being edited: its rig handle gets the selection ring. */
