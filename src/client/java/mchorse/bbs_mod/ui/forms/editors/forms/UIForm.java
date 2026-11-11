@@ -28,6 +28,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
+import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -430,15 +431,22 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         super.collectUndoData(data);
 
         data.putInt("panel", this.panels.indexOf(this.view));
-        data.putDouble("scroll", this.view.options.scroll.getScroll());
     }
 
+    /**
+     * The tab comes back; the scroll doesn't &mdash; {@link UIFormEditor#switchEditor} carries the one
+     * the user has now over the rebuild, where this used to jump back to the scroll at the edit.
+     */
     @Override
     public void applyUndoData(MapType data)
     {
         super.applyUndoData(data);
 
-        this.setPanel(this.panels.get(data.getInt("panel")));
-        this.view.options.scroll.setScroll(data.getDouble("scroll"));
+        UIFormPanel<T> panel = CollectionUtils.getSafe(this.panels, data.getInt("panel"));
+
+        if (panel != null && panel != this.view)
+        {
+            this.setPanel(panel);
+        }
     }
 }

@@ -467,11 +467,24 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             this.cursor = 0;
         }
 
+        /* Undo rebuilds every clip from data, so the picked one is carried over by its place */
+        MapType picked = new MapType();
+
+        if (this.applyingUndo)
+        {
+            this.timeline.collectUndoData(picked);
+        }
+
         this.player.stop();
         this.runner.shutdown();
         this.runner.setWork(data == null ? null : data.clips);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
+
+        if (this.applyingUndo && data != null)
+        {
+            this.timeline.applyUndoData(picked);
+        }
 
         /* The docks show their panels only with a sequence open: re-read that gate now */
         this.dock.setupFlex(true);

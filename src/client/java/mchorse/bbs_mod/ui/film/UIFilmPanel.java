@@ -2132,8 +2132,21 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     {
         super.applyUndoData(data);
 
-        this.showPanel(data.getInt("panel"));
-        this.setCursor(data.getFloat("tick"));
+        /* Only when it is another editor or another tick: showing the same panel again closed the
+         * clips' embedded view and the flight, and seeking to the same tick still told the server. */
+        int panel = data.getInt("panel");
+        float tick = data.getFloat("tick");
+
+        if (panel != this.getPanelIndex())
+        {
+            this.showPanel(panel);
+        }
+
+        if (tick != this.getCursor(0F))
+        {
+            this.setCursor(tick);
+        }
+
         this.controller.createEntities();
     }
 

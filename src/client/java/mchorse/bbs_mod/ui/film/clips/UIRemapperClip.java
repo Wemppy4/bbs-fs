@@ -67,7 +67,7 @@ public class UIRemapperClip extends UIClip<RemapperClip>
     {
         super.applyUndoData(data);
 
-        if (data.getString("embed").equals("remapper"))
+        if (data.getString("embed").equals("remapper") && !this.keyframes.hasParent())
         {
             this.editor.embedView(this.keyframes);
         }

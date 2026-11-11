@@ -498,7 +498,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
     {
         super.applyUndoData(data);
 
-        if (data.getString("embed").equals("envelope"))
+        if (data.getString("embed").equals("envelope") && !this.envelope.channel.hasParent())
         {
             this.editor.embedView(this.envelope.channel);
         }

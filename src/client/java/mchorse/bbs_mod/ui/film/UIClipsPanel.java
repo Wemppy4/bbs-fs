@@ -654,12 +654,12 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     {
         super.applyUndoData(data);
 
+        /* The selection comes back, the view doesn't: zoom and scroll stay where the user left them. */
         List<Integer> selection = DataStorageUtils.intListFromData(data.getList("selection"));
+        int count = this.clips.getClips() == null ? 0 : this.clips.getClips().get().size();
 
-        this.clips.getXAxis().view(data.getDouble("x_min"), data.getDouble("x_max"));
-        this.clips.vertical.setScroll(data.getDouble("scroll"));
-        this.clips.vertical.updateTarget();
-
+        /* Undo may have taken the picked clip away along with the list it was in */
+        selection.removeIf((index) -> index < 0 || index >= count);
         this.clips.setSelection(selection);
         this.pickClip(selection.isEmpty() ? null : this.clips.getClips().get(selection.get(selection.size() - 1)));
     }
@@ -670,8 +670,5 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
         super.collectUndoData(data);
 
         data.put("selection", DataStorageUtils.intListToData(this.clips.getSelection()));
-        data.putDouble("x_min", this.clips.getXAxis().getMinValue());
-        data.putDouble("x_max", this.clips.getXAxis().getMaxValue());
-        data.putDouble("scroll", this.clips.vertical.getScroll());
     }
 }

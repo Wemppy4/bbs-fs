@@ -558,6 +558,9 @@ public class UIModelConfigEditor extends UIElement
 
     public void fill(ModelConfig config)
     {
+        /* Undo refills the same config: the picked pose bone stays picked */
+        boolean same = config != null && config == this.data;
+
         this.data = config;
         this.shapeControllers.fill(config == null ? null : this.instance());
 
@@ -582,7 +585,7 @@ public class UIModelConfigEditor extends UIElement
             this.fillFirstPerson();
             this.fillWelds();
             this.fillBones();
-            this.fillPoses();
+            this.fillPoses(!same);
         }
         finally
         {
@@ -1173,11 +1176,16 @@ public class UIModelConfigEditor extends UIElement
 
     private void fillPoses()
     {
+        this.fillPoses(true);
+    }
+
+    private void fillPoses(boolean reset)
+    {
         ValuePose pose = this.shownPose();
 
         this.poseEditor.setValuePose(pose);
         this.poseEditor.setPose(pose.get(), this.instance().getPoseGroup());
-        this.poseEditor.fillGroups(this.instance().getModel(), this.instance().getFlippedParts(), true, this.instance().getDisabledBones());
+        this.poseEditor.fillGroups(this.instance().getModel(), this.instance().getFlippedParts(), reset, this.instance().getDisabledBones());
 
         this.resizePage(Tab.POSES);
     }

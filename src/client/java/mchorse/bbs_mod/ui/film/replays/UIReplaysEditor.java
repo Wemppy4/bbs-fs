@@ -1511,7 +1511,17 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.selectedPartsByReplay.computeIfAbsent(replay.getId(), key -> new TimelineBodyPartSelection()).read(data);
         }
 
-        this.setReplay(replay, true, OrbitReaction.KEEP);
+        /* Scrolling the list to the replay (and opening its folder) is for when undo picks another
+         * one; for the same replay it threw the list back to it on every Ctrl+Z. The rows are still
+         * rebuilt, undo may have added or removed replays. */
+        boolean another = replay != this.replay;
+
+        this.setReplay(replay, another, OrbitReaction.KEEP);
+
+        if (!another)
+        {
+            this.replaysList.replays.refreshReplayList();
+        }
 
         currentIndices.clear();
         currentIndices.addAll(selection);

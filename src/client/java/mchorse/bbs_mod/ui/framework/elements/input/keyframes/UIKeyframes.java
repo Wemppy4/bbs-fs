@@ -2015,17 +2015,7 @@ public class UIKeyframes extends UITimelineCanvas
         state.extra.putBool("graph", this.isEditing());
         this.dopeSheet.saveState(state.extra);
         this.curveGraph.saveState(state.extra);
-        MapType selection = new MapType();
-        for (UIKeyframeSheet sheet : this.getSheets())
-            selection.put(sheet.id, DataStorageUtils.intListToData(sheet.selection.getIndices()));
-        state.extra.put("key_selection", selection);
-
-        UIKeyframeSheet pickedSheet = this.dopeSheet.getSheet(this.pickedKeyframe);
-        if (pickedSheet != null)
-        {
-            state.extra.putString("picked_track", pickedSheet.id);
-            state.extra.putInt("picked_key", pickedSheet.channel.indexOf(this.pickedKeyframe));
-        }
+        this.cacheSelection(state.extra);
 
         return state;
     }
@@ -2036,15 +2026,6 @@ public class UIKeyframes extends UITimelineCanvas
         this.currentGraph = state.extra.getBool("graph") ? this.curveGraph : this.dopeSheet;
         this.dopeSheet.restoreState(state.extra);
         this.curveGraph.restoreState(state.extra);
-        this.pickedKeyframe = null;
-        List<UIKeyframeSheet> properties = this.getSheets();
-
-        MapType selections = state.extra.getMap("key_selection");
-        for (UIKeyframeSheet sheet : properties)
-        {
-            sheet.selection.clear();
-            if (selections.has(sheet.id)) sheet.selection.addAll(DataStorageUtils.intListFromData(selections.get(sheet.id)));
-        }
 
         this.graphTracks.clear();
         for (BaseType id : state.extra.getList("graph_tracks"))
@@ -2052,10 +2033,44 @@ public class UIKeyframes extends UITimelineCanvas
             UIKeyframeSheet sheet = this.dopeSheet.getSheet(id.asString());
             if (sheet != null) this.graphTracks.add(sheet);
         }
-        UIKeyframeSheet picked = this.dopeSheet.getSheet(state.extra.getString("picked_track"));
-        this.pickedKeyframe = picked == null ? null : picked.channel.get(state.extra.getInt("picked_key"));
-        this.currentGraph.pickSelected();
+
+        this.applySelection(state.extra);
         this.resize();
+    }
+
+    /**
+     * Which keys are picked, without the view around them &mdash; what Ctrl+Z puts back. Keys are
+     * kept by index: undo rebuilds a channel's keyframes from data, so the picked objects are gone.
+     */
+    public void cacheSelection(MapType data)
+    {
+        MapType selection = new MapType();
+        for (UIKeyframeSheet sheet : this.getSheets())
+            selection.put(sheet.id, DataStorageUtils.intListToData(sheet.selection.getIndices()));
+        data.put("key_selection", selection);
+
+        UIKeyframeSheet pickedSheet = this.dopeSheet.getSheet(this.pickedKeyframe);
+        if (pickedSheet != null)
+        {
+            data.putString("picked_track", pickedSheet.id);
+            data.putInt("picked_key", pickedSheet.channel.indexOf(this.pickedKeyframe));
+        }
+    }
+
+    public void applySelection(MapType data)
+    {
+        this.pickedKeyframe = null;
+
+        MapType selections = data.getMap("key_selection");
+        for (UIKeyframeSheet sheet : this.getSheets())
+        {
+            sheet.selection.clear();
+            if (selections.has(sheet.id)) sheet.selection.addAll(DataStorageUtils.intListFromData(selections.get(sheet.id)));
+        }
+
+        UIKeyframeSheet picked = this.dopeSheet.getSheet(data.getString("picked_track"));
+        this.pickedKeyframe = picked == null ? null : picked.channel.get(data.getInt("picked_key"));
+        this.currentGraph.pickSelected();
     }
 
     /** Restore picks only for channels retained by the same editor/actor. */
