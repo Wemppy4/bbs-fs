@@ -161,7 +161,14 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return;
         }
 
-        RigMarkup.draw(this.markup, RigMarkup.world(), (form) -> FormUtils.getRoot(form) == current.getForm(), (form, id) -> bone != null
+        /* Only the body part the parts list picked shows its controls, so a face on the head doesn't crowd
+         * the body's; a part that is no model (it has none) leaves the whole character's. */
+        String part = this.panel.replayEditor.getActiveBodyPart();
+        Form root = current.getForm();
+        Form picked = root == null ? null : (part.isEmpty() ? root : FormUtils.getForm(root, part));
+        boolean onePart = picked instanceof mchorse.bbs_mod.forms.forms.ModelForm;
+
+        RigMarkup.draw(this.markup, RigMarkup.world(), (form) -> onePart ? form == picked : FormUtils.getRoot(form) == root, (form, id) -> bone != null
             && mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(form), id).equals(bone.a));
     }
 
