@@ -23,6 +23,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3d;
 
 /**
  * A thin outline around the film's selected actor, the way 3D programs mark what is selected.
@@ -45,6 +46,7 @@ public class SelectionOutline
     /* What the mask was drawn for */
     private final Matrix4f lastView = new Matrix4f();
     private final Matrix4f lastProjection = new Matrix4f();
+    private final Vector3d lastEye = new Vector3d();
     private int lastMouseX = Integer.MIN_VALUE;
     private int lastMouseY;
     private int lastCursor;
@@ -115,7 +117,8 @@ public class SelectionOutline
             && replay == this.lastReplay
             && target.equals(this.lastTarget)
             && controller.panel.lastView.equals(this.lastView)
-            && controller.panel.lastProjection.equals(this.lastProjection);
+            && controller.panel.lastProjection.equals(this.lastProjection)
+            && controller.panel.getDrawnCamera().position.equals(this.lastEye);
 
         if (unchanged)
         {
@@ -132,6 +135,7 @@ public class SelectionOutline
         this.lastTarget = target;
         this.lastView.set(controller.panel.lastView);
         this.lastProjection.set(controller.panel.lastProjection);
+        this.lastEye.set(controller.panel.getDrawnCamera().position);
 
         return true;
     }

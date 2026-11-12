@@ -136,6 +136,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private UIFilmUndoHandler undoHandler;
 
     public final Matrix4f lastView = new Matrix4f();
+    /* The camera exactly as the world was last drawn with (see getDrawnCamera) */
+    private final Camera drawnCamera = new Camera();
+    private boolean hasDrawnCamera;
     public final Matrix4f lastProjection = new Matrix4f();
 
     private Timer flightEditTime = new Timer(100);
@@ -1751,6 +1754,18 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.controller.startRenderFrame(tickDelta);
     }
 
+    /**
+     * The camera the world on screen was drawn with: its projection, rotation and position as of
+     * the last world pass. Overlays drawn over the picture in the interface pass (the motion path,
+     * the camera's frustum, the markup) project through this one, not {@link #getCamera}: the
+     * live camera's smoothing moves on in the interface pass, after the world was drawn, so an
+     * overlay following it would run a frame ahead of the picture while the camera moves.
+     */
+    public Camera getDrawnCamera()
+    {
+        return this.hasDrawnCamera ? this.drawnCamera : this.getCamera();
+    }
+
     @Override
     public void renderInWorld(WorldRenderContext context)
     {
@@ -1760,6 +1775,14 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.lastProjection.set(RenderSystem.getProjectionMatrix());
             this.lastView.set(context.matrixStack().peek().getPositionMatrix());
+
+            Vec3d eye = context.camera().getPos();
+
+            this.drawnCamera.copy(this.getCamera());
+            this.drawnCamera.projection.set(this.lastProjection);
+            this.drawnCamera.view.set(this.lastView);
+            this.drawnCamera.position.set(eye.x, eye.y, eye.z);
+            this.hasDrawnCamera = true;
         }
 
         this.controller.renderFrame(context);

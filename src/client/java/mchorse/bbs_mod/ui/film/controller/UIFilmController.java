@@ -143,7 +143,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         Position position = this.panel.getRunner().getPosition();
-        Camera camera = this.panel.getCamera();
+        Camera camera = this.panel.getDrawnCamera();
         Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
         Vector3f origin = new Vector3f(
             (float) (position.point.x - camera.position.x),
@@ -175,7 +175,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
-        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, this.panel.getData(), this.getReplay(), this.getTick());
+        MotionPath.render(this.markup, this.panel.getDrawnCamera(), motionPath, this, this.panel.getData(), this.getReplay(), this.getTick());
         BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
     }
 
@@ -215,7 +215,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         IEntity entity = this.getCurrentEntity();
         Replay replay = this.panel.replayEditor.getReplay();
         if (entity == null || replay == null) { this.shapeOverlay.clear(); return; }
-        var camera = this.panel.getCamera();
+        var camera = this.panel.getDrawnCamera();
         this.shapeOverlay.draw(context, this.markup, keys.controls, camera.projection, c ->
         {
             String path = mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(keys.form), c.bone.get());
@@ -274,7 +274,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         SplineEditorUtils.viewportHover(this.panel.replayEditor.keyframeEditor, null);
         if (!this.splineOverlay.begin(this.markup)) return;
         if (this.isCovered() || this.isRecording()) return;
-        var camera = this.panel.getCamera();
+        var camera = this.panel.getDrawnCamera();
         float transition = this.getCurrentTransition();
         for (var replay : this.panel.getData().replays.getList())
         {
