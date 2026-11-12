@@ -1096,6 +1096,12 @@ public class UIElement implements IUIElement, IUndoElement
         return this.enabled && this.visible;
     }
 
+    /** Whether the element would take input once shown, whether or not it is shown right now. */
+    public boolean isEnabledWhenShown()
+    {
+        return this.enabled;
+    }
+
     public void setEnabled(boolean enabled)
     {
         this.enabled = enabled;

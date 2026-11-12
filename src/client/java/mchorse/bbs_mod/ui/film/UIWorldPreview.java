@@ -112,7 +112,9 @@ public class UIWorldPreview extends UIElement
 
         for (UIIcon icon : this.iconSettings.keySet())
         {
-            if (!icon.isEnabled() || icon.tooltip == null)
+            /* Not isEnabled(): that is false for an icon hidden in the settings, and those are
+             * the very ones the menu is for. */
+            if (!icon.isEnabledWhenShown() || icon.tooltip == null)
             {
                 continue;
             }
