@@ -9,9 +9,6 @@ import java.util.function.Consumer;
 
 public class UIActionList extends UIList<ContextAction>
 {
-    /** The line between groups of rows, the colour of the dividers in the panels' top bar. */
-    public static final int SEPARATOR_COLOR = 0x44ffffff;
-
     public UIActionList(Consumer<List<ContextAction>> callback)
     {
         super(callback);
@@ -58,7 +55,7 @@ public class UIActionList extends UIList<ContextAction>
 
         if (element.separated && i > 0)
         {
-            context.batcher.box(x + 4, y, x + this.area.w - 4, y + 1, SEPARATOR_COLOR);
+            UIContextMenuBar.divider(context.batcher, x, y, this.area.w);
         }
     }
 
