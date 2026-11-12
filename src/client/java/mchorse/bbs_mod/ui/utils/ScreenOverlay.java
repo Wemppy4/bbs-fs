@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.AntialiasedLayer;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -22,7 +23,8 @@ import java.util.List;
 /**
  * The editors' markup: one screen layer every viewport overlay draws through — the motion path,
  * the rig's IK goals, poles and controllers, spline points, shape key handles. Points are
- * projected onto the viewport and drawn flat over the frame: lines one screen pixel wide, and one
+ * projected onto the viewport and drawn flat over the frame, through an {@link AntialiasedLayer} for
+ * smooth edges: lines one and a half screen pixels wide, and one
  * look for every handle — a plain dot of its system's colour (a circle, or a rounded square or
  * diamond), a little bigger under the cursor, a white ring a gap away when selected, faded when it
  * takes no clicks, its name in a card at the cursor.
@@ -59,6 +61,9 @@ public class ScreenOverlay
 
     private static final int DARK = 0xff0d1118;
     private static final int RING = Colors.WHITE;
+
+    /** Line width in screen pixels. */
+    private static final float LINE = 1.5F;
 
     /* Dashes in screen pixels */
     private static final float DASH = 3F;
@@ -212,13 +217,62 @@ public class ScreenOverlay
         }
     }
 
-    /** A line one screen pixel wide. */
+    /**
+     * A line between two points in the space {@code mvp} takes, cut where it leaves the depth
+     * range rather than dropped: one end may be far behind the eye (a ray from somewhere else).
+     */
+    public void line(Matrix4f mvp, Vector3f a, Vector3f b, int color)
+    {
+        Vector4f ca = mvp.transform(new Vector4f(a, 1));
+        Vector4f cb = mvp.transform(new Vector4f(b, 1));
+
+        /* Near (z >= -w), then far (z <= w) */
+        if (!clipToPlane(ca, cb, 1F) || !clipToPlane(ca, cb, -1F) || ca.w <= 0.00001F || cb.w <= 0.00001F)
+        {
+            return;
+        }
+
+        float x1 = this.viewport.x + (ca.x / ca.w + 1) * this.viewport.w * 0.5F;
+        float y1 = this.viewport.y + (1 - ca.y / ca.w) * this.viewport.h * 0.5F;
+        float x2 = this.viewport.x + (cb.x / cb.w + 1) * this.viewport.w * 0.5F;
+        float y2 = this.viewport.y + (1 - cb.y / cb.w) * this.viewport.h * 0.5F;
+
+        if (Float.isFinite(x1) && Float.isFinite(y1) && Float.isFinite(x2) && Float.isFinite(y2))
+        {
+            this.line(x1, y1, x2, y2, color);
+        }
+    }
+
+    /** Keep the part of the clip-space segment where {@code side * z + w >= 0}; false when none is left. */
+    private static boolean clipToPlane(Vector4f a, Vector4f b, float side)
+    {
+        float da = side * a.z + a.w;
+        float db = side * b.z + b.w;
+
+        if (da < 0 && db < 0)
+        {
+            return false;
+        }
+
+        if (da < 0)
+        {
+            a.lerp(b, da / (da - db));
+        }
+        else if (db < 0)
+        {
+            b.lerp(a, db / (db - da));
+        }
+
+        return true;
+    }
+
+    /** A line {@link #LINE} screen pixels wide. */
     public void line(float x1, float y1, float x2, float y2, int color)
     {
         this.lines.add(new Line(x1, y1, x2, y2, color, false));
     }
 
-    /** A relationship line: one pixel wide, dashed. */
+    /** A relationship line: {@link #LINE} screen pixels wide, dashed. */
     public void dashed(Vector3f a, Vector3f b, int color)
     {
         if (a != null && b != null)
@@ -350,8 +404,34 @@ public class ScreenOverlay
         float opacity = BBSSettings.markupOpacity.get();
 
         context.batcher.flush();
-        context.batcher.clip(this.viewport, context);
 
+        /* The layer's buffer is the viewport, so it clips; without it the batcher does */
+        boolean layer = AntialiasedLayer.beginUI(this.viewport.x, this.viewport.y, this.viewport.w, this.viewport.h);
+
+        if (!layer)
+        {
+            context.batcher.clip(this.viewport, context);
+        }
+
+        try
+        {
+            this.drawShapes(context, drawn, px, scale, opacity);
+        }
+        finally
+        {
+            if (layer)
+            {
+                AntialiasedLayer.end();
+            }
+            else
+            {
+                context.batcher.unclip(context);
+            }
+        }
+    }
+
+    private void drawShapes(UIContext context, List<Handle> drawn, float px, float scale, float opacity)
+    {
         Matrix4f matrix = context.batcher.getContext().getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         Painter painter = new Painter(builder, matrix, opacity);
@@ -362,11 +442,11 @@ public class ScreenOverlay
         {
             if (line.dashed)
             {
-                painter.dashed(line.x1, line.y1, line.x2, line.y2, px, DASH * px, GAP * px, line.color);
+                painter.dashed(line.x1, line.y1, line.x2, line.y2, LINE * px, DASH * px, GAP * px, line.color);
             }
             else
             {
-                painter.line(line.x1, line.y1, line.x2, line.y2, px, line.color);
+                painter.line(line.x1, line.y1, line.x2, line.y2, LINE * px, line.color);
             }
         }
 
@@ -412,12 +492,10 @@ public class ScreenOverlay
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.enableCull();
-
-        context.batcher.unclip(context);
     }
 
     /**
-     * A circle one screen pixel wide, drawn at once and clipped to the viewport — for a
+     * A circle {@link #LINE} screen pixels wide, drawn at once and clipped to the viewport — for a
      * shape a gesture shows while it runs (the arcball's ball), outside any overlay's frame.
      */
     public static void circle(UIContext context, Area viewport, float x, float y, float radius, int color)
@@ -431,7 +509,13 @@ public class ScreenOverlay
         int segments = Math.max(SEGMENTS, Math.min(256, Math.round(radius)));
 
         context.batcher.flush();
-        context.batcher.clip(viewport, context);
+
+        boolean layer = AntialiasedLayer.beginUI(viewport.x, viewport.y, viewport.w, viewport.h);
+
+        if (!layer)
+        {
+            context.batcher.clip(viewport, context);
+        }
 
         Matrix4f matrix = context.batcher.getContext().getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
@@ -447,7 +531,7 @@ public class ScreenOverlay
             painter.line(
                 x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
                 x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius,
-                px, color
+                LINE * px, color
             );
         }
 
@@ -457,7 +541,14 @@ public class ScreenOverlay
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.enableCull();
 
-        context.batcher.unclip(context);
+        if (layer)
+        {
+            AntialiasedLayer.end();
+        }
+        else
+        {
+            context.batcher.unclip(context);
+        }
     }
 
     private boolean onTop(Handle handle)
