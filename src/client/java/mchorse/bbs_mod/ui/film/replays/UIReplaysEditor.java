@@ -1310,46 +1310,62 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                 return true;
             }
         }
-        else if (context.mouseButton == 1 && this.isVisible())
+        else if (context.mouseButton == 1)
         {
-            World world = MinecraftClient.getInstance().world;
             Camera camera = this.filmPanel.getCamera();
+            Vector3d hit = this.isVisible() ? this.rayTraceViewport(context, area, camera) : null;
 
-            Vector3f rayOffset = new Vector3f();
-            Vector3f rayDirection = CameraUtils.getMouseRay(camera.projection, camera.view, context.mouseX, context.mouseY, area.x, area.y, area.w, area.h, rayOffset);
-
-            BlockHitResult blockHitResult = RayTracing.rayTrace(
-                world,
-                RayTracing.fromVector3d(new Vector3d(camera.position).add(rayOffset.x, rayOffset.y, rayOffset.z)),
-                RayTracing.fromVector3f(rayDirection),
-                256F
-            );
-
-            if (blockHitResult.getType() != HitResult.Type.MISS)
+            context.replaceContextMenu(menu ->
             {
-                Vector3d vec = new Vector3d(blockHitResult.getPos().x, blockHitResult.getPos().y, blockHitResult.getPos().z);
-
-                if (Window.isShiftPressed())
-                {
-                    vec = new Vector3d(Math.floor(vec.x) + 0.5D, Math.round(vec.y), Math.floor(vec.z) + 0.5D);
-                }
-
-                final Vector3d finalVec = vec;
-
-                context.replaceContextMenu(menu ->
+                if (hit != null)
                 {
                     float pitch = 0F;
                     float yaw = MathUtils.toDeg(camera.rotation.y);
 
-                    menu.icon(MenuVerb.ADD, () -> this.replaysList.replays.addReplay(finalVec, pitch, yaw)).label(UIKeys.FILM_REPLAY_CONTEXT_ADD);
-                    menu.action(Icons.POINTER, UIKeys.FILM_REPLAY_CONTEXT_MOVE_HERE, () -> this.moveReplay(finalVec.x, finalVec.y, finalVec.z));
-                });
+                    menu.icon(MenuVerb.ADD, () -> this.replaysList.replays.addReplay(hit, pitch, yaw)).label(UIKeys.FILM_REPLAY_CONTEXT_ADD);
+                    menu.action(Icons.POINTER, UIKeys.FILM_REPLAY_CONTEXT_MOVE_HERE, () -> this.moveReplay(hit.x, hit.y, hit.z));
+                }
 
-                return true;
-            }
+                this.filmPanel.preview.addIconActions(menu, hit != null);
+            });
+
+            return true;
         }
 
         return false;
+    }
+
+    /**
+     * The block under the cursor in the viewport, snapped to the middle of its top with Shift,
+     * or null when the ray hits nothing.
+     */
+    private Vector3d rayTraceViewport(UIContext context, Area area, Camera camera)
+    {
+        World world = MinecraftClient.getInstance().world;
+
+        Vector3f rayOffset = new Vector3f();
+        Vector3f rayDirection = CameraUtils.getMouseRay(camera.projection, camera.view, context.mouseX, context.mouseY, area.x, area.y, area.w, area.h, rayOffset);
+
+        BlockHitResult blockHitResult = RayTracing.rayTrace(
+            world,
+            RayTracing.fromVector3d(new Vector3d(camera.position).add(rayOffset.x, rayOffset.y, rayOffset.z)),
+            RayTracing.fromVector3f(rayDirection),
+            256F
+        );
+
+        if (blockHitResult.getType() == HitResult.Type.MISS)
+        {
+            return null;
+        }
+
+        Vector3d vec = new Vector3d(blockHitResult.getPos().x, blockHitResult.getPos().y, blockHitResult.getPos().z);
+
+        if (Window.isShiftPressed())
+        {
+            vec = new Vector3d(Math.floor(vec.x) + 0.5D, Math.round(vec.y), Math.floor(vec.z) + 0.5D);
+        }
+
+        return vec;
     }
 
     /**

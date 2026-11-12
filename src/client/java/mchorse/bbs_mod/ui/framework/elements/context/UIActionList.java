@@ -9,6 +9,9 @@ import java.util.function.Consumer;
 
 public class UIActionList extends UIList<ContextAction>
 {
+    /** The line between groups of rows, the colour of the dividers in the panels' top bar. */
+    public static final int SEPARATOR_COLOR = 0x44ffffff;
+
     public UIActionList(Consumer<List<ContextAction>> callback)
     {
         super(callback);
@@ -21,12 +24,42 @@ public class UIActionList extends UIList<ContextAction>
         return false;
     }
 
+    /** A right click on a row that has a menu of its own opens that menu, with a step back to this one. */
+    @Override
+    public boolean subMouseClicked(UIContext context)
+    {
+        if (context.mouseButton == 1 && this.area.isInside(context))
+        {
+            int index = this.indexAt(this.contentX(context), this.contentY(context));
+
+            if (index >= 0 && index < this.visible().size())
+            {
+                ContextAction action = this.visible().get(index);
+                UIContextMenu menu = action.submenu == null ? null : action.submenu.get();
+
+                if (menu != null && !menu.isEmpty())
+                {
+                    context.replaceContextMenu(menu);
+                }
+            }
+
+            return true;
+        }
+
+        return super.subMouseClicked(context);
+    }
+
     @Override
     public void renderListElement(UIContext context, ContextAction element, int i, int x, int y, boolean hover, boolean selected)
     {
         int h = this.scroll.scrollItemSize;
 
         element.render(context, context.batcher.getFont(), x, y, this.area.w, h, hover, selected);
+
+        if (element.separated && i > 0)
+        {
+            context.batcher.box(x + 4, y, x + this.area.w - 4, y + 1, SEPARATOR_COLOR);
+        }
     }
 
     /** The top row still showing, taking the filter into account, or null when none is. */
