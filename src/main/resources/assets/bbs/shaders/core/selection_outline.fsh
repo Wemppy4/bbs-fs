@@ -8,8 +8,7 @@ uniform sampler2D Sampler2;
 
 uniform vec4 ColorModulator;
 uniform vec4 OutlineColor;
-/* The selected bone: its pick id (0 for none) and colour */
-uniform vec4 BoneColor;
+/* The edited bone's pick id, 0 for the whole actor */
 uniform int SelectedIndex;
 /* One screen pixel in the mask's coordinates */
 uniform vec2 Texel;
@@ -55,11 +54,18 @@ int seenId(vec2 uv)
 
 void main()
 {
-    int here = seenId(texCoord);
+    /* One selection: the edited bone's part when there is one, else the whole actor */
     bool bone = SelectedIndex > 0;
-    bool inBone = bone && here == SelectedIndex;
-    float actorHits = 0.0;
-    float boneHits = 0.0;
+    int here = seenId(texCoord);
+    bool inside = bone ? here == SelectedIndex : here >= 0;
+
+    /* A ring around it, never over it */
+    if (inside)
+    {
+        discard;
+    }
+
+    float hits = 0.0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -70,31 +76,14 @@ void main()
         {
             int id = seenId(texCoord + direction * float(r));
 
-            actorHits += id >= 0 ? 1.0 : 0.0;
-            boneHits += bone && id == SelectedIndex ? 1.0 : 0.0;
+            hits += (bone ? id == SelectedIndex : id >= 0) ? 1.0 : 0.0;
         }
     }
 
-    /* The selected bone: a ring around its part, over whatever is beside it, and a faint tint inside */
-    if (bone && !inBone && boneHits > 0.0)
-    {
-        fragColor = vec4(BoneColor.rgb, BoneColor.a * clamp(boneHits / 4.0, 0.0, 1.0)) * ColorModulator;
-
-        return;
-    }
-
-    if (inBone)
-    {
-        fragColor = vec4(BoneColor.rgb, BoneColor.a * 0.15) * ColorModulator;
-
-        return;
-    }
-
-    /* The actor: a ring around the silhouette, never over it */
-    if (here >= 0 || actorHits <= 0.0)
+    if (hits <= 0.0)
     {
         discard;
     }
 
-    fragColor = vec4(OutlineColor.rgb, OutlineColor.a * clamp(actorHits / 4.0, 0.0, 1.0)) * ColorModulator;
+    fragColor = vec4(OutlineColor.rgb, OutlineColor.a * clamp(hits / 4.0, 0.0, 1.0)) * ColorModulator;
 }

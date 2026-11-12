@@ -25,7 +25,6 @@
         { "name": "SceneDepth", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
         { "name": "SceneViewport", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 1.0 ] },
         { "name": "UseScene", "type": "float", "count": 1, "values": [ 0.0 ] },
-        { "name": "BoneColor", "type": "float", "count": 4, "values": [ 1.0, 0.8, 0.6, 1.0 ] },
         { "name": "SelectedIndex", "type": "int", "count": 1, "values": [ 0 ] }
     ]
 }

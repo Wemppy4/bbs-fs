@@ -45,9 +45,10 @@ import java.util.Map;
  * The actor alone is drawn again into a mask the size of the preview, the way the pick pass
  * draws it (its silhouette and its depth); a pass over the preview then rings what of the mask
  * is seen — the parts the world's own depth ({@link SceneDepth}) puts behind a block or another
- * actor get no outline. The mask holds each part in its pick id's colour, so the bone being
- * edited is found in it too and ringed in a lighter colour, its part faintly tinted. The mask is
- * only redrawn when something it depends on changed.
+ * actor get no outline. It is one selection: while a bone is edited, its part is ringed instead
+ * of the whole actor, in the same colour — the mask holds each part in its pick id's colour, so
+ * the bone is found in it without another draw. The mask is only redrawn when something it
+ * depends on changed.
  */
 public class SelectionOutline
 {
@@ -215,11 +216,6 @@ public class SelectionOutline
         int outline = BBSSettings.primaryColor(Colors.A100);
 
         set(program, "OutlineColor", Colors.getR(outline), Colors.getG(outline), Colors.getB(outline), 1F);
-        /* The bone: the same colour, halfway to white */
-        set(program, "BoneColor",
-            Colors.getR(outline) + (1F - Colors.getR(outline)) * 0.6F,
-            Colors.getG(outline) + (1F - Colors.getG(outline)) * 0.6F,
-            Colors.getB(outline) + (1F - Colors.getB(outline)) * 0.6F, 1F);
 
         GlUniform selected = program.getUniform("SelectedIndex");
 
