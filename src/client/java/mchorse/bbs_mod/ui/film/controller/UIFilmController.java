@@ -44,6 +44,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.SceneDepth;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.morphing.Morph;
@@ -121,8 +122,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
     private void renderMarkup(UIContext context)
     {
         this.markup.begin(this.panel.preview.getViewport());
+        /* What belongs to the scene hides behind blocks and models */
+        this.markup.occluded(true);
         this.renderCameraFrustum();
         this.renderMotionPath();
+        this.markup.occluded(false);
         this.renderRigMarkup();
         this.renderSplineOverlay(context);
         this.renderShapeControllers(context);
@@ -1209,6 +1213,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
         {
             this.editorController.render(context);
         }
+
+        /* The world as drawn so far (blocks and actors), for the markup's lines to hide behind */
+        SceneDepth.capture();
 
         this.renderOrbitCenterMarker(context);
 

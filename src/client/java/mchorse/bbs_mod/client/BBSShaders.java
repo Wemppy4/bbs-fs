@@ -21,6 +21,7 @@ public class BBSShaders
     private static ShaderProgram pixelArt;
     private static ShaderProgram pixelArtText;
     private static ShaderProgram pixelArtTextIntensity;
+    private static ShaderProgram markupOccluded;
 
     private static ShaderProgram pickerPreview;
     private static ShaderProgram pickerBillboard;
@@ -41,6 +42,7 @@ public class BBSShaders
         if (pixelArt != null) pixelArt.close();
         if (pixelArtText != null) pixelArtText.close();
         if (pixelArtTextIntensity != null) pixelArtTextIntensity.close();
+        if (markupOccluded != null) markupOccluded.close();
 
         if (pickerPreview != null) pickerPreview.close();
         if (pickerBillboard != null) pickerBillboard.close();
@@ -91,6 +93,26 @@ public class BBSShaders
 
             e.printStackTrace();
         }
+
+        /* Its own try too: without it the markup's world lines just stop hiding behind blocks */
+        try
+        {
+            ResourceFactory factory = new ProxyResourceFactory(MinecraftClient.getInstance().getResourceManager());
+
+            markupOccluded = new ShaderProgram(factory, "markup_occluded", VertexFormats.POSITION_TEXTURE_COLOR);
+        }
+        catch (IOException e)
+        {
+            markupOccluded = null;
+
+            e.printStackTrace();
+        }
+    }
+
+    /** The markup's lines that hide behind the world (see SceneDepth), or null when it didn't compile. */
+    public static ShaderProgram getMarkupOccludedProgram()
+    {
+        return markupOccluded;
     }
 
     public static ShaderProgram getModel()

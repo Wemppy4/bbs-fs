@@ -3,10 +3,15 @@ package mchorse.bbs_mod.ui.utils;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.AntialiasedLayer;
+import mchorse.bbs_mod.graphics.SceneDepth;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -27,7 +32,9 @@ import java.util.List;
  * smooth edges: lines one and a half screen pixels wide, and one
  * look for every handle — a plain dot of its system's colour (a circle, or a rounded square or
  * diamond), a little bigger under the cursor, a white ring a gap away when selected, faded when it
- * takes no clicks, its name in a card at the cursor.
+ * takes no clicks, its name in a card at the cursor. What belongs to the scene rather than to the
+ * editing (the camera's frustum, the motion path) is added while {@link #occluded} is on and hides
+ * behind blocks and models, read from the world's depth ({@link SceneDepth}); handles never do.
  *
  * <p>A frame is {@link #begin}, the overlays adding their lines, marks and handles, then
  * {@link #flush}. Picks answer from the handles of the last flush, nearest to the cursor first,
@@ -128,7 +135,21 @@ public class ScreenOverlay
         }
     }
 
-    private record Line(float x1, float y1, float x2, float y2, int color, boolean dashed)
+    /** A projected point that knows how far from the eye it is, so it can hide behind the world. */
+    public static class Projected extends Vector3f
+    {
+        public final float distance;
+
+        public Projected(float x, float y, float z, float distance)
+        {
+            super(x, y, z);
+
+            this.distance = distance;
+        }
+    }
+
+    /* Inverse distances from the eye (0 when unknown); hidden behind the world when occluded */
+    private record Line(float x1, float y1, float x2, float y2, int color, boolean dashed, float inverse1, float inverse2, boolean occluded)
     {}
 
     private enum MarkKind
@@ -136,7 +157,7 @@ public class ScreenOverlay
         DOT, KEY, RING
     }
 
-    private record Mark(MarkKind kind, float x, float y, int color)
+    private record Mark(MarkKind kind, float x, float y, int color, float inverse, boolean occluded)
     {}
 
     private Area viewport = new Area();
@@ -145,6 +166,7 @@ public class ScreenOverlay
     private List<Handle> handles = new ArrayList<>();
     private List<Handle> flushed = new ArrayList<>();
     private Handle hovered;
+    private boolean occluding;
 
     /** Start a frame over the viewport: the overlays add to it, {@link #flush} draws it. */
     public void begin(Area viewport)
@@ -153,6 +175,17 @@ public class ScreenOverlay
         this.lines.clear();
         this.marks.clear();
         this.handles = new ArrayList<>();
+        this.occluding = false;
+    }
+
+    /**
+     * While on, the lines and marks added from projected points hide behind blocks and models
+     * ({@link SceneDepth}): for what belongs to the scene (the camera's frustum, the motion path)
+     * rather than to the editing (handles always stay on top, to be picked).
+     */
+    public void occluded(boolean occluding)
+    {
+        this.occluding = occluding;
     }
 
     public Area getViewport()
@@ -186,9 +219,13 @@ public class ScreenOverlay
             return null;
         }
 
+        float distance = clip.w;
+
         clip.div(clip.w);
 
-        return fromNDC(viewport, clip.x, clip.y, clip.z);
+        Vector3f screen = fromNDC(viewport, clip.x, clip.y, clip.z);
+
+        return screen == null ? null : new Projected(screen.x, screen.y, screen.z, distance);
     }
 
     /** A normalized device point (already divided) on the viewport, as {@link #project} returns it. */
@@ -213,8 +250,16 @@ public class ScreenOverlay
     {
         if (a != null && b != null)
         {
-            this.line(a.x, a.y, b.x, b.y, color);
+            float ia = inverse(a);
+            float ib = inverse(b);
+
+            this.lines.add(new Line(a.x, a.y, b.x, b.y, color, false, ia, ib, this.occluding && ia > 0 && ib > 0));
         }
+    }
+
+    private static float inverse(Vector3f point)
+    {
+        return point instanceof Projected projected && projected.distance > 0 ? 1F / projected.distance : 0F;
     }
 
     /**
@@ -239,7 +284,8 @@ public class ScreenOverlay
 
         if (Float.isFinite(x1) && Float.isFinite(y1) && Float.isFinite(x2) && Float.isFinite(y2))
         {
-            this.line(x1, y1, x2, y2, color);
+            /* After the clip, w is each end's distance from the eye */
+            this.lines.add(new Line(x1, y1, x2, y2, color, false, 1F / ca.w, 1F / cb.w, this.occluding));
         }
     }
 
@@ -269,7 +315,7 @@ public class ScreenOverlay
     /** A line {@link #LINE} screen pixels wide. */
     public void line(float x1, float y1, float x2, float y2, int color)
     {
-        this.lines.add(new Line(x1, y1, x2, y2, color, false));
+        this.lines.add(new Line(x1, y1, x2, y2, color, false, 0F, 0F, false));
     }
 
     /** A relationship line: {@link #LINE} screen pixels wide, dashed. */
@@ -277,26 +323,48 @@ public class ScreenOverlay
     {
         if (a != null && b != null)
         {
-            this.lines.add(new Line(a.x, a.y, b.x, b.y, color, true));
+            float ia = inverse(a);
+            float ib = inverse(b);
+
+            this.lines.add(new Line(a.x, a.y, b.x, b.y, color, true, ia, ib, this.occluding && ia > 0 && ib > 0));
         }
     }
 
     /** A frame's dot on a path. */
     public void dot(float x, float y, int color)
     {
-        this.marks.add(new Mark(MarkKind.DOT, x, y, color));
+        this.marks.add(new Mark(MarkKind.DOT, x, y, color, 0F, false));
     }
 
     /** A keyframe on a path, as the timeline draws one: a frame in the colour around a dark middle. */
     public void key(float x, float y, int color)
     {
-        this.marks.add(new Mark(MarkKind.KEY, x, y, color));
+        this.marks.add(new Mark(MarkKind.KEY, x, y, color, 0F, false));
+    }
+
+    /** {@link #key(float, float, int)} at a projected point, hiding behind the world while {@link #occluded}. */
+    public void key(Vector3f point, int color)
+    {
+        this.mark(MarkKind.KEY, point, color);
+    }
+
+    /** {@link #ring(float, float, int)} at a projected point, hiding behind the world while {@link #occluded}. */
+    public void ring(Vector3f point, int color)
+    {
+        this.mark(MarkKind.RING, point, color);
+    }
+
+    private void mark(MarkKind kind, Vector3f point, int color)
+    {
+        float inverse = inverse(point);
+
+        this.marks.add(new Mark(kind, point.x, point.y, color, inverse, this.occluding && inverse > 0));
     }
 
     /** The current frame's place on a path: a ring. */
     public void ring(float x, float y, int color)
     {
-        this.marks.add(new Mark(MarkKind.RING, x, y, color));
+        this.marks.add(new Mark(MarkKind.RING, x, y, color, 0F, false));
     }
 
     /**
@@ -433,41 +501,33 @@ public class ScreenOverlay
     private void drawShapes(UIContext context, List<Handle> drawn, float px, float scale, float opacity)
     {
         Matrix4f matrix = context.batcher.getContext().getMatrices().peek().getPositionMatrix();
+        ShaderProgram hiding = BBSShaders.getMarkupOccludedProgram();
+        /* Without a fresh capture of the world (or the shader), everything draws on top as before */
+        boolean occlusion = hiding != null && SceneDepth.isFresh();
+
+        if (occlusion)
+        {
+            this.drawOccluded(matrix, hiding, px, scale, opacity);
+        }
+
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
-        Painter painter = new Painter(builder, matrix, opacity);
+        Painter painter = new Painter(builder, matrix, opacity, false);
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 
         for (Line line : this.lines)
         {
-            if (line.dashed)
+            if (!(occlusion && line.occluded))
             {
-                painter.dashed(line.x1, line.y1, line.x2, line.y2, LINE * px, DASH * px, GAP * px, line.color);
-            }
-            else
-            {
-                painter.line(line.x1, line.y1, line.x2, line.y2, LINE * px, line.color);
+                this.paintLine(painter, line, px);
             }
         }
 
         for (Mark mark : this.marks)
         {
-            if (mark.kind == MarkKind.DOT)
+            if (!(occlusion && mark.occluded))
             {
-                painter.square(mark.x, mark.y, DOT * scale * 0.5F, mark.color);
-            }
-            else if (mark.kind == MarkKind.KEY)
-            {
-                float half = KEY * scale * 0.5F;
-
-                painter.square(mark.x, mark.y, half, mark.color);
-                painter.square(mark.x, mark.y, half - 2 * px, DARK);
-            }
-            else
-            {
-                float half = CURRENT * scale * 0.5F;
-
-                painter.ring(mark.x, mark.y, half, half - 2 * px, mark.color);
+                this.paintMark(painter, mark, px, scale);
             }
         }
 
@@ -492,6 +552,113 @@ public class ScreenOverlay
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.enableCull();
+    }
+
+    /** The lines and marks that hide behind the world, under everything else, through the depth-testing shader. */
+    private void drawOccluded(Matrix4f matrix, ShaderProgram program, float px, float scale, float opacity)
+    {
+        boolean any = false;
+
+        for (Line line : this.lines) any |= line.occluded;
+        for (Mark mark : this.marks) any |= mark.occluded;
+
+        if (!any)
+        {
+            return;
+        }
+
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        Painter painter = new Painter(builder, matrix, opacity, true);
+
+        builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+
+        for (Line line : this.lines)
+        {
+            if (line.occluded)
+            {
+                this.paintLine(painter, line, px);
+            }
+        }
+
+        for (Mark mark : this.marks)
+        {
+            if (mark.occluded)
+            {
+                this.paintMark(painter.at(mark.inverse), mark, px, scale);
+            }
+        }
+
+        /* The overlay's viewport is the world's picture on screen: in framebuffer pixels from the bottom left */
+        MinecraftClient mc = MinecraftClient.getInstance();
+        float guiScale = (float) mc.getWindow().getScaleFactor();
+        float[] depthViewport = SceneDepth.getViewport();
+
+        setUniform(program, "DepthParams", SceneDepth.getA(), SceneDepth.getB());
+        setUniform(program, "DepthViewport", depthViewport[0], depthViewport[1], depthViewport[2], depthViewport[3]);
+        setUniform(program, "OverlayFrame",
+            this.viewport.x * guiScale, mc.getWindow().getFramebufferHeight() - this.viewport.ey() * guiScale,
+            this.viewport.w * guiScale, this.viewport.h * guiScale);
+        setUniform(program, "LayerOffset", AntialiasedLayer.getOffsetX(), AntialiasedLayer.getOffsetY());
+
+        RenderSystem.enableBlend();
+        RenderSystem.disableCull();
+        RenderSystem.setShaderTexture(0, SceneDepth.getTexture());
+        RenderSystem.setShader(() -> program);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+        RenderSystem.enableCull();
+    }
+
+    private static void setUniform(ShaderProgram program, String name, float x, float y)
+    {
+        GlUniform uniform = program.getUniform(name);
+
+        if (uniform != null)
+        {
+            uniform.set(x, y);
+        }
+    }
+
+    private static void setUniform(ShaderProgram program, String name, float x, float y, float z, float w)
+    {
+        GlUniform uniform = program.getUniform(name);
+
+        if (uniform != null)
+        {
+            uniform.set(x, y, z, w);
+        }
+    }
+
+    private void paintLine(Painter painter, Line line, float px)
+    {
+        if (line.dashed)
+        {
+            painter.dashed(line.x1, line.y1, line.x2, line.y2, LINE * px, DASH * px, GAP * px, line.color, line.inverse1, line.inverse2);
+        }
+        else
+        {
+            painter.line(line.x1, line.y1, line.x2, line.y2, LINE * px, line.color, line.inverse1, line.inverse2);
+        }
+    }
+
+    private void paintMark(Painter painter, Mark mark, float px, float scale)
+    {
+        if (mark.kind == MarkKind.DOT)
+        {
+            painter.square(mark.x, mark.y, DOT * scale * 0.5F, mark.color);
+        }
+        else if (mark.kind == MarkKind.KEY)
+        {
+            float half = KEY * scale * 0.5F;
+
+            painter.square(mark.x, mark.y, half, mark.color);
+            painter.square(mark.x, mark.y, half - 2 * px, DARK);
+        }
+        else
+        {
+            float half = CURRENT * scale * 0.5F;
+
+            painter.ring(mark.x, mark.y, half, half - 2 * px, mark.color);
+        }
     }
 
     /**
@@ -585,15 +752,38 @@ public class ScreenOverlay
         private final BufferBuilder builder;
         private final Matrix4f matrix;
         private final float opacity;
+        /* With the inverse distance in the texture coordinate, for the depth-testing shader */
+        private final boolean distances;
+        private float inverse;
 
         Painter(BufferBuilder builder, Matrix4f matrix, float opacity)
+        {
+            this(builder, matrix, opacity, false);
+        }
+
+        Painter(BufferBuilder builder, Matrix4f matrix, float opacity, boolean distances)
         {
             this.builder = builder;
             this.matrix = matrix;
             this.opacity = opacity;
+            this.distances = distances;
+        }
+
+        /** The inverse distance the following shapes stand at (one for a whole mark). */
+        Painter at(float inverse)
+        {
+            this.inverse = inverse;
+
+            return this;
         }
 
         void line(float x1, float y1, float x2, float y2, float width, int color)
+        {
+            this.line(x1, y1, x2, y2, width, color, this.inverse, this.inverse);
+        }
+
+        /** {@code inverse1} and {@code inverse2} are the ends' inverse distances, screen-linear along the line. */
+        void line(float x1, float y1, float x2, float y2, float width, int color, float inverse1, float inverse2)
         {
             float dx = x2 - x1;
             float dy = y2 - y1;
@@ -607,10 +797,15 @@ public class ScreenOverlay
             float nx = -dy / length * width * 0.5F;
             float ny = dx / length * width * 0.5F;
 
-            this.quad(x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 - nx, y2 - ny, x2 + nx, y2 + ny, color);
+            this.quad(x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 - nx, y2 - ny, x2 + nx, y2 + ny, color, inverse1, inverse1, inverse2, inverse2);
         }
 
         void dashed(float x1, float y1, float x2, float y2, float width, float dash, float gap, int color)
+        {
+            this.dashed(x1, y1, x2, y2, width, dash, gap, color, this.inverse, this.inverse);
+        }
+
+        void dashed(float x1, float y1, float x2, float y2, float width, float dash, float gap, int color, float inverse1, float inverse2)
         {
             float dx = x2 - x1;
             float dy = y2 - y1;
@@ -626,7 +821,8 @@ public class ScreenOverlay
                 float a = t / length;
                 float b = Math.min(t + dash, length) / length;
 
-                this.line(x1 + dx * a, y1 + dy * a, x1 + dx * b, y1 + dy * b, width, color);
+                this.line(x1 + dx * a, y1 + dy * a, x1 + dx * b, y1 + dy * b, width, color,
+                    inverse1 + (inverse2 - inverse1) * a, inverse1 + (inverse2 - inverse1) * b);
             }
         }
 
@@ -713,13 +909,30 @@ public class ScreenOverlay
 
         private void quad(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int color)
         {
+            this.quad(x1, y1, x2, y2, x3, y3, x4, y4, color, this.inverse, this.inverse, this.inverse, this.inverse);
+        }
+
+        private void quad(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int color, float i1, float i2, float i3, float i4)
+        {
             int alpha = (int) (((color >>> 24) & 0xff) * this.opacity);
             int argb = (alpha << 24) | (color & 0xffffff);
 
-            this.builder.vertex(this.matrix, x1, y1, 0F).color(argb).next();
-            this.builder.vertex(this.matrix, x2, y2, 0F).color(argb).next();
-            this.builder.vertex(this.matrix, x3, y3, 0F).color(argb).next();
-            this.builder.vertex(this.matrix, x4, y4, 0F).color(argb).next();
+            this.vertex(x1, y1, i1, argb);
+            this.vertex(x2, y2, i2, argb);
+            this.vertex(x3, y3, i3, argb);
+            this.vertex(x4, y4, i4, argb);
+        }
+
+        private void vertex(float x, float y, float inverse, int argb)
+        {
+            this.builder.vertex(this.matrix, x, y, 0F);
+
+            if (this.distances)
+            {
+                this.builder.texture(inverse, 0F);
+            }
+
+            this.builder.color(argb).next();
         }
     }
 }

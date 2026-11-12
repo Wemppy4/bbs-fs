@@ -75,6 +75,17 @@ public class AntialiasedLayer
         return active;
     }
 
+    /** Where the open layer's buffer sits in the framebuffer (pixels from the bottom left); 0 with none open. */
+    public static int getOffsetX()
+    {
+        return active ? x : 0;
+    }
+
+    public static int getOffsetY()
+    {
+        return active ? y : 0;
+    }
+
     /**
      * Open a layer over the current viewport.
      *
