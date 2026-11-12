@@ -26,14 +26,13 @@ import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
 /**
- * A thin outline around the film's selected actor, the way 3D programs mark what is selected.
- * The actor alone is drawn again into a mask the size of the preview, the way the pick pass
- * draws it (its silhouette and its depth); a pass over the preview then rings what of the mask
- * is seen — the parts the world's own depth ({@link mchorse.bbs_mod.graphics.SceneDepth}) puts behind a block or another
- * actor get no outline. It is one selection: while a bone is edited, its part is ringed instead
- * of the whole actor, in the same colour — the mask holds each part in its pick id's colour, so
- * the bone is found in it without another draw. The mask is only redrawn when something it
- * depends on changed.
+ * A thin outline around the bone edited on the film's selected actor, the way 3D programs mark
+ * what is selected. The actor alone is drawn again into a mask the size of the preview, the way
+ * the pick pass draws it (its silhouette and its depth, each part in its pick id's colour); a pass
+ * over the preview then rings what of the bone's part is seen — what the world's own depth
+ * ({@link mchorse.bbs_mod.graphics.SceneDepth}) puts behind a block or another actor gets no
+ * outline. Without an edited bone (or for a bone without cubes) nothing is outlined. The mask is
+ * only redrawn when something it depends on changed.
  */
 public class SelectionOutline
 {
@@ -67,10 +66,12 @@ public class SelectionOutline
         WorldRenderContext world = controller.worldRenderContext();
         IEntity entity = controller.getCurrentEntity();
         Replay replay = controller.panel.replayEditor.getReplay();
+        Pair<String, TransformSpace> bone = controller.getBone();
 
         /* The axes switch (F8) hides it along with the gizmo and the markup */
         if (!BBSSettings.editorSelectionOutline.get() || !UIBaseMenu.renderAxes || !OutlineMask.isAvailable() || world == null
-            || entity == null || replay == null || controller.panel.isFlying() || controller.getControlled() != null
+            || entity == null || replay == null || bone == null || bone.a == null || bone.a.isEmpty()
+            || controller.panel.isFlying() || controller.getControlled() != null
             || controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON)
         {
             this.mask.invalidate();
@@ -91,8 +92,12 @@ public class SelectionOutline
             this.mask.end();
         }
 
-        /* One selection: the edited bone's part when it has one, else the whole actor */
-        this.mask.draw(context, viewport, this.selectedIndex(), controller.panel.lastProjection);
+        int index = this.mask.indexOf((form, id) -> StringUtils.combinePaths(FormUtils.getPath(form), id).equals(bone.a));
+
+        if (index > 0)
+        {
+            this.mask.draw(context, viewport, index, controller.panel.lastProjection);
+        }
 
         BBSProfiler.end(BBSProfiler.Timer.OUTLINE);
     }
@@ -163,18 +168,5 @@ public class SelectionOutline
 
         stack.pop();
         MatrixStackUtils.restoreMatrices();
-    }
-
-    /** The pick id the mask drew the edited bone with, or 0 when no bone is edited or it wasn't drawn (a controller without cubes). */
-    private int selectedIndex()
-    {
-        Pair<String, TransformSpace> bone = this.controller.getBone();
-
-        if (bone == null || bone.a == null || bone.a.isEmpty())
-        {
-            return 0;
-        }
-
-        return this.mask.indexOf((form, id) -> StringUtils.combinePaths(FormUtils.getPath(form), id).equals(bone.a));
     }
 }
