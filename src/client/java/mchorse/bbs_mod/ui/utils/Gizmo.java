@@ -899,33 +899,128 @@ public class Gizmo
         stack.push();
         this.orientGuide(stack);
 
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        /* A thin line on screen, the same width at any distance, instead of a long bar that is
+         * thick near the eye: each axis is projected and drawn flat in device coordinates. */
+        Matrix4f mvp = new Matrix4f(RenderSystem.getProjectionMatrix()).mul(stack.peek().getPositionMatrix());
+        int[] viewport = new int[4];
 
-        float size = 10000F;
-        float t = 0.005F;
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+        stack.pop();
+
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 
         if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
         {
-            Draw.fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
+            guideLine(builder, mvp, viewport, 1F, 0F, 0F, Colors.RED);
         }
-        
+
         if (debugIndex == STENCIL_Y || debugIndex == STENCIL_XY || debugIndex == STENCIL_ZY)
         {
-            Draw.fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
+            guideLine(builder, mvp, viewport, 0F, 1F, 0F, Colors.GREEN);
         }
-        
+
         if (debugIndex == STENCIL_Z || debugIndex == STENCIL_XZ || debugIndex == STENCIL_ZY)
         {
-            Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
+            guideLine(builder, mvp, viewport, 0F, 0F, 1F, Colors.BLUE);
         }
 
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
+        VertexSorter sorter = RenderSystem.getVertexSorting();
+        Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
+        MatrixStack global = RenderSystem.getModelViewStack();
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+
+        RenderSystem.setProjectionMatrix(new Matrix4f(), VertexSorter.BY_Z);
+        global.push();
+        global.loadIdentity();
+        RenderSystem.applyModelViewMatrix();
+
+        RenderSystem.enableBlend();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.depthMask(true);
 
-        stack.pop();
+        if (cull) RenderSystem.enableCull();
+
+        global.pop();
+        global.push();
+        global.peek().getPositionMatrix().set(modelView);
+        RenderSystem.applyModelViewMatrix();
+        global.pop();
+        RenderSystem.setProjectionMatrix(projection, sorter);
+    }
+
+    /** Width of the constraint guide, in screen pixels, and how solid it is. */
+    private static final float GUIDE_WIDTH = 1.5F;
+    private static final float GUIDE_ALPHA = 0.75F;
+
+    /**
+     * The guide along one axis as a flat quad in device coordinates: the axis through the origin,
+     * cut where it leaves the depth range (one end is far behind the eye), widened by
+     * {@link #GUIDE_WIDTH} pixels across its direction on screen.
+     */
+    private static void guideLine(BufferBuilder builder, Matrix4f mvp, int[] viewport, float x, float y, float z, int color)
+    {
+        float size = 10000F;
+        Vector4f a = mvp.transform(new Vector4f(-x * size, -y * size, -z * size, 1F));
+        Vector4f b = mvp.transform(new Vector4f(x * size, y * size, z * size, 1F));
+
+        /* Near (z >= -w), then far (z <= w) */
+        if (!clipGuide(a, b, 1F) || !clipGuide(a, b, -1F) || a.w <= 0.00001F || b.w <= 0.00001F)
+        {
+            return;
+        }
+
+        float ax = a.x / a.w, ay = a.y / a.w;
+        float bx = b.x / b.w, by = b.y / b.w;
+        float halfW = viewport[2] * 0.5F;
+        float halfH = viewport[3] * 0.5F;
+        /* The direction in pixels, its normal back in device units */
+        float dx = (bx - ax) * halfW;
+        float dy = (by - ay) * halfH;
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+
+        if (!Float.isFinite(length) || length < 0.0001F)
+        {
+            return;
+        }
+
+        float nx = -dy / length * GUIDE_WIDTH * 0.5F / halfW;
+        float ny = dx / length * GUIDE_WIDTH * 0.5F / halfH;
+        int argb = Colors.setA(color, GUIDE_ALPHA);
+
+        builder.vertex(ax + nx, ay + ny, 0F).color(argb).next();
+        builder.vertex(ax - nx, ay - ny, 0F).color(argb).next();
+        builder.vertex(bx - nx, by - ny, 0F).color(argb).next();
+        builder.vertex(bx + nx, by + ny, 0F).color(argb).next();
+    }
+
+    /** Keep the part of the clip-space segment where {@code side * z + w >= 0}; false when none is left. */
+    private static boolean clipGuide(Vector4f a, Vector4f b, float side)
+    {
+        float da = side * a.z + a.w;
+        float db = side * b.z + b.w;
+
+        if (da < 0 && db < 0)
+        {
+            return false;
+        }
+
+        if (da < 0)
+        {
+            a.lerp(b, da / (da - db));
+        }
+        else if (db < 0)
+        {
+            b.lerp(a, db / (db - da));
+        }
+
+        return true;
     }
 
     /**
