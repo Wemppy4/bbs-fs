@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film.controller;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.AntialiasedLayer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -137,6 +138,31 @@ public class OrbitViewGizmo
 
         this.handleDragging(context);
 
+        /* Through a multisampled layer over the ball's square, for round edges */
+        float cx = this.centerX(area);
+        float cy = this.centerY(area);
+        float extent = this.radius() + this.ballRadius() + 4F;
+
+        context.batcher.flush();
+
+        boolean layer = AntialiasedLayer.beginUI(cx - extent, cy - extent, extent * 2F, extent * 2F);
+
+        try
+        {
+            this.renderBall(context, area);
+            context.batcher.flush();
+        }
+        finally
+        {
+            if (layer)
+            {
+                AntialiasedLayer.end();
+            }
+        }
+    }
+
+    private void renderBall(UIContext context, Area area)
+    {
         float cx = this.centerX(area);
         float cy = this.centerY(area);
         float mdx = context.mouseX - cx;

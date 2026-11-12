@@ -34,6 +34,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.controller.RunnerCameraController;
+import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmTarget;
@@ -43,6 +44,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.SceneDepth;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.morphing.Morph;
@@ -120,11 +122,42 @@ public class UIFilmController extends UIElement implements GizmoViewport
     private void renderMarkup(UIContext context)
     {
         this.markup.begin(this.panel.preview.getViewport());
+        /* What belongs to the scene hides behind blocks and models */
+        this.markup.occluded(true);
+        this.renderCameraFrustum();
         this.renderMotionPath();
+        this.markup.occluded(false);
         this.renderRigMarkup();
         this.renderSplineOverlay(context);
         this.renderShapeControllers(context);
         this.markup.flush(context);
+    }
+
+    /** Where the film's camera stands and looks, seen from outside it: its frustum's edges, the middle in blue. */
+    private void renderCameraFrustum()
+    {
+        if (this.editorController == null || this.getPovMode() == CAMERA_MODE_CAMERA
+            || !BBSSettings.recordingCameraPreview.get() || !BBSSettings.recordingOverlays.get())
+        {
+            return;
+        }
+
+        Position position = this.panel.getRunner().getPosition();
+        Camera camera = this.panel.getDrawnCamera();
+        Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
+        Vector3f origin = new Vector3f(
+            (float) (position.point.x - camera.position.x),
+            (float) (position.point.y - camera.position.y),
+            (float) (position.point.z - camera.position.z)
+        );
+        Vector3f[] rays = Recorder.frustumRays(position);
+
+        for (int i = 0; i < rays.length; i++)
+        {
+            int color = i == rays.length - 1 ? 0xff0080ff : 0xffffffff;
+
+            this.markup.line(mvp, origin, new Vector3f(origin).add(rays[i]), color);
+        }
     }
 
     private void renderMotionPath()
@@ -142,7 +175,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
-        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, this.panel.getData(), this.getReplay(), this.getTick());
+        MotionPath.render(this.markup, this.panel.getDrawnCamera(), motionPath, this, this.panel.getData(), this.getReplay(), this.getTick());
         BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
     }
 
@@ -182,7 +215,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         IEntity entity = this.getCurrentEntity();
         Replay replay = this.panel.replayEditor.getReplay();
         if (entity == null || replay == null) { this.shapeOverlay.clear(); return; }
-        var camera = this.panel.getCamera();
+        var camera = this.panel.getDrawnCamera();
         this.shapeOverlay.draw(context, this.markup, keys.controls, camera.projection, c ->
         {
             String path = mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(keys.form), c.bone.get());
@@ -241,7 +274,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         SplineEditorUtils.viewportHover(this.panel.replayEditor.keyframeEditor, null);
         if (!this.splineOverlay.begin(this.markup)) return;
         if (this.isCovered() || this.isRecording()) return;
-        var camera = this.panel.getCamera();
+        var camera = this.panel.getDrawnCamera();
         float transition = this.getCurrentTransition();
         for (var replay : this.panel.getData().replays.getList())
         {
@@ -330,6 +363,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     /** The pick buffer the viewport is hit-tested against, and what it currently reports. */
     public final FilmStencilPicker picker = new FilmStencilPicker(this);
+    private final SelectionOutline outline = new SelectionOutline(this);
 
     public final OrbitFilmCameraController orbit = new OrbitFilmCameraController(this);
     public final OrbitViewGizmo orbitGizmo = new OrbitViewGizmo(this);
@@ -1157,6 +1191,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public void renderHUD(UIContext context, PreviewHud hud, Area navBlock)
     {
+        /* Under the markup and the gizmo, like the selection outline of any 3D program */
+        this.outline.render(context);
         this.renderMarkup(context);
         for (var tool : this.addonTools) tool.updateTool(context);
         this.hud.render(context, hud, navBlock);
@@ -1179,14 +1215,10 @@ public class UIFilmController extends UIElement implements GizmoViewport
         if (this.editorController != null)
         {
             this.editorController.render(context);
-
-            int povMode = this.panel.getController().getPovMode();
-
-            if (povMode != UIFilmController.CAMERA_MODE_CAMERA && BBSSettings.recordingCameraPreview.get())
-            {
-                Recorder.renderCameraPreview(this.panel.getRunner().getPosition(), context.camera(), context.matrixStack());
-            }
         }
+
+        /* The world as drawn so far (blocks and actors), for the markup's lines to hide behind */
+        SceneDepth.capture();
 
         this.renderOrbitCenterMarker(context);
 

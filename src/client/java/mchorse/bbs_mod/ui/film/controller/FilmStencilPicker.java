@@ -29,6 +29,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3d;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
@@ -61,6 +62,8 @@ public class FilmStencilPicker
      * keyboard, physics settling) to a fraction of a second. */
     private final Matrix4f lastPickView = new Matrix4f();
     private final Matrix4f lastPickProjection = new Matrix4f();
+    /* The view matrix is camera-relative: moving the camera (an orbit zoom) shows only here */
+    private final Vector3d lastPickEye = new Vector3d();
     private int lastPickMouseX = Integer.MIN_VALUE;
     private int lastPickMouseY;
     private boolean lastPickAlt;
@@ -420,7 +423,8 @@ public class FilmStencilPicker
             && target.equals(this.lastPickTarget)
             && replayCount == this.lastPickReplayCount
             && this.controller.panel.lastView.equals(this.lastPickView)
-            && this.controller.panel.lastProjection.equals(this.lastPickProjection);
+            && this.controller.panel.lastProjection.equals(this.lastPickProjection)
+            && this.controller.panel.getDrawnCamera().position.equals(this.lastPickEye);
 
         if (unchanged)
         {
@@ -437,6 +441,7 @@ public class FilmStencilPicker
         this.lastPickReplayCount = replayCount;
         this.lastPickView.set(this.controller.panel.lastView);
         this.lastPickProjection.set(this.controller.panel.lastProjection);
+        this.lastPickEye.set(this.controller.panel.getDrawnCamera().position);
 
         return true;
     }

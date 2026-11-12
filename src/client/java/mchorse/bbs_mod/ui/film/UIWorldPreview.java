@@ -12,6 +12,8 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.context.ContextAction;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.VideoExportSettings;
@@ -90,6 +92,48 @@ public class UIWorldPreview extends UIElement
         this.iconSettings.put(icon, setting);
         icon.setVisible(setting.get());
         this.icons.add(icon);
+    }
+
+    /**
+     * Puts every icon of the bar into a menu, hidden ones too, so a button taken off the bar in
+     * the settings is still a right click away. A row does what a left click on its icon does
+     * and is lit while the icon is; a right click on it opens the icon's own menu.
+     *
+     * @param separate whether a line parts these rows from the ones already in the menu
+     */
+    public void addIconActions(ContextMenuManager menu, boolean separate)
+    {
+        if (!this.canShowIcons())
+        {
+            return;
+        }
+
+        boolean first = true;
+
+        for (UIIcon icon : this.iconSettings.keySet())
+        {
+            if (!icon.isEnabled() || icon.tooltip == null)
+            {
+                continue;
+            }
+
+            ContextAction action = menu.action(icon.getIcon(), icon.tooltip.getLabel(), icon.isHighlighted(), () ->
+            {
+                if (icon.callback != null)
+                {
+                    icon.callback.accept(icon);
+                }
+            });
+
+            action.submenu(() -> icon.createContextMenu(this.getContext()));
+
+            if (first && separate)
+            {
+                action.separated();
+            }
+
+            first = false;
+        }
     }
 
     public boolean isIconBarVisible()

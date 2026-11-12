@@ -73,6 +73,8 @@ public class BBSProfiler
         ONION,
         /** Motion path (signature check, cache rebuilds, drawing). */
         MOTION_PATH,
+        /** The selected actor's outline: its mask re-render (when anything changed) plus the outline pass. */
+        OUTLINE,
         /** Timeline widgets: clips strip and keyframe editors. */
         UI_TIMELINE,
         /** Model renders into UI boxes (lists, palettes, thumbnails). */

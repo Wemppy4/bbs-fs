@@ -16,8 +16,6 @@ import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PlayerUtils;
-import mchorse.bbs_mod.utils.joml.Matrices;
-import mchorse.bbs_mod.utils.joml.Vectors;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -34,6 +32,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.Box;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.slf4j.Logger;
 
@@ -80,6 +79,37 @@ public class Recorder extends WorldFilmController
     /** How many ticks the take may be held waiting for the teleport to land. */
     private static final int MARK_TIMEOUT = 20;
 
+    /** How far the camera preview's frustum lines reach, in blocks. */
+    public static final float FRUSTUM_LENGTH = 100F;
+
+    /**
+     * The camera's frustum edges and middle as rays from its position, {@link #FRUSTUM_LENGTH}
+     * long, in world axes: the corners (+x+y, -x+y, +x-y, -x-y) then the middle, five in all.
+     */
+    public static Vector3f[] frustumRays(Position position)
+    {
+        Vector4f vector = new Vector4f();
+        Matrix4f matrix = new Matrix4f();
+        float fov = MathUtils.toRad(position.angle.fov);
+        float aspect = BBSRendering.getVideoWidth() / (float) BBSRendering.getVideoHeight();
+        float[][] corners = {{1F, 1F}, {-1F, 1F}, {1F, -1F}, {-1F, -1F}, {0F, 0F}};
+        Vector3f[] rays = new Vector3f[corners.length];
+
+        perspective.identity().perspective(fov, aspect, 0.001F, FRUSTUM_LENGTH).invert();
+
+        matrix.identity()
+            .rotateY(MathUtils.toRad(position.angle.yaw + 180))
+            .rotateX(MathUtils.toRad(-position.angle.pitch));
+
+        for (int i = 0; i < corners.length; i++)
+        {
+            transformFrustum(vector, matrix, corners[i][0], corners[i][1]);
+            rays[i] = new Vector3f(vector.x, vector.y, vector.z);
+        }
+
+        return rays;
+    }
+
     public static void renderCameraPreview(Position position, Camera camera, MatrixStack stack)
     {
         if (!BBSSettings.recordingOverlays.get())
@@ -87,40 +117,24 @@ public class Recorder extends WorldFilmController
             return;
         }
 
-        Vector4f vector = Vectors.TEMP_4F;
-        Matrix4f matrix = Matrices.TEMP_4F;
         float x = (float) (position.point.x - camera.getPos().x);
         float y = (float) (position.point.y - camera.getPos().y);
         float z = (float) (position.point.z - camera.getPos().z);
-        float fov = MathUtils.toRad(position.angle.fov);
-        float aspect = BBSRendering.getVideoWidth() / (float) BBSRendering.getVideoHeight();
         float thickness = 0.025F;
-
-        perspective.identity().perspective(fov, aspect, 0.001F, 100F).invert();
-
-        matrix.identity()
-            .rotateY(MathUtils.toRad(position.angle.yaw + 180))
-            .rotateX(MathUtils.toRad(-position.angle.pitch));
+        Vector3f[] rays = frustumRays(position);
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
-        transformFrustum(vector, matrix, 1F, 1F);
-        Draw.fillBoxTo(builder, stack, x, y, z, x + vector.x, y + vector.y, z + vector.z, thickness, 1F, 1F, 1F, 1F);
+        for (int i = 0; i < rays.length; i++)
+        {
+            Vector3f ray = rays[i];
+            boolean middle = i == rays.length - 1;
 
-        transformFrustum(vector, matrix, -1F, 1F);
-        Draw.fillBoxTo(builder, stack, x, y, z, x + vector.x, y + vector.y, z + vector.z, thickness, 1F, 1F, 1F, 1F);
-
-        transformFrustum(vector, matrix, 1F, -1F);
-        Draw.fillBoxTo(builder, stack, x, y, z, x + vector.x, y + vector.y, z + vector.z, thickness, 1F, 1F, 1F, 1F);
-
-        transformFrustum(vector, matrix, -1F, -1F);
-        Draw.fillBoxTo(builder, stack, x, y, z, x + vector.x, y + vector.y, z + vector.z, thickness, 1F, 1F, 1F, 1F);
-
-        transformFrustum(vector, matrix, 0F, 0F);
-        Draw.fillBoxTo(builder, stack, x, y, z, x + vector.x, y + vector.y, z + vector.z, thickness, 0F, 0.5F, 1F, 1F);
+            Draw.fillBoxTo(builder, stack, x, y, z, x + ray.x, y + ray.y, z + ray.z, thickness, middle ? 0F : 1F, middle ? 0.5F : 1F, 1F, 1F);
+        }
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
@@ -132,7 +146,7 @@ public class Recorder extends WorldFilmController
         vector.set(x, y, 0F, 1F);
         vector.mul(perspective);
         vector.w = 1F;
-        vector.normalize().mul(100F);
+        vector.normalize().mul(FRUSTUM_LENGTH);
         vector.w = 1F;
         vector.mul(matrix);
     }

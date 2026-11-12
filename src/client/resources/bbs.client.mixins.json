@@ -64,7 +64,8 @@
         "CameraInvoker",
         "ParticleManagerInvoker",
         "ParticleManagerMixin",
-        "ParticleMixin"
+        "ParticleMixin",
+        "GlStateManagerMixin"
     ],
     "injectors": {
         "defaultRequire": 1

@@ -21,6 +21,8 @@ public class BBSShaders
     private static ShaderProgram pixelArt;
     private static ShaderProgram pixelArtText;
     private static ShaderProgram pixelArtTextIntensity;
+    private static ShaderProgram markupOccluded;
+    private static ShaderProgram selectionOutline;
 
     private static ShaderProgram pickerPreview;
     private static ShaderProgram pickerBillboard;
@@ -41,6 +43,8 @@ public class BBSShaders
         if (pixelArt != null) pixelArt.close();
         if (pixelArtText != null) pixelArtText.close();
         if (pixelArtTextIntensity != null) pixelArtTextIntensity.close();
+        if (markupOccluded != null) markupOccluded.close();
+        if (selectionOutline != null) selectionOutline.close();
 
         if (pickerPreview != null) pickerPreview.close();
         if (pickerBillboard != null) pickerBillboard.close();
@@ -91,6 +95,46 @@ public class BBSShaders
 
             e.printStackTrace();
         }
+
+        /* Its own try too: without it the markup's world lines just stop hiding behind blocks */
+        try
+        {
+            ResourceFactory factory = new ProxyResourceFactory(MinecraftClient.getInstance().getResourceManager());
+
+            markupOccluded = new ShaderProgram(factory, "markup_occluded", VertexFormats.POSITION_TEXTURE_COLOR);
+        }
+        catch (IOException e)
+        {
+            markupOccluded = null;
+
+            e.printStackTrace();
+        }
+
+        /* And this one: without it the selected actor just isn't outlined */
+        try
+        {
+            ResourceFactory factory = new ProxyResourceFactory(MinecraftClient.getInstance().getResourceManager());
+
+            selectionOutline = new ShaderProgram(factory, "selection_outline", VertexFormats.POSITION_TEXTURE);
+        }
+        catch (IOException e)
+        {
+            selectionOutline = null;
+
+            e.printStackTrace();
+        }
+    }
+
+    /** The outline around the film's selected actor, or null when it didn't compile. */
+    public static ShaderProgram getSelectionOutlineProgram()
+    {
+        return selectionOutline;
+    }
+
+    /** The markup's lines that hide behind the world (see SceneDepth), or null when it didn't compile. */
+    public static ShaderProgram getMarkupOccludedProgram()
+    {
+        return markupOccluded;
     }
 
     public static ShaderProgram getModel()

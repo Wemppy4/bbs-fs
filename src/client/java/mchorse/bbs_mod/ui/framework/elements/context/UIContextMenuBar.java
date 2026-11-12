@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.context;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.utils.context.MenuIcon;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.utils.Direction;
@@ -117,8 +118,14 @@ public class UIContextMenuBar extends UIElement
 
         if (this.dividing)
         {
-            context.batcher.box(this.area.x + 2, this.area.ey(), this.area.ex() - 2, this.area.ey() + 1, Colors.mulRGB(Colors.WHITE, 0.1F));
+            divider(context.batcher, this.area.x, this.area.ey(), this.area.w);
         }
+    }
+
+    /** The dark line across a menu, {@code w} wide from {@code x}, that parts the bar or a group of rows from the rest. */
+    public static void divider(Batcher2D batcher, int x, int y, int w)
+    {
+        batcher.box(x + 2, y, x + w - 2, y + 1, Colors.mulRGB(Colors.WHITE, 0.1F));
     }
 
     /**

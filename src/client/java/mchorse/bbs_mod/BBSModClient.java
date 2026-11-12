@@ -678,6 +678,12 @@ public class BBSModClient implements ClientModInitializer
             UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL
         );
 
+        BBSSettings.gizmoAntialiasing.modes(
+            UIKeys.ENGINE_GIZMO_ANTIALIASING_OFF,
+            IKey.constant("2×"),
+            IKey.constant("4×")
+        );
+
         BBSSettings.translateHotkeyOrder
             .labels(
                 UIKeys.TRANSFORMS_TARGET_SCREEN,

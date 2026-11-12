@@ -1,0 +1,30 @@
+{
+    "blend": {
+        "func": "add",
+        "srcrgb": "srcalpha",
+        "dstrgb": "1-srcalpha"
+    },
+    "vertex": "selection_outline",
+    "fragment": "selection_outline",
+    "attributes": [
+        "Position",
+        "UV0"
+    ],
+    "samplers": [
+        { "name": "Sampler0" },
+        { "name": "Sampler1" },
+        { "name": "Sampler2" }
+    ],
+    "uniforms": [
+        { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+        { "name": "OutlineColor", "type": "float", "count": 4, "values": [ 1.0, 0.6, 0.2, 1.0 ] },
+        { "name": "Texel", "type": "float", "count": 2, "values": [ 0.001, 0.001 ] },
+        { "name": "MaskDepth", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
+        { "name": "SceneDepth", "type": "float", "count": 2, "values": [ 0.0, 0.0 ] },
+        { "name": "SceneViewport", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 1.0 ] },
+        { "name": "UseScene", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "SelectedIndex", "type": "int", "count": 1, "values": [ 0 ] }
+    ]
+}

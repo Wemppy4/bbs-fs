@@ -2,10 +2,13 @@ package mchorse.bbs_mod.ui.utils.context;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
+
+import java.util.function.Supplier;
 
 public class ContextAction
 {
@@ -17,11 +20,35 @@ public class ContextAction
     public int[] keys;
     public int order = -1;
 
+    /** The row's own menu, opened by a right click on it; null (or an empty menu) for none. */
+    public Supplier<UIContextMenu> submenu;
+
+    /** Whether a line parts this row from the rows above it. */
+    public boolean separated;
+
     public ContextAction(Icon icon, IKey label, Runnable runnable)
     {
         this.icon = icon;
         this.label = label;
         this.runnable = runnable;
+    }
+
+    /**
+     * A right click on the row opens this menu in place of the current one, the way a right
+     * click on the button the row stands for would.
+     */
+    public ContextAction submenu(Supplier<UIContextMenu> submenu)
+    {
+        this.submenu = submenu;
+
+        return this;
+    }
+
+    public ContextAction separated()
+    {
+        this.separated = true;
+
+        return this;
     }
 
     public ContextAction key(IKey keyCategory, int... keys)

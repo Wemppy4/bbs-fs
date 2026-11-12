@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.dashboard.panels;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelActionBar;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -331,11 +332,11 @@ public class UIDashboardPanels extends UIElement
 
         if (runsHorizontally(this.side))
         {
-            context.batcher.box(a.ex() + 2, a.y + 3, a.ex() + 3, a.ey() - 3, 0x44ffffff);
+            context.batcher.box(a.ex() + 2, a.y + 3, a.ex() + 3, a.ey() - 3, UIPanelActionBar.SEPARATOR_COLOR);
         }
         else
         {
-            context.batcher.box(a.x + 3, a.ey() + 2, a.ex() - 3, a.ey() + 3, 0x44ffffff);
+            context.batcher.box(a.x + 3, a.ey() + 2, a.ex() - 3, a.ey() + 3, UIPanelActionBar.SEPARATOR_COLOR);
         }
     }
 

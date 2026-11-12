@@ -84,6 +84,7 @@ public class BBSSettings {
 	public static ValueFloat snapScale;
 	public static ValueInt gizmoHoverTolerance;
 	public static ValueFloat gizmoOpacity;
+	public static ValueInt gizmoAntialiasing;
 	public static ValueBoolean uniformScale;
 	public static ValueBoolean clickSound;
 	public static ValueBoolean gizmos;
@@ -156,6 +157,7 @@ public class BBSSettings {
 	public static ValueInt editorGuidesColor;
 	public static ValueBoolean editorRuleOfThirds;
 	public static ValueBoolean editorCenterLines;
+	public static ValueBoolean editorSelectionOutline;
 	public static ValueBoolean editorCrosshair;
 	public static ValueBoolean editorSeconds;
 	public static ValueBoolean editorTimelineGrid;
@@ -829,6 +831,7 @@ public class BBSSettings {
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
 		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 4, 0, 40).slider();
 		gizmoOpacity = builder.getFloat("gizmo_opacity", 1F, 0.05F, 1F).slider();
+		gizmoAntialiasing = builder.getInt("gizmo_antialiasing", 2, 0, 2);
 		/* The frame every transform editor opens in, remembered from the last
 		 * session; picked from the gizmo's own space picker, so it has no row here.
 		 * The default is PARENT's ordinal - see TransformSpace, whose constants may
@@ -900,6 +903,7 @@ public class BBSSettings {
 		previewIconExport = builder.getBoolean("preview_icon_export", true);
 
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
+		editorSelectionOutline = builder.getBoolean("selection_outline", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
 		/* The rig's debug overlay: its switch lives on the rig tab and F5 */

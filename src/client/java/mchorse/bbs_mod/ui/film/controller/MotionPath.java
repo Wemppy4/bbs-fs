@@ -319,7 +319,7 @@ public class MotionPath
 
                 if (key != null)
                 {
-                    overlay.key(key.x, key.y, Colors.A100 | KEY_COLOR);
+                    overlay.key(key, Colors.A100 | KEY_COLOR);
                 }
             }
         }
@@ -333,7 +333,7 @@ public class MotionPath
 
             if (current != null)
             {
-                overlay.ring(current.x, current.y, Colors.A100 | CURRENT_COLOR);
+                overlay.ring(current, Colors.A100 | CURRENT_COLOR);
             }
         }
     }

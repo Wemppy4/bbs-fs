@@ -133,6 +133,32 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         return this.editor == null || !(this.editor.form instanceof ModelForm) || this.editor.form == form;
     }
 
+    /** Whether a bone is being edited at all (the pose panel's bone, or the states timeline's), for the selection outline. */
+    public boolean hasPickedBone()
+    {
+        if (this.statesEditor.isVisible())
+        {
+            var picked = this.statesKeyframes.keyframeEditor == null ? null : this.statesKeyframes.keyframeEditor.getBone();
+
+            return picked != null && picked.a != null && !picked.a.isEmpty();
+        }
+
+        if (this.editor == null || !(this.editor.form instanceof ModelForm) || this.editor.getPoseEditor() == null)
+        {
+            return false;
+        }
+
+        String group = this.editor.getPoseEditor().getGroup();
+
+        return group != null && !group.isEmpty();
+    }
+
+    /** {@link #isPickedBone} for any form part the pick pass draws, as the selection outline looks it up. */
+    public boolean isPickedPart(Form form, String bone)
+    {
+        return form instanceof ModelForm model && this.isPickedBone(model, bone);
+    }
+
     /** Whether the bone is the one being edited: its rig handle gets the selection ring. */
     private boolean isPickedBone(mchorse.bbs_mod.forms.forms.ModelForm form, String bone)
     {
