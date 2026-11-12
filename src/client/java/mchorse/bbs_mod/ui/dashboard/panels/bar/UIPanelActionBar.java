@@ -36,7 +36,14 @@ import java.util.function.BooleanSupplier;
 public class UIPanelActionBar extends UIElement
 {
     public static final int BUTTON_SIZE = UIPanelTopBar.HEIGHT;
-    public static final int SEPARATOR_WIDTH = 8;
+    /**
+     * Odd, so the line stands in the very middle: with the icon's own pixel of padding there are
+     * four pixels from either icon to the line, the same as at the dashboard's pinned buttons.
+     */
+    public static final int SEPARATOR_WIDTH = 7;
+
+    /** The divider between blocks of buttons, shared with the dashboard's bar. */
+    public static final int SEPARATOR_COLOR = 0x44ffffff;
 
     /**
      * The bar hangs off the top edge of the panel, so an active button is underlined and its
@@ -281,7 +288,7 @@ public class UIPanelActionBar extends UIElement
         Area area = separator.area;
         int x = area.mx();
 
-        context.batcher.box(x, area.y + 3, x + 1, area.ey() - 3, BBSSettings.dividerColor());
+        context.batcher.box(x, area.y + 2, x + 1, area.ey() - 2, SEPARATOR_COLOR);
     }
 
     private void renderHover(UIContext context, List<UIIcon> slot)

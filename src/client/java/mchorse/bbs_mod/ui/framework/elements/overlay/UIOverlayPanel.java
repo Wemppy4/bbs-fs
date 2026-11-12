@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelActionBar;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -28,9 +29,10 @@ public class UIOverlayPanel extends UIElement
 
     /**
      * Gap between the panel's buttons and the close cross, with a divider in the middle of it, so a
-     * click meant for one isn't the other. As wide as the separator in the panels' action bar.
+     * click meant for one isn't the other. Drawn like the divider at the dashboard's pinned buttons:
+     * the icons here are as big as there, so the gap is too.
      */
-    private static final int CLOSE_GAP = 8;
+    private static final int CLOSE_GAP = 5;
 
     /** Side of the square grip in the bottom right corner. */
     private static final int GRIP = 10;
@@ -388,9 +390,9 @@ public class UIOverlayPanel extends UIElement
         /* Only a panel with buttons of its own has anything to keep apart from the cross */
         if (this.close.isVisible() && this.icons.isVisible() && this.icons.area.w > 0)
         {
-            int x = this.close.area.x - CLOSE_GAP / 2;
+            int x = this.close.area.x - CLOSE_GAP + CLOSE_GAP / 2;
 
-            context.batcher.box(x, this.area.y + 3, x + 1, this.area.y + HEADER - 3, BBSSettings.dividerColor());
+            context.batcher.box(x, this.area.y + 3, x + 1, this.area.y + HEADER - 3, UIPanelActionBar.SEPARATOR_COLOR);
         }
 
         if (this.close.isVisible() && this.close.area.isInside(context))
