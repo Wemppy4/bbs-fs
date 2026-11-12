@@ -354,6 +354,11 @@ public final class mchorse.bbs_mod.api.compat.VanillaAccess {
 public interface mchorse.bbs_mod.api.BBSAddonMod {
 }
 
+public interface mchorse.bbs_mod.api.BBSAddonSwitch {
+    public abstract boolean isAddonEnabled();
+    public abstract void setAddonEnabled(boolean);
+}
+
 public interface mchorse.bbs_mod.api.Experimental extends java.lang.annotation.Annotation {
 }
 

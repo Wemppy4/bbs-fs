@@ -1300,10 +1300,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
          * drag orbits instead of being swallowed by the form under the cursor. */
         if (area.isInside(context) && context.mouseButton == 0 && this.filmPanel.getController().orbit.enabled)
         {
-            this.pendingPick = stencil.hasPicked() ? stencil.getPicked() : null;
-            this.filmPanel.getController().orbit.start(context);
-
-            return true;
+            return this.deferViewportPick(context, stencil.hasPicked() ? stencil.getPicked() : null);
         }
 
         if (stencil.hasPicked())
@@ -1353,6 +1350,19 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         }
 
         return false;
+    }
+
+    /**
+     * Left button in orbit mode: start orbiting and keep {@code pair} (null for none) for the release,
+     * which picks it only when the press was not dragged. A drag that starts on a form or a rig
+     * handle then turns the camera instead of picking what is under the cursor.
+     */
+    public boolean deferViewportPick(UIContext context, Pair<Form, String> pair)
+    {
+        this.pendingPick = pair;
+        this.filmPanel.getController().orbit.start(context);
+
+        return true;
     }
 
     /** A form and its bone picked off the viewport: the stencil's under the cursor, or a rig handle of the markup. */

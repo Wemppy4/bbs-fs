@@ -36,7 +36,7 @@ import mchorse.bbs_mod.client.renderer.item.GunItemRenderer;
 import mchorse.bbs_mod.client.renderer.item.ModelBlockItemRenderer;
 import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.cubic.rig.RigMarkup;
-import mchorse.bbs_mod.api.BBSAddonMod;
+import mchorse.bbs_mod.addons.Addons;
 import mchorse.bbs_mod.api.client.events.BBSClientReadyEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent;
@@ -135,7 +135,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.InvalidateRenderStateCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.impl.client.rendering.BlockEntityRendererRegistryImpl;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
@@ -556,12 +555,7 @@ public class BBSModClient implements ClientModInitializer
 
         /* The client half of the addons, picked up before anything client side is posted. Their
          * common half is registered by BBSMod, from the "bbs-addon" entrypoint. */
-        FabricLoader.getInstance()
-            .getEntrypointContainers("bbs-client-addon", BBSAddonMod.class)
-            .forEach((container) ->
-            {
-                BBSMod.events.register(container.getEntrypoint());
-            });
+        Addons.load("bbs-client-addon", BBSMod.events::register);
 
         AssetProvider provider = BBSMod.getProvider();
 

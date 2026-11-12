@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Locale;
@@ -107,5 +108,43 @@ public class StructureCut
         }
 
         pendingName = null;
+    }
+
+    private static String pendingRestore;
+    private static Consumer<Boolean> pendingRestoreCallback;
+
+    /**
+     * The cut taken back: the structure goes into the world as blocks at the spot the form stands.
+     *
+     * @param id       the form's structure id
+     * @param origin   the form's anchor, which moves where the footprint sits around the pivot
+     * @param callback told whether the blocks went in, on the client thread
+     */
+    public static void restore(String id, double x, double y, double z, Vector3f origin, Consumer<Boolean> callback)
+    {
+        pendingRestore = id;
+        pendingRestoreCallback = callback;
+
+        ClientNetwork.sendRestoreStructure(id, x, y, z, origin.x, origin.y, origin.z);
+    }
+
+    public static void onRestored(boolean ok, String id)
+    {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        Consumer<Boolean> callback = pendingRestoreCallback;
+
+        if (mc.player != null)
+        {
+            mc.player.sendMessage(Text.literal((ok ? UIKeys.STRUCTURE_RESTORE_DONE : UIKeys.STRUCTURE_RESTORE_FAILED).format(id).get()), true);
+        }
+
+        pendingRestoreCallback = null;
+
+        if (callback != null && id.equals(pendingRestore))
+        {
+            callback.accept(ok);
+        }
+
+        pendingRestore = null;
     }
 }

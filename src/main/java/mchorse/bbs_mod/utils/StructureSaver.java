@@ -11,7 +11,11 @@ import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.File;
@@ -76,6 +80,81 @@ public class StructureSaver
 
             return false;
         }
+    }
+
+    /**
+     * Put a structure back into the world as blocks, for the film's cut taken back: the form's
+     * pivot sits in the middle of the footprint at its lowest layer, moved by the form's anchor,
+     * so this is the one corner at which the blocks cover exactly what the form showed.
+     *
+     * <p>Placed the way the cut cleared: without drops and without entities (the cut never took
+     * them out of the world, so placing them would double them). Damage Control forgets the
+     * region afterwards, or closing the film editor would empty it again.</p>
+     *
+     * @param id {@code assets:path} for BBS's own structures, {@code namespace:name} for the world's
+     * @return whether the structure was found and placed
+     */
+    public static boolean place(ServerWorld world, String id, double x, double y, double z, float originX, float originY, float originZ)
+    {
+        try
+        {
+            StructureTemplate template = load(world, id);
+
+            if (template == null)
+            {
+                return false;
+            }
+
+            Vec3i size = template.getSize();
+            BlockPos min = new BlockPos(
+                (int) Math.round(x - size.getX() / 2D - originX),
+                (int) Math.round(y - originY),
+                (int) Math.round(z - size.getZ() / 2D - originZ)
+            );
+            StructurePlacementData data = new StructurePlacementData().setIgnoreEntities(true);
+
+            template.place(world, min, min, data, world.getRandom(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS);
+
+            ActionManager actions = BBSMod.getActions();
+
+            if (actions != null)
+            {
+                actions.forgetBlocks(min, min.add(size).add(-1, -1, -1));
+            }
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+
+            return false;
+        }
+    }
+
+    /** The structure behind a form's id, read from the same places the form reads it. */
+    private static StructureTemplate load(ServerWorld world, String id) throws Exception
+    {
+        String prefix = "assets:";
+
+        if (!id.startsWith(prefix))
+        {
+            Identifier identifier = Identifier.tryParse(id);
+
+            return identifier == null ? null : world.getStructureTemplateManager().getTemplate(identifier).orElse(null);
+        }
+
+        File folder = BBSMod.getAssetsPath(ASSETS_FOLDER);
+        File file = new File(folder, id.substring(prefix.length()) + ".nbt");
+
+        if (!file.toPath().normalize().startsWith(folder.toPath().normalize()) || !file.isFile())
+        {
+            return null;
+        }
+
+        NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtTagSizeTracker.ofUnlimitedBytes());
+
+        return world.getStructureTemplateManager().createTemplate(nbt);
     }
 
     private static BlockPos min(BlockPos from, BlockPos to)

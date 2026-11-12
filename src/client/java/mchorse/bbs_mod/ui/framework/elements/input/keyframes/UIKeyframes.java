@@ -85,6 +85,9 @@ public class UIKeyframes extends UITimelineCanvas
     private final DoubleClick<Keyframe> keyframeDoubleClick = new DoubleClick<>(true);
     private boolean controlFirst;
     private Pair<Keyframe, KeyframeType> draggingData;
+    /** Keys under a plain click on an already selected keyframe: if the mouse is released without
+     * dragging, the selection narrows down to them (a drag still moves the whole selection). */
+    private List<Keyframe> narrowSelectionTo;
     private boolean scaling;
     private float scalingAnchor;
     private final Map<Keyframe, Keyframe> transformKeys = new IdentityHashMap<>();
@@ -1617,6 +1620,11 @@ public class UIKeyframes extends UITimelineCanvas
             {
                 this.currentGraph.clearSelection();
             }
+            else if (!shift && pair.b == KeyframeType.REGULAR)
+            {
+                /* Already selected: keep the selection for a drag, narrow it on a plain click (see subMouseReleased) */
+                this.narrowSelectionTo = clicked;
+            }
 
             for (Keyframe keyframe : clicked)
             {
@@ -1707,7 +1715,22 @@ public class UIKeyframes extends UITimelineCanvas
             this.submitKeyframes(true);
             this.currentGraph.pickSelected();
         }
+        else if (this.dragging == 0 && this.narrowSelectionTo != null && context.mouseButton == 0)
+        {
+            /* A plain click (no drag) on a selected keyframe leaves only it selected */
+            Keyframe picked = this.currentGraph.getSelected();
 
+            this.currentGraph.clearSelection();
+
+            for (Keyframe keyframe : this.narrowSelectionTo)
+            {
+                this.currentGraph.getSheet(keyframe).selection.add(keyframe);
+            }
+
+            this.pickKeyframe(picked != null && this.narrowSelectionTo.contains(picked) ? picked : this.narrowSelectionTo.get(0));
+        }
+
+        this.narrowSelectionTo = null;
         this.navigating = false;
         this.marquee.reset();
         this.dragging = -1;

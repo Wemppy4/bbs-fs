@@ -147,6 +147,17 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         this.buildSections();
     }
 
+    /** Opens the given settings module, the way a click on its icon does. */
+    public void selectModule(String mod)
+    {
+        UIIcon button = this.moduleButtons.get(mod);
+
+        if (button != null)
+        {
+            this.selectConfig(mod, button);
+        }
+    }
+
     public void showCategory(String mod, String categoryId)
     {
         this.selectConfig(mod, this.moduleButtons.get(mod));

@@ -207,6 +207,7 @@ public class Icons
     public static final Icon WIND = register(new Icon(ATLAS, "wind", 112, 176));
     public static final Icon SPLINE = register(new Icon(ATLAS, "spline", 128, 176));
     public static final Icon BONE = register(new Icon(ATLAS, "bone", 144, 176));
+    public static final Icon ADDONS = register(new Icon(ATLAS, "addons", 160, 176));
 
     public static final Icon INTERP_LINEAR = register(new Icon(ATLAS, "interp_linear", 0, 192));
     public static final Icon INTERP_CONST = register(new Icon(ATLAS, "interp_const", 16, 192));
