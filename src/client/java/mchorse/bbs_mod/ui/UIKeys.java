@@ -287,6 +287,7 @@ public class UIKeys
     public static final IKey ENGINE_KEYSTROKES_POSITION_TOP_RIGHT = L10n.lang("bbs.keystrokes_position.top_right");
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL = L10n.lang("bbs.rotate_3d_sphere_mode.trackball");
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL = L10n.lang("bbs.rotate_3d_sphere_mode.arcball");
+    public static final IKey ENGINE_GIZMO_ANTIALIASING_OFF = L10n.lang("bbs.gizmo_antialiasing.off");
     public static final IKey FILM_BACKUPS_TITLE = L10n.lang("bbs.ui.film.backups.title");
     public static final IKey FILM_BACKUPS_EMPTY = L10n.lang("bbs.ui.film.backups.empty");
     public static final IKey FILM_BACKUPS_ERROR = L10n.lang("bbs.ui.film.backups.error");

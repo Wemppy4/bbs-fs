@@ -84,6 +84,7 @@ public class BBSSettings {
 	public static ValueFloat snapScale;
 	public static ValueInt gizmoHoverTolerance;
 	public static ValueFloat gizmoOpacity;
+	public static ValueInt gizmoAntialiasing;
 	public static ValueBoolean uniformScale;
 	public static ValueBoolean clickSound;
 	public static ValueBoolean gizmos;
@@ -829,6 +830,7 @@ public class BBSSettings {
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
 		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 4, 0, 40).slider();
 		gizmoOpacity = builder.getFloat("gizmo_opacity", 1F, 0.05F, 1F).slider();
+		gizmoAntialiasing = builder.getInt("gizmo_antialiasing", 2, 0, 2);
 		/* The frame every transform editor opens in, remembered from the last
 		 * session; picked from the gizmo's own space picker, so it has no row here.
 		 * The default is PARENT's ordinal - see TransformSpace, whose constants may

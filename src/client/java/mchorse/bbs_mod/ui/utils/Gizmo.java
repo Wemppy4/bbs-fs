@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.graphics.AntialiasedLayer;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
@@ -695,7 +696,7 @@ public class Gizmo
         stack.push();
         this.removePlacementScale(stack);
         this.captureRenderMatrix(stack);
-        this.drawGizmo(stack);
+        this.drawSmoothGizmo(stack);
         stack.pop();
     }
 
@@ -738,11 +739,11 @@ public class Gizmo
      * the move) and places the gizmo correctly: the film world is itself
      * rendered into that same {@code area}, and {@code projection} maps NDC onto
      * the area, so the gizmo lines up with the model and stays inside the
-     * preview (the frustum clips it to the viewport rect). It is NOT rendered
-     * to an off-screen buffer and blitted, the way the pick stencil and sphere
-     * highlight are: those are opaque masks, but the rotation pie is translucent,
-     * and an intermediate buffer applies its alpha twice (once on draw, once on
-     * blit), leaving it nearly invisible.
+     * preview (the frustum clips it to the viewport rect). For smooth edges it
+     * goes through an {@link AntialiasedLayer} over that viewport, which keeps
+     * premultiplied colour: a plain off-screen buffer would apply the translucent
+     * rotation pie's alpha twice (once on draw, once on blit), leaving it nearly
+     * invisible.
      *
      * <p>The projection is applied before drawing because
      * {@link #getDistanceScale} reads it back from {@link RenderSystem} to
@@ -774,7 +775,7 @@ public class Gizmo
         MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
 
         RenderSystem.disableDepthTest();
-        this.drawGizmo(stack);
+        this.drawSmoothGizmo(stack);
         RenderSystem.enableDepthTest();
 
         RenderSystem.viewport(0, 0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight());
@@ -783,6 +784,24 @@ public class Gizmo
         /* Leave the depth state the UI expects after a 3D interlude (always-pass),
          * the same exit state as the form editor's model pass. */
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
+    }
+
+    /** {@link #drawGizmo} through an {@link AntialiasedLayer} over the viewport the caller set. */
+    private void drawSmoothGizmo(MatrixStack stack)
+    {
+        boolean layer = AntialiasedLayer.begin();
+
+        try
+        {
+            this.drawGizmo(stack);
+        }
+        finally
+        {
+            if (layer)
+            {
+                AntialiasedLayer.end();
+            }
+        }
     }
 
     private void drawGizmo(MatrixStack stack)
