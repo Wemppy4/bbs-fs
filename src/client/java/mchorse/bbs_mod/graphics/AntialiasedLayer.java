@@ -49,6 +49,11 @@ public class AntialiasedLayer
     private static int msaaDepth;
     private static int resolveFbo;
     private static int resolveTexture;
+    /* The buffers only grow (to the largest rectangle asked for), so overlays of different
+     * sizes in one frame (gizmo, orbit ball, guides) share them without reallocating; each
+     * layer uses the bottom left width x height of them. */
+    private static int capacityWidth;
+    private static int capacityHeight;
     private static int width;
     private static int height;
     private static int samples;
@@ -60,6 +65,7 @@ public class AntialiasedLayer
     private static int previousDraw;
     private static int previousRead;
     private static boolean scissor;
+    private static final int[] scissorBox = new int[4];
     private static boolean blend;
     private static boolean depthWrite;
     private static final int[] blendFunc = new int[4];
@@ -107,6 +113,7 @@ public class AntialiasedLayer
         previousDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         previousRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
         scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissorBox);
         blend = GL11.glIsEnabled(GL11.GL_BLEND);
         depthWrite = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         blendFunc[0] = GL11.glGetInteger(GL30.GL_BLEND_SRC_RGB);
@@ -117,11 +124,14 @@ public class AntialiasedLayer
         GlStateManager._disableScissorTest();
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, msaaFbo);
 
-        /* Clearing obeys the write masks */
+        /* Clearing obeys the write masks and the scissor: only the part this layer uses */
         RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthMask(true);
+        GlStateManager._enableScissorTest();
+        GlStateManager._scissorBox(0, 0, w, h);
         GL30.glClearBufferfv(GL11.GL_COLOR, 0, CLEAR_COLOR);
         GL30.glClearBufferfv(GL11.GL_DEPTH, 0, CLEAR_DEPTH);
+        GlStateManager._disableScissorTest();
 
         /* The same mapping as before, shifted so the rectangle lands on the buffer's origin */
         RenderSystem.viewport(viewport[0] - x, viewport[1] - y, viewport[2], viewport[3]);
@@ -162,6 +172,8 @@ public class AntialiasedLayer
             RenderSystem.disableBlend();
         }
 
+        GlStateManager._scissorBox(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
+
         if (scissor)
         {
             GlStateManager._enableScissorTest();
@@ -194,11 +206,15 @@ public class AntialiasedLayer
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
+        float u = width / (float) capacityWidth;
+        float v = height / (float) capacityHeight;
+
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
+
         builder.vertex(0F, 0F, 0F).texture(0F, 0F).next();
-        builder.vertex(1F, 0F, 0F).texture(1F, 0F).next();
-        builder.vertex(1F, 1F, 0F).texture(1F, 1F).next();
-        builder.vertex(0F, 1F, 0F).texture(0F, 1F).next();
+        builder.vertex(1F, 0F, 0F).texture(u, 0F).next();
+        builder.vertex(1F, 1F, 0F).texture(u, v).next();
+        builder.vertex(0F, 1F, 0F).texture(0F, v).next();
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
         if (depthTest) RenderSystem.enableDepthTest();
@@ -228,19 +244,28 @@ public class AntialiasedLayer
 
     private static boolean ensure(int w, int h, int wantedSamples)
     {
-        if (msaaFbo != 0 && width == w && height == h && samples == wantedSamples)
+        if (msaaFbo != 0 && capacityWidth >= w && capacityHeight >= h && samples == wantedSamples)
         {
+            width = w;
+            height = h;
+
             return true;
         }
 
         int previousDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int previousRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int newWidth = samples == wantedSamples ? Math.max(capacityWidth, w) : w;
+        int newHeight = samples == wantedSamples ? Math.max(capacityHeight, h) : h;
 
         delete();
 
         width = w;
         height = h;
+        capacityWidth = newWidth;
+        capacityHeight = newHeight;
         samples = wantedSamples;
+        w = newWidth;
+        h = newHeight;
 
         msaaColor = GL30.glGenRenderbuffers();
         GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, msaaColor);
@@ -296,7 +321,7 @@ public class AntialiasedLayer
         if (resolveTexture != 0) GlStateManager._deleteTexture(resolveTexture);
 
         msaaFbo = resolveFbo = msaaColor = msaaDepth = resolveTexture = 0;
-        width = height = samples = 0;
+        capacityWidth = capacityHeight = samples = 0;
     }
 
     /** The orbit ball and other UI-space overlays: their pixel rectangle, as {@code UIUtils.viewportArea} maps it. */
