@@ -14,6 +14,7 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.SceneDepth;
+import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -87,7 +88,8 @@ public class SelectionOutline
         IEntity entity = controller.getCurrentEntity();
         Replay replay = controller.panel.replayEditor.getReplay();
 
-        if (!BBSSettings.editorSelectionOutline.get() || program == null || this.failed || world == null
+        /* The axes switch (F8) hides it along with the gizmo and the markup */
+        if (!BBSSettings.editorSelectionOutline.get() || !UIBaseMenu.renderAxes || program == null || this.failed || world == null
             || entity == null || replay == null || controller.panel.isFlying() || controller.getControlled() != null
             || controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON)
         {
