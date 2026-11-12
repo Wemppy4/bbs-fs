@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.forms.editors.utils;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -19,16 +20,19 @@ import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
+import mchorse.bbs_mod.ui.utils.OutlineMask;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.cubic.rig.RigMarkup;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 import java.util.function.Supplier;
 
@@ -43,6 +47,8 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
     private RigMarkup.Capture rigMarkup = RigMarkup.Capture.EMPTY;
 
     private final GizmoInteraction gizmo = new GizmoInteraction(this);
+    /** The edited bone's ring over the preview */
+    private final OutlineMask outline = new OutlineMask();
 
     private IEntity target;
     private Supplier<Boolean> renderForm;
@@ -199,6 +205,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
          * stencil pass below so the drawn handles and their pick hitbox match. */
         Gizmo.INSTANCE.setViewportHeight(this.area.h);
 
+        this.renderOutlineMask(formContext);
         this.renderAxes(context);
 
         if (this.area.isInside(context))
@@ -247,6 +254,51 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
         }
 
         this.gizmo.update(context);
+    }
+
+    /**
+     * The form again into the selection outline's mask while a bone is edited, the way the pick
+     * pass draws it, so the bone's part can be ringed over the preview ({@link #render}).
+     */
+    private void renderOutlineMask(FormRenderingContext formContext)
+    {
+        if (!BBSSettings.editorSelectionOutline.get() || !UIBaseMenu.renderAxes || !OutlineMask.isAvailable()
+            || (this.renderForm != null && !this.renderForm.get()) || !this.formEditor.hasPickedBone())
+        {
+            this.outline.invalidate();
+
+            return;
+        }
+
+        BBSProfiler.begin(BBSProfiler.Timer.OUTLINE);
+
+        float scale = BBSModClient.getGUIScale();
+        int w = Math.max(1, Math.round(this.area.w * scale));
+        int h = Math.max(1, Math.round(this.area.h * scale));
+        boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+
+        /* The interface's scissor is in window pixels, not the mask's */
+        GlStateManager._disableScissorTest();
+
+        if (this.outline.begin(w, h))
+        {
+            try
+            {
+                FormUtilsClient.render(this.form, formContext.stencilMap(this.outline.stencilMap));
+            }
+            finally
+            {
+                this.outline.end();
+                formContext.stencilMap(null);
+            }
+        }
+
+        if (scissor)
+        {
+            GlStateManager._enableScissorTest();
+        }
+
+        BBSProfiler.end(BBSProfiler.Timer.OUTLINE);
     }
 
     private void renderAxes(UIContext context)
@@ -315,6 +367,17 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
         }
 
         super.render(context);
+
+        /* The edited bone ringed, under the markup and the gizmo; nothing while no bone is edited */
+        if (this.form != null && this.outline.isDrawn())
+        {
+            int index = this.outline.indexOf(this.formEditor::isPickedPart);
+
+            if (index > 0)
+            {
+                this.outline.draw(context, this.area, index, null);
+            }
+        }
 
         this.formEditor.renderMarkup(context);
 
