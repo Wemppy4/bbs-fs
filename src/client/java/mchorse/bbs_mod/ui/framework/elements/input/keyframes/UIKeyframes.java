@@ -1633,8 +1633,8 @@ public class UIKeyframes extends UITimelineCanvas
 
             this.pickKeyframe(found);
         }
-        /* A plain click on empty space keeps the selection, so a near miss doesn't lose it;
-         * Shift + click (without dragging a band) clears it, see subMouseReleased. */
+        /* Empty space: a plain click clears the selection on release, a drag moves the view and keeps it;
+         * Shift + click (without dragging a band) clears it too, see subMouseReleased. */
 
         /* Only the keyframe itself: a handle or a Shift click (adding to the selection) isn't a jump. */
         boolean jumpable = found != null && !shift && pair.b == KeyframeType.REGULAR;
@@ -1728,6 +1728,12 @@ public class UIKeyframes extends UITimelineCanvas
             }
 
             this.pickKeyframe(picked != null && this.narrowSelectionTo.contains(picked) ? picked : this.narrowSelectionTo.get(0));
+        }
+        else if (this.dragging == 0 && this.draggingData == null && context.mouseButton == 0)
+        {
+            /* A plain click (no drag) on empty space clears the selection; a drag only moved the view */
+            this.currentGraph.clearSelection();
+            this.pickKeyframe(null);
         }
 
         this.narrowSelectionTo = null;
@@ -1920,8 +1926,8 @@ public class UIKeyframes extends UITimelineCanvas
         }
         else if (this.dragging == 1)
         {
-            /* Only a drag that started on a keyframe moves keys; from empty space it moves the view,
-             * even while keys stay selected (a click on empty space keeps the selection). */
+            /* Only a drag that started on a keyframe moves keys; from empty space it moves the view
+             * and keeps the selection (only a plain click on empty space clears it). */
             if (this.draggingData != null && this.currentGraph.getSelected() != null)
             {
                 this.currentGraph.dragKeyframes(context, this.draggingData, this.initialX, this.initialY, this.originalT, this.originalV);
