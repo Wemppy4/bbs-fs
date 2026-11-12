@@ -11,7 +11,6 @@ import net.minecraft.nbt.NbtHelper;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.util.Identifier;
@@ -152,7 +151,7 @@ public class StructureSaver
             return null;
         }
 
-        NbtCompound nbt = NbtIo.readCompressed(file.toPath(), NbtTagSizeTracker.ofUnlimitedBytes());
+        NbtCompound nbt = NbtIo.readCompressed(file);
 
         return world.getStructureTemplateManager().createTemplate(nbt);
     }
