@@ -10,12 +10,17 @@ import mchorse.bbs_mod.film.FilmControllerContext;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.SceneDepth;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
+import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -32,12 +37,16 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
+import java.util.Map;
+
 /**
  * A thin outline around the film's selected actor, the way 3D programs mark what is selected.
  * The actor alone is drawn again into a mask the size of the preview, the way the pick pass
  * draws it (its silhouette and its depth); a pass over the preview then rings what of the mask
  * is seen — the parts the world's own depth ({@link SceneDepth}) puts behind a block or another
- * actor get no outline. The mask is only redrawn when something it depends on changed.
+ * actor get no outline. The mask holds each part in its pick id's colour, so the bone being
+ * edited is found in it too and ringed in a lighter colour, its part faintly tinted. The mask is
+ * only redrawn when something it depends on changed.
  */
 public class SelectionOutline
 {
@@ -204,6 +213,18 @@ public class SelectionOutline
         int outline = BBSSettings.primaryColor(Colors.A100);
 
         set(program, "OutlineColor", Colors.getR(outline), Colors.getG(outline), Colors.getB(outline), 1F);
+        /* The bone: the same colour, halfway to white */
+        set(program, "BoneColor",
+            Colors.getR(outline) + (1F - Colors.getR(outline)) * 0.6F,
+            Colors.getG(outline) + (1F - Colors.getG(outline)) * 0.6F,
+            Colors.getB(outline) + (1F - Colors.getB(outline)) * 0.6F, 1F);
+
+        GlUniform selected = program.getUniform("SelectedIndex");
+
+        if (selected != null)
+        {
+            selected.set(this.selectedIndex());
+        }
         set(program, "Texel", 1F / this.width, 1F / this.height);
         set(program, "MaskDepth", projection.m22(), projection.m32());
         set(program, "SceneDepth", SceneDepth.getA(), SceneDepth.getB());
@@ -237,6 +258,29 @@ public class SelectionOutline
         RenderSystem.setShader(() -> program);
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.enableCull();
+    }
+
+    /** The pick id the mask drew the edited bone with, or 0 when no bone is edited or it wasn't drawn (a controller without cubes). */
+    private int selectedIndex()
+    {
+        Pair<String, TransformSpace> bone = this.controller.getBone();
+
+        if (bone == null || bone.a == null || bone.a.isEmpty())
+        {
+            return 0;
+        }
+
+        for (Map.Entry<Integer, Pair<Form, String>> entry : this.stencilMap.indexMap.entrySet())
+        {
+            Pair<Form, String> part = entry.getValue();
+
+            if (part.a != null && !part.b.isEmpty() && StringUtils.combinePaths(FormUtils.getPath(part.a), part.b).equals(bone.a))
+            {
+                return entry.getKey();
+            }
+        }
+
+        return 0;
     }
 
     private static void set(ShaderProgram program, String name, float... values)

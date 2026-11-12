@@ -1,6 +1,6 @@
 #version 150
 
-/* The selected actor alone: its silhouette (alpha) and its depth */
+/* The selected actor alone: each part in its pick id's colour, and its depth */
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler1;
 /* The world's depth (see SceneDepth) */
@@ -8,6 +8,9 @@ uniform sampler2D Sampler2;
 
 uniform vec4 ColorModulator;
 uniform vec4 OutlineColor;
+/* The selected bone: its pick id (0 for none) and colour */
+uniform vec4 BoneColor;
+uniform int SelectedIndex;
 /* One screen pixel in the mask's coordinates */
 uniform vec2 Texel;
 /* Depth terms of the two projections: distance = y / (ndcZ + x) */
@@ -21,55 +24,77 @@ in vec2 texCoord;
 
 out vec4 fragColor;
 
-/* Where the actor is seen: drawn there, and nothing of the world stands in front */
-float seen(vec2 uv)
+/* The pick id of the part seen there: -1 where the actor isn't drawn or the world stands in front */
+int seenId(vec2 uv)
 {
-    if (texture(Sampler0, uv).a < 0.5)
+    vec4 mask = texture(Sampler0, uv);
+
+    if (mask.a < 0.5)
     {
-        return 0.0;
+        return -1;
     }
 
-    if (UseScene < 0.5)
+    if (UseScene > 0.5)
     {
-        return 1.0;
+        float scene = texture(Sampler2, SceneViewport.xy + uv * SceneViewport.zw).r;
+
+        if (scene < 1.0)
+        {
+            float own = MaskDepth.y / (texture(Sampler1, uv).r * 2.0 - 1.0 + MaskDepth.x);
+            float world = SceneDepth.y / (scene * 2.0 - 1.0 + SceneDepth.x);
+
+            if (own > world + max(0.1, world * 0.01))
+            {
+                return -1;
+            }
+        }
     }
 
-    float scene = texture(Sampler2, SceneViewport.xy + uv * SceneViewport.zw).r;
-
-    if (scene >= 1.0)
-    {
-        return 1.0;
-    }
-
-    float own = MaskDepth.y / (texture(Sampler1, uv).r * 2.0 - 1.0 + MaskDepth.x);
-    float world = SceneDepth.y / (scene * 2.0 - 1.0 + SceneDepth.x);
-
-    return own <= world + max(0.1, world * 0.01) ? 1.0 : 0.0;
+    return int(mask.r * 255.0 + 0.5) | (int(mask.g * 255.0 + 0.5) << 8) | (int(mask.b * 255.0 + 0.5) << 16);
 }
 
 void main()
 {
-    /* The outline goes around the silhouette, never over the actor */
-    if (seen(texCoord) > 0.5)
-    {
-        discard;
-    }
-
-    float hits = 0.0;
+    int here = seenId(texCoord);
+    bool bone = SelectedIndex > 0;
+    bool inBone = bone && here == SelectedIndex;
+    float actorHits = 0.0;
+    float boneHits = 0.0;
 
     for (int i = 0; i < 8; i++)
     {
         float angle = float(i) * 0.785398;
         vec2 direction = vec2(cos(angle), sin(angle)) * Texel;
 
-        hits += seen(texCoord + direction);
-        hits += seen(texCoord + direction * 2.0);
+        for (int r = 1; r <= 2; r++)
+        {
+            int id = seenId(texCoord + direction * float(r));
+
+            actorHits += id >= 0 ? 1.0 : 0.0;
+            boneHits += bone && id == SelectedIndex ? 1.0 : 0.0;
+        }
     }
 
-    if (hits <= 0.0)
+    /* The selected bone: a ring around its part, over whatever is beside it, and a faint tint inside */
+    if (bone && !inBone && boneHits > 0.0)
+    {
+        fragColor = vec4(BoneColor.rgb, BoneColor.a * clamp(boneHits / 4.0, 0.0, 1.0)) * ColorModulator;
+
+        return;
+    }
+
+    if (inBone)
+    {
+        fragColor = vec4(BoneColor.rgb, BoneColor.a * 0.15) * ColorModulator;
+
+        return;
+    }
+
+    /* The actor: a ring around the silhouette, never over it */
+    if (here >= 0 || actorHits <= 0.0)
     {
         discard;
     }
 
-    fragColor = vec4(OutlineColor.rgb, OutlineColor.a * clamp(hits / 4.0, 0.0, 1.0)) * ColorModulator;
+    fragColor = vec4(OutlineColor.rgb, OutlineColor.a * clamp(actorHits / 4.0, 0.0, 1.0)) * ColorModulator;
 }
