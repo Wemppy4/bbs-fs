@@ -34,6 +34,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.controller.RunnerCameraController;
+import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmTarget;
@@ -120,11 +121,39 @@ public class UIFilmController extends UIElement implements GizmoViewport
     private void renderMarkup(UIContext context)
     {
         this.markup.begin(this.panel.preview.getViewport());
+        this.renderCameraFrustum();
         this.renderMotionPath();
         this.renderRigMarkup();
         this.renderSplineOverlay(context);
         this.renderShapeControllers(context);
         this.markup.flush(context);
+    }
+
+    /** Where the film's camera stands and looks, seen from outside it: its frustum's edges, the middle in blue. */
+    private void renderCameraFrustum()
+    {
+        if (this.editorController == null || this.getPovMode() == CAMERA_MODE_CAMERA
+            || !BBSSettings.recordingCameraPreview.get() || !BBSSettings.recordingOverlays.get())
+        {
+            return;
+        }
+
+        Position position = this.panel.getRunner().getPosition();
+        Camera camera = this.panel.getCamera();
+        Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
+        Vector3f origin = new Vector3f(
+            (float) (position.point.x - camera.position.x),
+            (float) (position.point.y - camera.position.y),
+            (float) (position.point.z - camera.position.z)
+        );
+        Vector3f[] rays = Recorder.frustumRays(position);
+
+        for (int i = 0; i < rays.length; i++)
+        {
+            int color = i == rays.length - 1 ? 0xff0080ff : 0xffffffff;
+
+            this.markup.line(mvp, origin, new Vector3f(origin).add(rays[i]), color);
+        }
     }
 
     private void renderMotionPath()
@@ -1179,13 +1208,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         if (this.editorController != null)
         {
             this.editorController.render(context);
-
-            int povMode = this.panel.getController().getPovMode();
-
-            if (povMode != UIFilmController.CAMERA_MODE_CAMERA && BBSSettings.recordingCameraPreview.get())
-            {
-                Recorder.renderCameraPreview(this.panel.getRunner().getPosition(), context.camera(), context.matrixStack());
-            }
         }
 
         this.renderOrbitCenterMarker(context);
