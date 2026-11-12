@@ -1634,7 +1634,7 @@ public class UIKeyframes extends UITimelineCanvas
             this.pickKeyframe(found);
         }
         /* Empty space: a plain click clears the selection on release, a drag moves the view and keeps it;
-         * Shift + click (without dragging a band) clears it too, see subMouseReleased. */
+         * Shift + click keeps it (Shift only adds), see subMouseReleased. */
 
         /* Only the keyframe itself: a handle or a Shift click (adding to the selection) isn't a jump. */
         boolean jumpable = found != null && !shift && pair.b == KeyframeType.REGULAR;
@@ -1698,15 +1698,10 @@ public class UIKeyframes extends UITimelineCanvas
         {
             this.marquee.update(context.mouseX, context.mouseY);
 
+            /* Shift only adds: a band adds its keys, a Shift + click on empty space keeps the selection */
             if (this.marquee.isActive())
             {
                 this.currentGraph.selectInArea(this.getGrabbingArea(context));
-            }
-            else
-            {
-                /* Shift + click on empty space without a band: clear the selection */
-                this.currentGraph.clearSelection();
-                this.pickKeyframe(null);
             }
         }
 
