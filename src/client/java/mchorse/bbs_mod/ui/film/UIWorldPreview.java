@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.graphics.AntialiasedLayer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -20,6 +21,7 @@ import mchorse.bbs_mod.utils.iris.IrisShaderPacks;
 import mchorse.bbs_mod.utils.iris.ShaderOptions;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
 import org.joml.Vector2i;
 
 import java.util.LinkedHashMap;
@@ -370,7 +372,9 @@ public class UIWorldPreview extends UIElement
 
     /**
      * The framing guides switched on in the settings: thirds, centre lines, crosshair, all in
-     * the export's frame, with the bands around it while they are up.
+     * the export's frame, with the bands around it while they are up. The lines are one
+     * screen pixel thin at their exact (fractional) spots, drawn through an
+     * {@link AntialiasedLayer} so they stay even rather than snapping to the UI's pixels.
      */
     protected void renderGuides(UIContext context, Area viewport)
     {
@@ -378,35 +382,80 @@ public class UIWorldPreview extends UIElement
 
         this.renderExportBands(context, viewport, area);
 
-        if (BBSSettings.editorRuleOfThirds.get())
+        boolean thirds = BBSSettings.editorRuleOfThirds.get();
+        boolean centre = BBSSettings.editorCenterLines.get();
+        boolean crosshair = BBSSettings.editorCrosshair.get();
+
+        if (!thirds && !centre && !crosshair)
         {
-            int guidesColor = BBSSettings.editorGuidesColor.get();
-
-            context.batcher.box(area.x + area.w / 3 - 1, area.y, area.x + area.w / 3, area.y + area.h, guidesColor);
-            context.batcher.box(area.x + area.w - area.w / 3, area.y, area.x + area.w - area.w / 3 + 1, area.y + area.h, guidesColor);
-
-            context.batcher.box(area.x, area.y + area.h / 3 - 1, area.x + area.w, area.y + area.h / 3, guidesColor);
-            context.batcher.box(area.x, area.y + area.h - area.h / 3, area.x + area.w, area.y + area.h - area.h / 3 + 1, guidesColor);
+            return;
         }
 
-        if (BBSSettings.editorCenterLines.get())
-        {
-            int guidesColor = BBSSettings.editorGuidesColor.get();
-            int x = area.mx();
-            int y = area.my();
+        context.batcher.flush();
 
-            context.batcher.box(area.x, y, area.ex(), y + 1, guidesColor);
-            context.batcher.box(x, area.y, x + 1, area.ey(), guidesColor);
+        boolean layer = AntialiasedLayer.beginUI(area.x, area.y, area.w, area.h);
+
+        try
+        {
+            this.renderGuideLines(context, area, thirds, centre, crosshair);
+            context.batcher.flush();
+        }
+        finally
+        {
+            if (layer)
+            {
+                AntialiasedLayer.end();
+            }
+        }
+    }
+
+    private void renderGuideLines(UIContext context, Area area, boolean thirds, boolean centre, boolean crosshair)
+    {
+        /* One physical pixel, whatever the UI scale */
+        float scale = (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+        float t = 1F / scale;
+        int guidesColor = BBSSettings.editorGuidesColor.get();
+
+        if (thirds)
+        {
+            this.vertical(context, area, this.snap(area.x + area.w / 3F, scale), t, guidesColor);
+            this.vertical(context, area, this.snap(area.x + area.w * 2F / 3F, scale), t, guidesColor);
+            this.horizontal(context, area, this.snap(area.y + area.h / 3F, scale), t, guidesColor);
+            this.horizontal(context, area, this.snap(area.y + area.h * 2F / 3F, scale), t, guidesColor);
         }
 
-        if (BBSSettings.editorCrosshair.get())
+        if (centre)
         {
-            int x = area.mx() + 1;
-            int y = area.my() + 1;
-
-            context.batcher.box(x - 4, y - 1, x + 3, y, Colors.setA(Colors.WHITE, 0.5F));
-            context.batcher.box(x - 1, y - 4, x, y + 3, Colors.setA(Colors.WHITE, 0.5F));
+            this.vertical(context, area, this.snap(area.x + area.w / 2F, scale), t, guidesColor);
+            this.horizontal(context, area, this.snap(area.y + area.h / 2F, scale), t, guidesColor);
         }
+
+        if (crosshair)
+        {
+            float x = this.snap(area.x + area.w / 2F, scale);
+            float y = this.snap(area.y + area.h / 2F, scale);
+            int color = Colors.setA(Colors.WHITE, 0.5F);
+
+            context.batcher.box(x - 3.5F, y - t / 2F, x + 3.5F, y + t / 2F, color);
+            context.batcher.box(x - t / 2F, y - 3.5F, x + t / 2F, y - t / 2F, color);
+            context.batcher.box(x - t / 2F, y + t / 2F, x + t / 2F, y + 3.5F, color);
+        }
+    }
+
+    /** The centre of the screen pixel under a UI coordinate, so a one-pixel line covers it whole rather than half of two. */
+    private float snap(float value, float scale)
+    {
+        return ((float) Math.floor(value * scale) + 0.5F) / scale;
+    }
+
+    private void vertical(UIContext context, Area area, float x, float t, int color)
+    {
+        context.batcher.box(x - t / 2F, area.y, x + t / 2F, area.ey(), color);
+    }
+
+    private void horizontal(UIContext context, Area area, float y, float t, int color)
+    {
+        context.batcher.box(area.x, y - t / 2F, area.ex(), y + t / 2F, color);
     }
 
     /** Shades the viewport outside the export's frame. */
