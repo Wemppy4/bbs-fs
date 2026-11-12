@@ -418,3 +418,42 @@ start unbound. They live in the existing replay-editor keybind settings and pres
 `tab_1` through `tab_5` overrides. No addon key handler is needed. Hiding/reappearing tabs
 preserves registry order, including wrapped rows. `RegisterKeybindsEvent.register(KeyCombo)`
 also supports individual dynamically created combos for other addon actions.
+
+## API version 3: the addons window
+
+The dashboard has an Addons window (the puzzle icon next to the settings). It lists every mod
+with a `bbs-addon` or `bbs-client-addon` entry point and fills each card from `fabric.mod.json`,
+so there is nothing to register:
+
+- `icon` is the picture, `name` and `version` the title, `authors` the line under it;
+- `description` is the tooltip of the name;
+- `contact.homepage` opens on a click on the name;
+- a click on the picture opens your settings, if you registered any through
+  `RegisterSettingsEvent` or `RegisterClientSettingsEvent` from your subscriber.
+
+An entry point that cannot be created and a subscriber that throws no longer take the game
+down: the addon's card turns red and its error can be copied from there, to be sent to you.
+
+Every card has a switch. To make yours do something, implement `BBSAddonSwitch` on one of
+your entry point objects and call `BBSApi.requireVersion(modId, 3)`:
+
+```java
+public class MyAddonClient implements BBSAddonMod, BBSAddonSwitch
+{
+    @Override
+    public boolean isAddonEnabled()
+    {
+        return MyAddonSettings.enabled.get();
+    }
+
+    @Override
+    public void setAddonEnabled(boolean enabled)
+    {
+        MyAddonSettings.enabled.set(enabled);
+    }
+}
+```
+
+BBS keeps no state for it and asks `isAddonEnabled()` each time the card is drawn; what "off"
+means, and whether it survives a restart, is up to the addon. Without the interface the switch
+is shown on and does nothing.

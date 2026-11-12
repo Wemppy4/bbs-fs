@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.api;
 
 import com.mojang.logging.LogUtils;
+import mchorse.bbs_mod.addons.Addons;
 import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationTargetException;
@@ -92,6 +93,10 @@ public class EventBus
 
         for (Subscription subscription : eventSubscribers)
         {
+            /* Marks whose call this is, so that settings registered inside it are known to be
+             * that addon's, and a failure lands on its card in the addons window */
+            Object previous = Addons.enter(subscription.target);
+
             try
             {
                 subscription.method.invoke(subscription.target, event);
@@ -109,6 +114,12 @@ public class EventBus
                     subscription.method.getName(),
                     event.getClass().getSimpleName(),
                     cause);
+
+                Addons.fail(subscription.target, event.getClass().getSimpleName(), cause);
+            }
+            finally
+            {
+                Addons.leave(previous);
             }
         }
     }

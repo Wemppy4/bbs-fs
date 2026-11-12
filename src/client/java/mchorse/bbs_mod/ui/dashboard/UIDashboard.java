@@ -15,6 +15,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.addons.UIAddonsOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
@@ -73,6 +74,7 @@ public class UIDashboard extends UIBaseMenu
 
     public UIIcon settings;
     public UIIcon selectors;
+    public UIIcon addons;
 
     /* Camera data */
     public final UIOrbitCamera orbitUI = new UIOrbitCamera();
@@ -116,12 +118,17 @@ public class UIDashboard extends UIBaseMenu
         {
             UIOverlay.addOverlay(this.context, new UISelectorsOverlayPanel());
         });
+        this.addons = new UIIcon(Icons.ADDONS, (b) ->
+        {
+            UIOverlay.addOverlay(this.context, new UIAddonsOverlayPanel());
+        });
         this.chalkboard = new UIChalkboard();
         this.chalkboard.full(this.getRoot());
 
         /* Pinned through the bar, not into it: the bar is what knows which way its icons point */
         this.panels.pin(this.settings, UIKeys.CONFIG_TITLE);
         this.panels.pin(this.selectors, UIKeys.SELECTORS_TITLE);
+        this.panels.pin(this.addons, UIKeys.ADDONS_TITLE);
         this.getRoot().prepend(this.orbitUI);
         this.getRoot().add(this.orbitKeysUI);
         this.getRoot().add(this.chalkboard);
@@ -181,6 +188,13 @@ public class UIDashboard extends UIBaseMenu
     public void openSettings()
     {
         UIOverlay.addOverlay(this.context, this.settingsPanel);
+    }
+
+    /** Opens the settings on the given module, an addon's own for example. */
+    public void openSettings(String module)
+    {
+        this.settingsPanel.selectModule(module);
+        this.openSettings();
     }
 
     public void copyCurrentEntityCamera()

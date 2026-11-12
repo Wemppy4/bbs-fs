@@ -39,6 +39,11 @@ public class UIKeys
     public static final IKey ACTIONS_ITEM_RIPTIDE = L10n.lang("bbs.ui.actions.item.riptide");
     public static final IKey ACTIONS_ITEM_STACK = L10n.lang("bbs.ui.actions.item.stack");
     public static final IKey ACTIONS_ITEM_VELOCITY = L10n.lang("bbs.ui.actions.item.velocity");
+    public static final IKey ADDONS_TITLE = L10n.lang("bbs.ui.addons.title");
+    public static final IKey ADDONS_SWITCH = L10n.lang("bbs.ui.addons.switch");
+    public static final IKey ADDONS_SWITCH_UNSUPPORTED = L10n.lang("bbs.ui.addons.switch_unsupported");
+    public static final IKey ADDONS_COPY_ERROR = L10n.lang("bbs.ui.addons.copy_error");
+    public static final IKey ADDONS_NO_DESCRIPTION = L10n.lang("bbs.ui.addons.no_description");
     public static final IKey AUDIO_CONTEXT_ADD = L10n.lang("bbs.ui.audio_editor.context.add");
     public static final IKey AUDIO_CONTEXT_REMOVE = L10n.lang("bbs.ui.audio_editor.context.remove");
     public static final IKey AUDIO_CONTEXT_TRIM = L10n.lang("bbs.ui.audio_editor.context.trim");
