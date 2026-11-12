@@ -363,6 +363,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     /** The pick buffer the viewport is hit-tested against, and what it currently reports. */
     public final FilmStencilPicker picker = new FilmStencilPicker(this);
+    private final SelectionOutline outline = new SelectionOutline(this);
 
     public final OrbitFilmCameraController orbit = new OrbitFilmCameraController(this);
     public final OrbitViewGizmo orbitGizmo = new OrbitViewGizmo(this);
@@ -1190,6 +1191,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public void renderHUD(UIContext context, PreviewHud hud, Area navBlock)
     {
+        /* Under the markup and the gizmo, like the selection outline of any 3D program */
+        this.outline.render(context);
         this.renderMarkup(context);
         for (var tool : this.addonTools) tool.updateTool(context);
         this.hud.render(context, hud, navBlock);

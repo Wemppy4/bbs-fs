@@ -325,6 +325,8 @@
     "bbs.config.video.world_export_resize_window-comment": "按 F4/F6 导出时临时调整窗口至导出分辨率，结束后恢复。",
     "bbs.config.viewport.center_lines": "中心线",
     "bbs.config.viewport.center_lines-comment": "中心线",
+    "bbs.config.viewport.selection_outline": "选中演员轮廓",
+    "bbs.config.viewport.selection_outline-comment": "描出正在编辑的演员的可见部分。",
     "bbs.config.viewport.clip_preview": "剪辑预览",
     "bbs.config.viewport.clip_preview-comment": "启用时，能在关键帧时间轴中看到当前所选剪辑",
     "bbs.config.viewport.crosshair": "十字准星",

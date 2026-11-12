@@ -157,6 +157,7 @@ public class BBSSettings {
 	public static ValueInt editorGuidesColor;
 	public static ValueBoolean editorRuleOfThirds;
 	public static ValueBoolean editorCenterLines;
+	public static ValueBoolean editorSelectionOutline;
 	public static ValueBoolean editorCrosshair;
 	public static ValueBoolean editorSeconds;
 	public static ValueBoolean editorTimelineGrid;
@@ -902,6 +903,7 @@ public class BBSSettings {
 		previewIconExport = builder.getBoolean("preview_icon_export", true);
 
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
+		editorSelectionOutline = builder.getBoolean("selection_outline", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
 		/* The rig's debug overlay: its switch lives on the rig tab and F5 */

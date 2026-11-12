@@ -538,6 +538,8 @@
 	"bbs.config.camera.angle_speed-comment": "Angle flight speed when rotating the camera around",
 	"bbs.config.viewport.center_lines": "Center lines",
 	"bbs.config.viewport.center_lines-comment": "Center lines",
+	"bbs.config.viewport.selection_outline": "Selected actor outline",
+	"bbs.config.viewport.selection_outline-comment": "Outlines the visible part of the actor being edited.",
 	"bbs.config.performance.frustum_culling": "Replay frustum culling",
 	"bbs.config.performance.frustum_culling-comment": "Skip off-screen replays (32-block margin); anchored replays are kept.",
 	"bbs.config.performance.welds": "Welds",
