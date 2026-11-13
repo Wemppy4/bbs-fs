@@ -1313,7 +1313,10 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         else if (context.mouseButton == 1)
         {
             Camera camera = this.filmPanel.getCamera();
-            Vector3d hit = this.isVisible() ? this.rayTraceViewport(context, area, camera) : null;
+            /* Adding works from the camera editor too; moving needs the recording editor, where
+             * the replay it moves is the one on show. */
+            Vector3d hit = this.rayTraceViewport(context, area, camera);
+            boolean editing = this.isVisible();
 
             context.replaceContextMenu(menu ->
             {
@@ -1323,7 +1326,11 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                     float yaw = MathUtils.toDeg(camera.rotation.y);
 
                     menu.icon(MenuVerb.ADD, () -> this.replaysList.replays.addReplay(hit, pitch, yaw)).label(UIKeys.FILM_REPLAY_CONTEXT_ADD);
-                    menu.action(Icons.POINTER, UIKeys.FILM_REPLAY_CONTEXT_MOVE_HERE, () -> this.moveReplay(hit.x, hit.y, hit.z));
+
+                    if (editing)
+                    {
+                        menu.action(Icons.POINTER, UIKeys.FILM_REPLAY_CONTEXT_MOVE_HERE, () -> this.moveReplay(hit.x, hit.y, hit.z));
+                    }
                 }
 
                 this.filmPanel.preview.addIconActions(menu, hit != null);
