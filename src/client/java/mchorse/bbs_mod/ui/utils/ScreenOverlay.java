@@ -24,6 +24,7 @@ import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * The editors' markup: one screen layer every viewport overlay draws through — the motion path,
@@ -672,8 +673,36 @@ public class ScreenOverlay
             return;
         }
 
-        float px = 1F / BBSModClient.getGUIScale();
         int segments = Math.max(SEGMENTS, Math.min(256, Math.round(radius)));
+
+        paintNow(context, viewport, (painter, px) ->
+        {
+            for (int i = 0; i < segments; i++)
+            {
+                double a = i / (double) segments * Math.PI * 2;
+                double b = (i + 1) / (double) segments * Math.PI * 2;
+
+                painter.line(
+                    x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
+                    x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius,
+                    LINE * px, color
+                );
+            }
+        });
+    }
+
+    /** A dashed line {@link #LINE} screen pixels wide, drawn at once like {@link #circle}: the line a
+     *  gizmo turn runs from its centre to the cursor. */
+    public static void dashedLine(UIContext context, Area viewport, float x1, float y1, float x2, float y2, int color)
+    {
+        paintNow(context, viewport, (painter, px) -> painter.dashed(x1, y1, x2, y2, LINE * px, DASH * px, GAP * px, color));
+    }
+
+    /** Paints straight away through the antialiased layer (or a clip) over {@code viewport};
+     *  {@code paint} gets the painter and the size of a screen pixel in interface units. */
+    private static void paintNow(UIContext context, Area viewport, BiConsumer<Painter, Float> paint)
+    {
+        float px = 1F / BBSModClient.getGUIScale();
 
         context.batcher.flush();
 
@@ -689,18 +718,7 @@ public class ScreenOverlay
         Painter painter = new Painter(builder, matrix, 1F);
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-
-        for (int i = 0; i < segments; i++)
-        {
-            double a = i / (double) segments * Math.PI * 2;
-            double b = (i + 1) / (double) segments * Math.PI * 2;
-
-            painter.line(
-                x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
-                x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius,
-                LINE * px, color
-            );
-        }
+        paint.accept(painter, px);
 
         RenderSystem.enableBlend();
         RenderSystem.disableCull();

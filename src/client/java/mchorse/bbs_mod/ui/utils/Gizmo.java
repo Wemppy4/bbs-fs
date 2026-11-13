@@ -19,6 +19,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Axis;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.render.BufferBuilder;
@@ -40,7 +41,9 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class Gizmo
@@ -89,23 +92,52 @@ public class Gizmo
 
     /** Angular resolution used to find a ring's camera-facing (visible) arc. */
 
-    /** Half-size of the scale handle's end cube, in gizmo-local units (× axes scale × thickness).
-     *  Based on scale/thickness rather than the per-pass line offset, so the cube is the same
-     *  size in the visual and stencil passes and its hitbox matches the drawn cube exactly. */
     /** Axis bar length before the scale and ring-nesting factors, in gizmo-local units. */
     private final static float AXIS_SIZE = 0.25F;
 
     /** Half-thickness of the axis bars before the scale and thickness settings. */
     private final static float AXIS_OFFSET = 0.008F;
 
-    private final static float SCALE_CUBE_HALF = 0.032F;
+    /** Half-size of a scale cube beside the move arrows, in gizmo-local units (× axes scale × thickness).
+     *  Based on scale/thickness rather than the per-pass line offset, so the cube is the same
+     *  size in the visual and stencil passes and its hitbox matches the drawn cube exactly. */
+    private final static float SCALE_CUBE_HALF = 0.017F;
 
-    /** Half-size of the centre cube shared by the screen-space (view-plane) translate
-     *  handle and the uniform (three-axis) scale handle, in gizmo-local units
-     *  (× axes scale × thickness). Deliberately large so the centre reads as an easy
-     *  grab target. Like {@link #SCALE_CUBE_HALF} it is offset-independent so the visual
-     *  and stencil passes match and the hitbox lines up with the drawn cube. */
-    private final static float SCREEN_CUBE_HALF = 0.03F;
+    /** Where a scale cube sits along its axis (a fraction of the bar) while the move arrows
+     *  hold the bar's end; with scale alone on screen it takes the end itself. */
+    private final static float SCALE_CUBE_AT = 0.57F;
+
+    /** Base radius of a move arrow's cone (× axes scale × thickness); the cone is
+     *  {@link #CONE_LENGTH} radii long and stands on the end of its bar. A scale cube
+     *  alone at a bar's end takes this half-size, so the two ends read alike. */
+    private final static float CONE_RADIUS = 0.032F;
+    private final static float CONE_LENGTH = 3F;
+
+    /** Radius of the centre circle (× axes scale) shared by the screen-space translate handle
+     *  and the uniform-scale one; its line is as wide as a rotation ring. The bars start just
+     *  outside it, so the circle stays clear. */
+    private final static float CENTRE_RADIUS = 0.019F;
+
+    /** A hovered or grabbed handle: how far its colour goes to white and how much wider it gets. */
+    private final static float LIT_WHITE = 0.5F;
+    private final static float LIT_GROW = 1.6F;
+    private final static float LIT_CUBE_GROW = 1.3F;
+
+    /** How solid the two-axis plane squares are, at rest and lit. */
+    private final static float PLANE_ALPHA = 0.35F;
+    private final static float PLANE_LIT_ALPHA = 0.55F;
+
+    /* An axis pointing at the camera fades out between these |cos| of its angle to the view,
+     * a plane seen edge-on between these |cos| of its normal's; below PICK_FADE neither is
+     * pickable, so an end-on bar can't steal a click aimed at the centre. */
+    private final static float AXIS_FADE_FROM = 0.9F;
+    private final static float AXIS_FADE_TO = 0.97F;
+    private final static float PLANE_FADE_FROM = 0.18F;
+    private final static float PLANE_FADE_TO = 0.06F;
+    private final static float PICK_FADE = 0.35F;
+
+    private final static Axis[] AXES = {Axis.X, Axis.Y, Axis.Z};
+    private final static int[] AXIS_COLORS = {Colors.RED, Colors.GREEN, Colors.BLUE};
 
     /** Points sampled along the sphere's silhouette to measure its on-screen radius. */
     private final static int SILHOUETTE_SAMPLES = 32;
@@ -115,6 +147,13 @@ public class Gizmo
     /** Display-only axis signs. Never applied to the frame used by transform gestures. */
     private final Vector3f facingSigns = new Vector3f(1F);
     private static final float FLIP_THRESHOLD = 0.12F;
+
+    /** Cosine between each gizmo axis and the direction to the camera, from the captured frame. */
+    private final Vector3f facingDots = new Vector3f();
+
+    /** The handle under the cursor as of the host's last pick ({@link GizmoInteraction#update}),
+     *  drawn lit; {@code null} over nothing. */
+    private Handle hoveredHandle;
 
     private int index;
     private int mouseX;
@@ -264,6 +303,12 @@ public class Gizmo
     public void setSphereHovered(boolean hovered)
     {
         this.sphereHovered = hovered;
+    }
+
+    /** The stencil id under the cursor, or anything outside the handle range for none. */
+    public void setHoveredHandle(int index)
+    {
+        this.hoveredHandle = Handle.byIndex(index);
     }
 
     /**
@@ -1064,9 +1109,16 @@ public class Gizmo
      */
     private Handle activeDragHandle()
     {
+        return BBSSettings.hideInactiveHandles.get() ? this.draggedHandle() : null;
+    }
+
+    /** The handle the live edit is grabbing whatever the hide setting says, or {@code null}
+     *  when no edit runs — the one drawn lit while it is dragged. */
+    private Handle draggedHandle()
+    {
         TransformGesture gesture = this.currentGesture;
 
-        if (!BBSSettings.hideInactiveHandles.get() || gesture == null || !gesture.isEditing())
+        if (gesture == null || !gesture.isEditing())
         {
             return null;
         }
@@ -1132,6 +1184,18 @@ public class Gizmo
     private static float dimmed(float channel, boolean constrained)
     {
         return constrained ? channel * 0.25F + 0.3F : channel;
+    }
+
+    /** Takes a colour channel part of the way to white for a hovered or grabbed handle. */
+    private static float lit(float channel, boolean lit)
+    {
+        return lit ? channel + (1F - channel) * LIT_WHITE : channel;
+    }
+
+    /** 1 below {@code from}, 0 past {@code to}, linear between (either way round). */
+    private static float fade(float value, float from, float to)
+    {
+        return MathUtils.clamp((to - value) / (to - from), 0F, 1F);
     }
 
     public void renderStencil(MatrixStack stack)
@@ -1246,12 +1310,14 @@ public class Gizmo
         }
 
         toCamera.normalize();
-        this.facingSigns.x = facingSign(this.facingSigns.x,
-            toCamera.x * matrix.m00() + toCamera.y * matrix.m01() + toCamera.z * matrix.m02());
-        this.facingSigns.y = facingSign(this.facingSigns.y,
-            toCamera.x * matrix.m10() + toCamera.y * matrix.m11() + toCamera.z * matrix.m12());
-        this.facingSigns.z = facingSign(this.facingSigns.z,
-            toCamera.x * matrix.m20() + toCamera.y * matrix.m21() + toCamera.z * matrix.m22());
+        this.facingDots.set(
+            toCamera.x * matrix.m00() + toCamera.y * matrix.m01() + toCamera.z * matrix.m02(),
+            toCamera.x * matrix.m10() + toCamera.y * matrix.m11() + toCamera.z * matrix.m12(),
+            toCamera.x * matrix.m20() + toCamera.y * matrix.m21() + toCamera.z * matrix.m22()
+        );
+        this.facingSigns.x = facingSign(this.facingSigns.x, this.facingDots.x);
+        this.facingSigns.y = facingSign(this.facingSigns.y, this.facingDots.y);
+        this.facingSigns.z = facingSign(this.facingSigns.z, this.facingDots.z);
     }
 
     private static float facingSign(float previous, float dot)
@@ -1378,20 +1444,28 @@ public class Gizmo
     }
 
     /**
-     * Receives the gizmo's box-shaped elements — bars, plane quads, the centre cubes and the
-     * scale cubes. The geometry is written once, in {@link Gizmo#collectHandles}, and painted
-     * twice: the visual pass by the colour it is handed, the pick pass by the handle's id.
+     * Receives the gizmo's move and scale parts: bars, arrow cones, plane squares, scale cubes
+     * and the centre circle. The geometry is written once, in {@link Gizmo#collectHandles}, and
+     * painted twice: the visual pass by the colour it is handed, the pick pass by the handle's id.
+     * {@code fade} is how much of a part is still on screen (an axis pointing at the camera and a
+     * plane seen edge-on fade away); the pick pass leaves out what has all but gone.
      */
     private interface HandleSink
     {
-        void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color);
+        void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color, float fade);
+
+        /** A move arrow's tip along {@code axis} towards {@code sign}, its base {@code base} from the origin. */
+        void cone(Handle handle, Axis axis, float sign, float base, float length, float radius, int color, float fade);
+
+        /** The camera-facing centre circle: the screen-plane move, or the uniform scale when move is off. */
+        void centre(Handle handle, float radius, float thickness);
 
         /**
          * The centre cube the pick pass masks the bars with, so a click in the middle of the
          * gizmo lands on nothing rather than on whichever bar runs through it. Comes right
          * after the bars and before anything that overlays the centre, which is why it is a
          * step of the walk and not something the pass draws on its own. The visual pass has
-         * no use for it — its own centre cube is decoration, drawn last.
+         * no use for it.
          */
         default void centreMask(float half) {}
     }
@@ -1410,7 +1484,8 @@ public class Gizmo
      * <p>Shared by the visual pass and the pick pass so a ring's radius and thickness — and
      * which rings exist at all — are decided in ONE place. They used to be two copies kept in
      * step by hand, with a comment in the pick pass reminding whoever changed one to change
-     * the other; a slip there means clicking a ring that is not where it is drawn.
+     * the other; a slip there means clicking a ring that is not where it is drawn. A lit ring
+     * is wider in both, so the pick grows with what the eye sees.
      */
     private void collectRings(Layout layout, RingSink sink)
     {
@@ -1428,9 +1503,9 @@ public class Gizmo
             /* A target may own only some of the three rotation axes (a replay's root turns
              * about Y and pitches about X, but has nowhere to put roll), so each ring is
              * filtered on its own axis rather than the group as a whole. */
-            if (layout.mask.allowsRotateAxis(Axis.Z) && (active == null || active == Handle.ROTATE_Z)) sink.ring(Handle.ROTATE_Z, Axis.Z, radius, ringThickness, Colors.BLUE);
-            if (layout.mask.allowsRotateAxis(Axis.X) && (active == null || active == Handle.ROTATE_X)) sink.ring(Handle.ROTATE_X, Axis.X, radius, ringThickness, Colors.RED);
-            if (layout.mask.allowsRotateAxis(Axis.Y) && (active == null || active == Handle.ROTATE_Y)) sink.ring(Handle.ROTATE_Y, Axis.Y, radius, ringThickness, Colors.GREEN);
+            if (layout.mask.allowsRotateAxis(Axis.Z) && (active == null || active == Handle.ROTATE_Z)) sink.ring(Handle.ROTATE_Z, Axis.Z, radius, layout.grown(Handle.ROTATE_Z, ringThickness), Colors.BLUE);
+            if (layout.mask.allowsRotateAxis(Axis.X) && (active == null || active == Handle.ROTATE_X)) sink.ring(Handle.ROTATE_X, Axis.X, radius, layout.grown(Handle.ROTATE_X, ringThickness), Colors.RED);
+            if (layout.mask.allowsRotateAxis(Axis.Y) && (active == null || active == Handle.ROTATE_Y)) sink.ring(Handle.ROTATE_Y, Axis.Y, radius, layout.grown(Handle.ROTATE_Y, ringThickness), Colors.GREEN);
         }
 
         /* The screen-space (billboard) view-rotation ring hides on its own element, not with
@@ -1451,20 +1526,20 @@ public class Gizmo
         /* Move and scale geometry share the same instant flip, including pick
          * bounds. Sort reflected bounds to preserve box winding. Rotation
          * keeps its camera-facing visible arcs. */
+        Vector3f signs = this.facingSigns;
         HandleSink sink = new HandleSink()
         {
             @Override
-            public void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color)
+            public void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color, float fade)
             {
                 /* Bars, planes and cubes of a locked axis stay off both passes. */
-                if (!layout.mask.allows(handle))
+                if (!layout.mask.allows(handle) || fade <= 0F)
                 {
                     return;
                 }
 
                 if (handle.op == Op.MOVE || handle.op == Op.SCALE)
                 {
-                    Vector3f signs = Gizmo.this.facingSigns;
                     x1 *= signs.x;
                     x2 *= signs.x;
                     y1 *= signs.y;
@@ -1474,7 +1549,22 @@ public class Gizmo
                 }
 
                 output.box(handle, Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
-                    Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2), color);
+                    Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2), color, fade);
+            }
+
+            @Override
+            public void cone(Handle handle, Axis axis, float sign, float base, float length, float radius, int color, float fade)
+            {
+                if (layout.mask.allows(handle) && fade > 0F)
+                {
+                    output.cone(handle, axis, sign * signs.get(axis.ordinal()), base, length, radius, color, fade);
+                }
+            }
+
+            @Override
+            public void centre(Handle handle, float radius, float thickness)
+            {
+                output.centre(handle, radius, thickness);
             }
 
             @Override
@@ -1493,68 +1583,107 @@ public class Gizmo
         float planeSize = layout.planeSize;
 
         /* The bars and planes read as move when move is on screen and as scale only when
-         * scale stands alone — so a grab of that element drives what its colour promised,
-         * and move and scale never share an id under the cursor. */
-        Handle barX = showMove ? Handle.MOVE_X : Handle.SCALE_X;
-        Handle barY = showMove ? Handle.MOVE_Y : Handle.SCALE_Y;
-        Handle barZ = showMove ? Handle.MOVE_Z : Handle.SCALE_Z;
+         * scale stands alone — so a grab of that element drives what its look promised,
+         * and move and scale never share an id under the cursor. A move bar ends in an
+         * arrow; a scale bar standing alone ends in its cube. */
+        Handle[] bars = showMove
+            ? new Handle[] {Handle.MOVE_X, Handle.MOVE_Y, Handle.MOVE_Z}
+            : new Handle[] {Handle.SCALE_X, Handle.SCALE_Y, Handle.SCALE_Z};
         Handle planeXZ = showMove ? Handle.MOVE_XZ : Handle.SCALE_XZ;
         Handle planeXY = showMove ? Handle.MOVE_XY : Handle.SCALE_XY;
         Handle planeZY = showMove ? Handle.MOVE_ZY : Handle.SCALE_ZY;
 
-        if (active == null || active == barX) sink.box(barX, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, Colors.RED);
-        if (active == null || active == barY) sink.box(barY, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
-        if (active == null || active == barZ) sink.box(barZ, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
+        /* The bars start just outside the centre circle, so it stays a clean ring. */
+        float barStart = layout.centreRadius + layout.centreThickness;
+        float coneRadius = CONE_RADIUS * scale * thickness;
+
+        for (int i = 0; i < 3; i++)
+        {
+            Handle bar = bars[i];
+
+            if (active != null && active != bar)
+            {
+                continue;
+            }
+
+            float half = layout.grown(bar, axisOffset);
+            float[] min = {-half, -half, -half};
+            float[] max = {half, half, half};
+
+            min[i] = barStart;
+            max[i] = axisSize;
+
+            sink.box(bar, min[0], min[1], min[2], max[0], max[1], max[2], AXIS_COLORS[i], layout.axisFade[i]);
+
+            if (showMove)
+            {
+                float radius = layout.lit(bar) ? coneRadius * LIT_CUBE_GROW : coneRadius;
+
+                sink.cone(bar, AXES[i], 1F, axisSize, coneRadius * CONE_LENGTH, radius, AXIS_COLORS[i], layout.axisFade[i]);
+            }
+        }
 
         sink.centreMask(axisOffset);
 
-        /* Screen-space (view-plane) translate handle: a white cube at the centre, twice the
-         * bars' thickness. Drawn before the planes so they overlay it, and after the rotation
-         * rings so it stays visible when they are on screen too. */
-        if (showMove && layout.mask.allows(Op.SCREEN) && (active == null || active == Handle.SCREEN))
-        {
-            float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
+        /* The centre circle: the screen-plane move, or, with move off, the uniform scale — never
+         * both, so the pick is never ambiguous between the two. */
+        Handle centre = layout.centreHandle();
 
-            sink.box(Handle.SCREEN, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
+        if (centre != null && (active == null || active == centre))
+        {
+            sink.centre(centre, layout.centreRadius, layout.grown(centre, layout.centreThickness));
         }
 
-        /* Uniform-scale handle: the same centre cube, shown only when move isn't (with
-         * both on screen the centre is the translate handle), so the pick is never
-         * ambiguous between the two. */
-        if (showScale && !showMove && layout.mask.allows(Op.SCALE_ALL) && (active == null || active == Handle.SCALE_ALL))
-        {
-            float scaleAllHalf = SCREEN_CUBE_HALF * scale * thickness;
-
-            sink.box(Handle.SCALE_ALL, -scaleAllHalf, -scaleAllHalf, -scaleAllHalf, scaleAllHalf, scaleAllHalf, scaleAllHalf, Colors.WHITE);
-        }
-
-        /* The plane quad's footprint is a fraction of the axis length, independent of
+        /* The plane square's footprint is a fraction of the axis length, independent of
          * axesThickness — thickness only fattens the bars and the flat slab depth, not how
          * big the two-axis plane reads. Its own setting grows it outwards from a fixed start,
-         * so a bigger plane is easier to grab without walking away from the origin. */
-        float planeStart = axisSize * 0.2F;
-        float planeEnd = planeStart + axisSize * 0.2F * planeSize;
+         * so a bigger plane is easier to grab without walking away from the origin. Each square
+         * takes the colour of the axis it does not move along, the one it faces. */
+        float planeStart = axisSize * 0.27F;
+        float planeEnd = planeStart + axisSize * 0.12F * planeSize;
         float planeThickness = axisOffset * 0.5F;
 
-        if (active == null || active == planeXZ) sink.box(planeXZ, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
-        if (active == null || active == planeXY) sink.box(planeXY, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.PLANE_XY);
-        if (active == null || active == planeZY) sink.box(planeZY, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.PLANE_ZY);
+        if (active == null || active == planeXZ) sink.box(planeXZ, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.GREEN, layout.planeFade[1]);
+        if (active == null || active == planeXY) sink.box(planeXY, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.BLUE, layout.planeFade[2]);
+        if (active == null || active == planeZY) sink.box(planeZY, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.RED, layout.planeFade[0]);
 
         if (showScale)
         {
-            float cubeHalf = SCALE_CUBE_HALF * scale * thickness;
+            Handle[] cubes = {Handle.SCALE_X, Handle.SCALE_Y, Handle.SCALE_Z};
 
-            if (active == null || active == Handle.SCALE_X) sink.box(Handle.SCALE_X, axisSize - cubeHalf, -cubeHalf, -cubeHalf, axisSize + cubeHalf, cubeHalf, cubeHalf, Colors.RED);
-            if (active == null || active == Handle.SCALE_Y) sink.box(Handle.SCALE_Y, -cubeHalf, axisSize - cubeHalf, -cubeHalf, cubeHalf, axisSize + cubeHalf, cubeHalf, Colors.GREEN);
-            if (active == null || active == Handle.SCALE_Z) sink.box(Handle.SCALE_Z, -cubeHalf, -cubeHalf, axisSize - cubeHalf, cubeHalf, cubeHalf, axisSize + cubeHalf, Colors.BLUE);
+            /* Beside the move arrows a scale cube is a small one partway along the bar; alone it
+             * takes the bar's end, at the size an arrow would have. Drawn after the bars, so it
+             * wins the pick where it sits on one. */
+            float at = showMove ? axisSize * SCALE_CUBE_AT : axisSize;
+            float cubeHalf = (showMove ? SCALE_CUBE_HALF : CONE_RADIUS) * scale * thickness;
+
+            for (int i = 0; i < 3; i++)
+            {
+                Handle cube = cubes[i];
+
+                if (active != null && active != cube)
+                {
+                    continue;
+                }
+
+                float half = layout.lit(cube) ? cubeHalf * LIT_CUBE_GROW : cubeHalf;
+                float[] min = {-half, -half, -half};
+                float[] max = {half, half, half};
+
+                min[i] = at - half;
+                max[i] = at + half;
+
+                sink.box(cube, min[0], min[1], min[2], max[0], max[1], max[2], AXIS_COLORS[i], layout.axisFade[i]);
+            }
         }
     }
 
     /**
      * What the gizmo shows this frame and at what size: which groups are on screen, which
-     * handle a running drag filters everything down to, and the settings-resolved dimensions.
-     * Taken once and used by both passes, so the pick can never be laid out from different
-     * numbers than the drawing — that used to be six lines copied into each.
+     * handle a running drag filters everything down to, which one is lit, how far each part
+     * has faded, and the settings-resolved dimensions. Taken once and used by both passes, so
+     * the pick can never be laid out from different numbers than the drawing — that used to
+     * be six lines copied into each.
      */
     private final class Layout
     {
@@ -1579,9 +1708,57 @@ public class Gizmo
         final float axisSize = AXIS_SIZE * this.scale * Gizmo.this.innerScale();
         final float axisOffset = AXIS_OFFSET * this.scale * this.thickness;
 
+        /** The centre circle's radius and line, as wide as a rotation ring's. */
+        final float centreRadius = CENTRE_RADIUS * this.scale;
+        final float centreThickness = 0.02F * this.scale * this.thickness;
+
+        /** The handle drawn lit: the one a running edit grabs, else the one under the cursor. */
+        final Handle lit;
+
+        /** How much of each axis's bar, arrow and cube, and of each plane (by its normal), is on screen. */
+        final float[] axisFade = new float[3];
+        final float[] planeFade = new float[3];
+
+        Layout()
+        {
+            Handle dragged = Gizmo.this.draggedHandle();
+
+            this.lit = dragged != null ? dragged : Gizmo.this.hoveredHandle;
+
+            for (int i = 0; i < 3; i++)
+            {
+                float cos = Math.abs(Gizmo.this.facingDots.get(i));
+
+                /* A running edit keeps every part it shows: the grabbed handle must not fade out
+                 * from under the cursor as the turn brings its axis round to the camera. */
+                this.axisFade[i] = dragged != null ? 1F : fade(cos, AXIS_FADE_FROM, AXIS_FADE_TO);
+                this.planeFade[i] = dragged != null ? 1F : fade(cos, PLANE_FADE_FROM, PLANE_FADE_TO);
+            }
+        }
+
         boolean showsBoxes()
         {
             return this.showMove || this.showScale;
+        }
+
+        /** The handle the centre circle stands for this frame, or {@code null} for no circle. */
+        Handle centreHandle()
+        {
+            if (this.showMove && this.mask.allows(Op.SCREEN)) return Handle.SCREEN;
+            if (this.showScale && !this.showMove && this.mask.allows(Op.SCALE_ALL)) return Handle.SCALE_ALL;
+
+            return null;
+        }
+
+        boolean lit(Handle handle)
+        {
+            return handle != null && handle == this.lit;
+        }
+
+        /** {@code size} widened when {@code handle} is lit. */
+        float grown(Handle handle, float size)
+        {
+            return this.lit(handle) ? size * LIT_GROW : size;
         }
     }
 
@@ -1592,6 +1769,7 @@ public class Gizmo
 
         Handle active = layout.active;
         float axisOffset = layout.axisOffset;
+        float opacity = BBSSettings.gizmoOpacity.get();
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         boolean building = false;
@@ -1610,10 +1788,12 @@ public class Gizmo
                 @Override
                 public void ring(Handle handle, Axis axis, float radius, float ringThickness, int color)
                 {
+                    boolean bright = layout.lit(handle);
+
                     Gizmo.this.rings.drawOccluded(stack, axis, radius, ringThickness,
-                        dimmed(Colors.getR(color), constrained),
-                        dimmed(Colors.getG(color), constrained),
-                        dimmed(Colors.getB(color), constrained));
+                        dimmed(lit(Colors.getR(color), bright), constrained),
+                        dimmed(lit(Colors.getG(color), bright), constrained),
+                        dimmed(lit(Colors.getB(color), bright), constrained));
                 }
 
                 @Override
@@ -1621,43 +1801,92 @@ public class Gizmo
                 {
                     /* This VBO ring sets the shader colour itself, so the opacity modulator
                      * doesn't reach it — fold it into the alpha here instead. */
-                    float alpha = Colors.getA(color) * BBSSettings.gizmoOpacity.get() * (constrained ? 0.35F : 1F);
+                    boolean bright = layout.lit(handle);
+                    float alpha = Colors.getA(color) * opacity * (constrained ? 0.35F : 1F);
 
-                    Gizmo.this.rings.drawBillboard(stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
+                    Gizmo.this.rings.drawBillboard(stack, lit(Colors.getR(color), bright), lit(Colors.getG(color), bright), lit(Colors.getB(color), bright), alpha);
                 }
             });
         }
+
+        /* The cones and the centre circle are cached meshes, drawn once the box batch is done
+         * with the shared buffer. What is see-through — the plane squares, and whatever is
+         * fading as it turns end-on — goes after everything solid and writes no depth, so it
+         * tints what lies behind it instead of hiding it. */
+        List<Runnable> solidMeshes = new ArrayList<>();
+        List<Runnable> glassMeshes = new ArrayList<>();
+        List<float[]> glassBoxes = new ArrayList<>();
+        List<float[]> glassPlanes = new ArrayList<>();
 
         if (layout.showsBoxes())
         {
             builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
             building = true;
 
-            this.collectHandles(layout, (handle, x1, y1, z1, x2, y2, z2, color) ->
-                Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2, color));
+            this.collectHandles(layout, new HandleSink()
+            {
+                @Override
+                public void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color, float fade)
+                {
+                    boolean bright = layout.lit(handle);
+                    boolean plane = handle.axis2 != null;
+                    float r = lit(Colors.getR(color), bright);
+                    float g = lit(Colors.getG(color), bright);
+                    float b = lit(Colors.getB(color), bright);
+                    float alpha = plane ? fade * (bright ? PLANE_LIT_ALPHA : PLANE_ALPHA) : fade;
+
+                    if (alpha >= 1F)
+                    {
+                        Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2, r, g, b, 1F);
+                    }
+                    else
+                    {
+                        (plane ? glassPlanes : glassBoxes).add(new float[] {x1, y1, z1, x2, y2, z2, r, g, b, alpha});
+                    }
+                }
+
+                @Override
+                public void cone(Handle handle, Axis axis, float sign, float base, float length, float radius, int color, float fade)
+                {
+                    boolean bright = layout.lit(handle);
+                    float r = lit(Colors.getR(color), bright);
+                    float g = lit(Colors.getG(color), bright);
+                    float b = lit(Colors.getB(color), bright);
+
+                    (fade >= 1F ? solidMeshes : glassMeshes).add(() ->
+                        Gizmo.this.rings.drawCone(stack, axis, sign, base, length, radius, r, g, b, fade * opacity));
+                }
+
+                @Override
+                public void centre(Handle handle, float radius, float thickness)
+                {
+                    solidMeshes.add(() -> Gizmo.this.rings.drawCentre(stack, radius, thickness, false, 1F, 1F, 1F, opacity));
+                }
+            });
         }
 
-        /* The centre cube is decoration, not a handle, so any filtered drag hides it — but
+        /* The centre marker is decoration, not a handle, so any filtered drag hides it — but
          * nothing else does. With every element switched off it is all that is left, and it
          * has to be: the gizmo's origin is where the selection is, and losing that marker
-         * means losing sight of what is being edited.
-         *
-         * Standing alone it takes the size the centre normally reads at — the screen-translate
-         * cube's. At the bar thickness it would be a speck: that size is chosen to sit in the
-         * crook of three axis bars, and with the bars gone there is nothing to be small against. */
-        if (active == null)
+         * means losing sight of what is being edited. Alone it is the centre circle; among
+         * rings or bars that have no centre handle it is a speck at their crossing. Where the
+         * centre circle is a handle it marks the origin itself. */
+        if (active == null && layout.centreHandle() == null)
         {
-            float centreHalf = layout.showsBoxes() || layout.showRotate
-                ? axisOffset
-                : SCREEN_CUBE_HALF * layout.scale * layout.thickness;
-
-            if (!building)
+            if (layout.showsBoxes() || layout.showRotate)
             {
-                builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-                building = true;
-            }
+                if (!building)
+                {
+                    builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+                    building = true;
+                }
 
-            Draw.fillBox(builder, stack, -centreHalf, -centreHalf, -centreHalf, centreHalf, centreHalf, centreHalf, Colors.WHITE);
+                Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
+            }
+            else
+            {
+                solidMeshes.add(() -> this.rings.drawCentre(stack, layout.centreRadius, layout.centreThickness, false, 1F, 1F, 1F, opacity));
+            }
         }
 
         if (building)
@@ -1665,17 +1894,99 @@ public class Gizmo
             /* Depth func/mask is owned by {@link #drawOccludedGizmo} so bars, planes and cubes
              * depth-sort against the rings and each other. Re-assert the opacity modulator:
              * the billboard view ring above sets the shader colour itself and leaves it opaque. */
-            RenderSystem.setShaderColor(1F, 1F, 1F, BBSSettings.gizmoOpacity.get());
+            RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
             RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
             BufferRenderer.drawWithGlobalProgram(builder.end());
+        }
+
+        solidMeshes.forEach(Runnable::run);
+
+        if (glassBoxes.isEmpty() && glassPlanes.isEmpty() && glassMeshes.isEmpty())
+        {
+            return;
+        }
+
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+
+        RenderSystem.depthMask(false);
+        RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
+
+        /* Closed shapes with their back faces culled, so a fading bar or cone is tinted once
+         * and not through both of its sides... */
+        RenderSystem.enableCull();
+        this.drawGlass(glassBoxes, stack, false);
+        glassMeshes.forEach(Runnable::run);
+
+        /* ...and the plane squares as single quads, seen from either side. */
+        RenderSystem.disableCull();
+        this.drawGlass(glassPlanes, stack, true);
+
+        if (cull) RenderSystem.enableCull();
+
+        RenderSystem.depthMask(true);
+    }
+
+    /** One batch of see-through boxes, or of plane squares flattened from their thin slabs. */
+    private void drawGlass(List<float[]> parts, MatrixStack stack, boolean flat)
+    {
+        if (parts.isEmpty())
+        {
+            return;
+        }
+
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        for (float[] p : parts)
+        {
+            if (flat)
+            {
+                fillPlane(builder, stack, p);
+            }
+            else
+            {
+                Draw.fillBox(builder, stack, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9]);
+            }
+        }
+
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+    }
+
+    /** A plane's slab ({@code x1 y1 z1 x2 y2 z2 r g b a}) as one quad through its thin middle. */
+    private static void fillPlane(BufferBuilder builder, MatrixStack stack, float[] p)
+    {
+        float dx = p[3] - p[0];
+        float dy = p[4] - p[1];
+        float dz = p[5] - p[2];
+
+        if (dy <= dx && dy <= dz)
+        {
+            float y = (p[1] + p[4]) * 0.5F;
+
+            Draw.fillQuad(builder, stack, p[0], y, p[2], p[3], y, p[2], p[3], y, p[5], p[0], y, p[5], p[6], p[7], p[8], p[9]);
+        }
+        else if (dz <= dx)
+        {
+            float z = (p[2] + p[5]) * 0.5F;
+
+            Draw.fillQuad(builder, stack, p[0], p[1], z, p[3], p[1], z, p[3], p[4], z, p[0], p[4], z, p[6], p[7], p[8], p[9]);
+        }
+        else
+        {
+            float x = (p[0] + p[3]) * 0.5F;
+
+            Draw.fillQuad(builder, stack, x, p[1], p[2], x, p[4], p[2], x, p[4], p[5], x, p[1], p[5], p[6], p[7], p[8], p[9]);
         }
     }
 
     /**
      * Draws the same gizmo for the picker: the same walks, painted with each handle's stencil
      * id instead of its colour, so what the cursor lands on is by construction what the eye
-     * sees. Ids go in the red channel, the way the pick buffer is read back.
+     * sees. Ids go in the red channel, the way the pick buffer is read back. A part faded
+     * nearly away is left out, so an axis seen end-on can't take a click meant for the centre.
      */
     private void drawStencilHandles(MatrixStack stack)
     {
@@ -1704,15 +2015,34 @@ public class Gizmo
         if (layout.showsBoxes())
         {
             BufferBuilder builder = Tessellator.getInstance().getBuffer();
+            List<Runnable> meshes = new ArrayList<>();
 
             builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
             this.collectHandles(layout, new HandleSink()
             {
                 @Override
-                public void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color)
+                public void box(Handle handle, float x1, float y1, float z1, float x2, float y2, float z2, int color, float fade)
                 {
-                    Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2, handle.index / 255F, 0F, 0F);
+                    if (fade >= PICK_FADE)
+                    {
+                        Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2, handle.index / 255F, 0F, 0F);
+                    }
+                }
+
+                @Override
+                public void cone(Handle handle, Axis axis, float sign, float base, float length, float radius, int color, float fade)
+                {
+                    if (fade >= PICK_FADE)
+                    {
+                        meshes.add(() -> Gizmo.this.rings.drawCone(stack, axis, sign, base, length, radius, handle.index / 255F, 0F, 0F, 1F));
+                    }
+                }
+
+                @Override
+                public void centre(Handle handle, float radius, float thickness)
+                {
+                    meshes.add(() -> Gizmo.this.rings.drawCentre(stack, radius, thickness, true, handle.index / 255F, 0F, 0F, 1F));
                 }
 
                 @Override
@@ -1725,6 +2055,8 @@ public class Gizmo
             RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
             BufferRenderer.drawWithGlobalProgram(builder.end());
+
+            meshes.forEach(Runnable::run);
         }
 
         RenderSystem.enableDepthTest();

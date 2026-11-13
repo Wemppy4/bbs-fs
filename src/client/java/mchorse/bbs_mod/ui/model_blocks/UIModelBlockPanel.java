@@ -10,7 +10,6 @@ import mchorse.bbs_mod.blocks.entities.ModelEquipment;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.CameraUtils;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Draw;
@@ -66,9 +65,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import mchorse.bbs_mod.utils.undo.UndoManager;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.GlUniform;
 import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.BlockHitResult;
@@ -1020,7 +1017,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         }
 
         /* Pick first (UI pass): the stencil must be read before the visual's hover
-         * (gizmo.update / renderGizmoHover both consume the picked index). */
+         * (gizmo.update consumes the picked index). */
         this.renderGizmoStencilInterface(context);
 
         if (this.canShowGizmo())
@@ -1058,51 +1055,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
             BBSSettings.lightInputs = false;
         }
 
-        this.renderGizmoHover(context);
-
         if (this.canShowGizmo())
         {
             this.gizmo.renderSphereHighlight(context);
             this.gizmo.renderReadout(context);
         }
-    }
-
-    /**
-     * Highlight the gizmo handle under the cursor by painting the picking
-     * framebuffer back over the viewport through the picker-preview shader,
-     * which recolours the pixels matching the hovered stencil index — the same
-     * hover overlay the film and form editors draw.
-     */
-    private void renderGizmoHover(UIContext context)
-    {
-        if (!this.canShowGizmo() || !this.gizmoStencil.hasPicked())
-        {
-            return;
-        }
-
-        Texture texture = this.gizmoStencil.getFramebuffer().getMainTexture();
-        int w = texture.width;
-        int h = texture.height;
-
-        ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
-        GlUniform target = previewProgram.getUniform("Target");
-
-        if (target != null)
-        {
-            target.set(this.gizmoStencil.getIndex());
-        }
-
-        GlUniform highlight = previewProgram.getUniform("HighlightColor");
-
-        if (highlight != null)
-        {
-            int color = BBSSettings.stencilHighlightColor.get();
-
-            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
-        }
-
-        RenderSystem.enableBlend();
-        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, 0, 0, context.menu.width, context.menu.height, 0, h, w, 0, w, h);
     }
 
     @Override

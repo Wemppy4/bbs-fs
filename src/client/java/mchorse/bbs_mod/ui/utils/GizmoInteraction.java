@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.ArcballDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Matrix4f;
@@ -26,6 +27,7 @@ public class GizmoInteraction
     private static final int SPHERE_PICK_MIN_RADIUS_PX = 12;
     private static final int BONE_VS_SPHERE_DRAG_THRESHOLD_PX = 4;
     private static final int ARCBALL_CIRCLE = 0x99ffffff;
+    private static final int TURN_LINE = 0xccffffff;
 
     private final GizmoViewport viewport;
     private final Vector2f sphereScreenCenter = new Vector2f();
@@ -154,6 +156,16 @@ public class GizmoInteraction
         this.pumpDrag(context);
         this.promotePendingPick(context);
         this.updateSphereHover(context);
+        this.updateHandleHover(context);
+    }
+
+    /** Tell the gizmo which handle is under the cursor, so the next draw lights it. */
+    private void updateHandleHover(UIContext context)
+    {
+        Area area = this.viewport.getGizmoArea();
+        boolean over = this.stencilWouldWinSpherePick() && area != null && area.isInside(context) && !this.viewport.isGizmoCovered(context);
+
+        Gizmo.INSTANCE.setHoveredHandle(over ? this.viewport.getGizmoStencil().getIndex() : 0);
     }
 
     /**
@@ -229,6 +241,14 @@ public class GizmoInteraction
             && gesture.getStrategy() instanceof ArcballDrag arcball && arcball.isGrabbing())
         {
             ScreenOverlay.circle(context, area, center.x, center.y, ArcballDrag.ballScreenRadius(area.h), ARCBALL_CIRCLE);
+        }
+
+        /* An axis turn, by its ring or by R and an axis key, runs a dashed line from the
+         * gizmo's centre to the cursor: what the angle is measured around and from. */
+        if (gesture != null && gesture.isEditing() && gesture.getOp() == TransformOp.ROTATE
+            && !gesture.isSphereRotate() && !gesture.isViewRotate() && gesture.getAxis() != null)
+        {
+            ScreenOverlay.dashedLine(context, area, center.x, center.y, context.mouseX, context.mouseY, TURN_LINE);
         }
 
         if (readout == null)

@@ -42,8 +42,17 @@ public class GizmoRings
     /** Angular length of the pointed ends where a ring disappears behind the sphere. */
     private final static float RING_TAPER_DEGREES = 22F;
 
+    /** Sides of the move arrows' cone. */
+    private final static int CONE_SEGMENTS = 16;
+
     private VertexBuffer ringVbo;
     private VertexBuffer sphereVbo;
+
+    /* The arrow tips and the centre handle: unit or size-keyed meshes drawn by matrix and
+     * shader colour, like the rings, so no pass tessellates them per frame. */
+    private VertexBuffer coneVbo;
+    private final TorusSlot centreRing = new TorusSlot();
+    private final TorusSlot centreDisc = new TorusSlot();
 
     private float lastScale = -1F;
     private float lastThickness = -1F;
@@ -194,7 +203,64 @@ public class GizmoRings
     public void drawBillboard(MatrixStack stack, float r, float g, float b, float a)
     {
         this.update();
+        this.drawFacing(stack, this.ringVbo, VIEW_RING_SCALE, r, g, b, a);
+    }
 
+    /**
+     * The move arrow's tip: a cone along {@code axis} (towards {@code sign}), its base {@code base}
+     * from the origin. One unit cone serves every arrow of every pass, stretched by the draw matrix,
+     * so the arrows cost three buffer draws a pass and are never re-tessellated.
+     */
+    public void drawCone(MatrixStack stack, Axis axis, float sign, float base, float length, float radius, float r, float g, float b, float a)
+    {
+        if (this.coneVbo == null)
+        {
+            this.coneVbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
+
+            BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+            builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+            buildUnitCone(builder);
+            this.coneVbo.bind();
+            this.coneVbo.upload(builder.end());
+            VertexBuffer.unbind();
+        }
+
+        Vector3f direction = new Vector3f(axis == Axis.X ? sign : 0F, axis == Axis.Y ? sign : 0F, axis == Axis.Z ? sign : 0F);
+        Matrix4f matrix = new Matrix4f(stack.peek().getPositionMatrix())
+            .translate(direction.x * base, direction.y * base, direction.z * base)
+            .rotate(new Quaternionf().rotationTo(0F, 1F, 0F, direction.x, direction.y, direction.z))
+            .scale(radius, length, radius);
+
+        this.drawTinted(this.coneVbo, matrix, r, g, b, a);
+    }
+
+    /**
+     * The centre handle: a camera-facing circle {@code thickness} wide, or, for the pick pass, the
+     * whole disc it encloses, so a click inside the circle grabs it too. Cached until its size changes.
+     */
+    public void drawCentre(MatrixStack stack, float radius, float thickness, boolean filled, float r, float g, float b, float a)
+    {
+        VertexBuffer vbo;
+
+        if (filled)
+        {
+            float outer = radius + thickness * 0.5F;
+
+            /* A torus whose tube reaches its own axis is a flat disc seen face-on. */
+            vbo = this.centreDisc.get(outer * 0.5F, outer);
+        }
+        else
+        {
+            vbo = this.centreRing.get(radius, thickness);
+        }
+
+        this.drawFacing(stack, vbo, 1F, r, g, b, a);
+    }
+
+    /** Draws a Y-axis mesh turned to face the camera, {@code scale} times its size. */
+    private void drawFacing(MatrixStack stack, VertexBuffer vbo, float scale, float r, float g, float b, float a)
+    {
         stack.push();
 
         Matrix4f matrix = stack.peek().getPositionMatrix();
@@ -214,15 +280,81 @@ public class GizmoRings
             stack.multiply(new Quaternionf().rotationTo(0F, 1F, 0F, toCamera.x, toCamera.y, toCamera.z));
         }
 
-        stack.scale(VIEW_RING_SCALE, VIEW_RING_SCALE, VIEW_RING_SCALE);
+        stack.scale(scale, scale, scale);
 
-        RenderSystem.setShaderColor(r, g, b, a);
-        this.ringVbo.bind();
-        this.ringVbo.draw(stack.peek().getPositionMatrix(), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
-        VertexBuffer.unbind();
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        this.drawTinted(vbo, stack.peek().getPositionMatrix(), r, g, b, a);
 
         stack.pop();
+    }
+
+    /** Draws a white mesh in the given colour (alpha included), then puts the caller's shader colour back. */
+    private void drawTinted(VertexBuffer vbo, Matrix4f matrix, float r, float g, float b, float a)
+    {
+        float[] shaderColor = RenderSystem.getShaderColor();
+        float pr = shaderColor[0];
+        float pg = shaderColor[1];
+        float pb = shaderColor[2];
+        float pa = shaderColor[3];
+
+        RenderSystem.setShaderColor(r, g, b, a);
+        vbo.bind();
+        vbo.draw(matrix, RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
+        VertexBuffer.unbind();
+        RenderSystem.setShaderColor(pr, pg, pb, pa);
+    }
+
+    /** A cone of radius 1 and height 1 standing on the origin along +Y, wound outwards like {@link Draw#fillBox}. */
+    private static void buildUnitCone(BufferBuilder builder)
+    {
+        for (int i = 0; i < CONE_SEGMENTS; i++)
+        {
+            double a1 = Math.PI * 2D * i / CONE_SEGMENTS;
+            double a2 = Math.PI * 2D * (i + 1) / CONE_SEGMENTS;
+            float x1 = (float) Math.cos(a1);
+            float z1 = (float) Math.sin(a1);
+            float x2 = (float) Math.cos(a2);
+            float z2 = (float) Math.sin(a2);
+
+            builder.vertex(0F, 1F, 0F).color(1F, 1F, 1F, 1F).next();
+            builder.vertex(x2, 0F, z2).color(1F, 1F, 1F, 1F).next();
+            builder.vertex(x1, 0F, z1).color(1F, 1F, 1F, 1F).next();
+
+            builder.vertex(0F, 0F, 0F).color(1F, 1F, 1F, 1F).next();
+            builder.vertex(x1, 0F, z1).color(1F, 1F, 1F, 1F).next();
+            builder.vertex(x2, 0F, z2).color(1F, 1F, 1F, 1F).next();
+        }
+    }
+
+    /** A camera-facing torus cached by its size: rebuilt only when the size asked for changes. */
+    private static class TorusSlot
+    {
+        private VertexBuffer vbo;
+        private float radius = -1F;
+        private float thickness;
+
+        private VertexBuffer get(float radius, float thickness)
+        {
+            if (this.vbo == null || Float.compare(this.radius, radius) != 0 || Float.compare(this.thickness, thickness) != 0)
+            {
+                if (this.vbo == null)
+                {
+                    this.vbo = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+                }
+
+                BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+                builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+                Draw.arc3D(builder, IDENTITY, Axis.Y, radius, thickness, 1F, 1F, 1F, 0F, 360F, 32, 8);
+                this.vbo.bind();
+                this.vbo.upload(builder.end());
+                VertexBuffer.unbind();
+
+                this.radius = radius;
+                this.thickness = thickness;
+            }
+
+            return this.vbo;
+        }
     }
 
     /**

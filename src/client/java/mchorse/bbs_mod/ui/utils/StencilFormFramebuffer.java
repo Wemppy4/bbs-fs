@@ -53,6 +53,12 @@ public class StencilFormFramebuffer
     /** Same, lighting up {@code index} instead of what is under the cursor — a host pointing at a bone from a list. */
     public void renderPreview(UIContext context, Area area, int index)
     {
+        /* Gizmo handles light up themselves (Gizmo draws the hovered one brighter and wider). */
+        if (index >= Gizmo.STENCIL_X && index <= Gizmo.STENCIL_MAX)
+        {
+            return;
+        }
+
         Texture texture = this.getFramebuffer().getMainTexture();
         ShaderProgram program = BBSShaders.getPickerPreviewProgram();
         GlUniform target = program.getUniform("Target");
