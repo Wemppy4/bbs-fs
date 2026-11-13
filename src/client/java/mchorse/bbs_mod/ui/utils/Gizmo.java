@@ -1658,7 +1658,7 @@ public class Gizmo
          * so a bigger plane is easier to grab without walking away from the origin. Each square
          * takes the colour of the axis it does not move along, the one it faces. */
         float planeStart = axisSize * 0.27F;
-        float planeEnd = planeStart + axisSize * 0.12F * planeSize;
+        float planeEnd = planeStart + axisSize * 0.18F * planeSize;
         float planeThickness = axisOffset * 0.5F;
 
         if (active == null || active == planeXZ) sink.box(planeXZ, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.GREEN, layout.planeFade[1]);
