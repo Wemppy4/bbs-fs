@@ -1,7 +1,10 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -14,6 +17,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
@@ -26,6 +30,8 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.camera.OrbitViewportController;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.pose.Transform;
 import mchorse.bbs_mod.utils.interps.Lerps;
 
 /**
@@ -625,7 +631,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
              * anchored within its own tree would otherwise evaluate the same pose twice. */
             FormFrameCache frame = new FormFrameCache();
             MatrixCache map = FormFrameCache.collect(frame, form, entity, transition);
-            Vector3f center = this.getPoseCenter(map, part);
+            Vector3f center = this.getPoseCenter(form, map, part);
 
             if (center == null && !part.isEmpty())
             {
@@ -654,9 +660,89 @@ public class OrbitFilmCameraController extends OrbitViewportController
         return new Vector3d(x, y, z);
     }
 
-    private Vector3f getPoseCenter(MatrixCache map, String part)
+    /**
+     * The whole form is its own bones: what is hung on it (a weapon, sparks, props flying off a
+     * hand) doesn't move the middle, visible or not. Only a form without bones of its own (a block,
+     * an item, an empty model carrying the actual thing as body parts) is measured by its parts,
+     * and then only by the ones that are drawn - hidden or squashed to nothing, a part is not there.
+     */
+    private Vector3f getPoseCenter(Form form, MatrixCache map, String part)
     {
-        String prefix = part + "/";
+        if (!part.isEmpty())
+        {
+            String prefix = part + "/";
+
+            return this.getBoundsCenter(map, (key) -> key.startsWith(prefix), map.get(part).matrix());
+        }
+
+        Set<String> parts = new HashSet<>();
+        Set<String> hidden = new HashSet<>();
+
+        for (BodyPart bodyPart : form.parts.getAllTyped())
+        {
+            parts.add(bodyPart.getId());
+        }
+
+        this.collectHiddenParts(form, "", hidden);
+
+        Vector3f own = this.getBoundsCenter(map, (key) -> !key.isEmpty() && !parts.contains(key.split("/", 2)[0]), null);
+
+        if (own != null)
+        {
+            return own;
+        }
+
+        return this.getBoundsCenter(map, (key) -> !key.isEmpty() && !isUnder(key, hidden), map.get("").matrix());
+    }
+
+    /** Paths of the body parts that aren't drawn: switched off or scaled down to nothing (their own parts go with them). */
+    private void collectHiddenParts(Form form, String prefix, Set<String> hidden)
+    {
+        for (BodyPart bodyPart : form.parts.getAllTyped())
+        {
+            Form child = bodyPart.getForm();
+
+            if (child == null)
+            {
+                continue;
+            }
+
+            String path = StringUtils.combinePaths(prefix, bodyPart.getId());
+
+            if (!child.visible.get() || isFlat(bodyPart.transform.get()) || isFlat(FormUtilsClient.getRenderer(child).createTransform()))
+            {
+                hidden.add(path);
+            }
+            else
+            {
+                this.collectHiddenParts(child, path, hidden);
+            }
+        }
+    }
+
+    private static boolean isFlat(Transform transform)
+    {
+        Vector3f scale = transform.scale;
+
+        return Math.abs(scale.x) < 0.0001F || Math.abs(scale.y) < 0.0001F || Math.abs(scale.z) < 0.0001F;
+    }
+
+    private static boolean isUnder(String key, Set<String> paths)
+    {
+        for (String path : paths)
+        {
+            if (key.equals(path) || key.startsWith(path + "/"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** The middle of the frames whose paths pass the filter; the fallback's position when none do. */
+    private Vector3f getBoundsCenter(MatrixCache map, Predicate<String> filter, Matrix4f fallback)
+    {
         Vector3f min = null;
         Vector3f max = null;
 
@@ -666,7 +752,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
             String key = entry.getKey();
 
             /* A pole or a look target set out in front of a rig would pull the middle off the body. */
-            if (matrix == null || entry.getValue().offBody() || (part.isEmpty() ? key.isEmpty() : !key.startsWith(prefix)))
+            if (matrix == null || entry.getValue().offBody() || !filter.test(key))
             {
                 continue;
             }
@@ -687,9 +773,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
 
         if (min == null)
         {
-            Matrix4f root = map.get(part).matrix();
-
-            return root == null ? null : root.getTranslation(new Vector3f());
+            return fallback == null ? null : fallback.getTranslation(new Vector3f());
         }
 
         return min.add(max).mul(0.5F);
