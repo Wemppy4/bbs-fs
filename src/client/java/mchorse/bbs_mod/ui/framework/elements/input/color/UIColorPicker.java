@@ -112,8 +112,8 @@ public class UIColorPicker extends UIElement
     private final Color tempColor2 = new Color();
 
     /**
-     * The color the popup opened with. Escape puts it back, and a color that never moved
-     * away from it isn't worth remembering among the recent ones.
+     * The color the popup opened with. Clicking its half of the preview puts it back, and a
+     * color that never moved away from it isn't worth remembering among the recent ones.
      */
     private final Color initial = new Color();
 
@@ -373,7 +373,7 @@ public class UIColorPicker extends UIElement
         this.syncHsvFromColor();
     }
 
-    /** Place the popup and remember what it opened with, so Escape has somewhere to go back to. */
+    /** Place the popup and remember what it opened with, so the preview has somewhere to go back to. */
     public void setup(int x, int y)
     {
         this.xy(x, y);
@@ -498,13 +498,6 @@ public class UIColorPicker extends UIElement
         {
             this.addToRecent();
         }
-    }
-
-    /** Escape puts the color back the way it was when the popup opened, and closes it. */
-    private void cancelPicker()
-    {
-        this.removeFromParent();
-        this.revertToInitial();
     }
 
     /** Back to the color the picker opened with, leaving it open. */
@@ -746,7 +739,8 @@ public class UIColorPicker extends UIElement
                 return true;
             }
 
-            this.cancelPicker();
+            /* Escape keeps the color, like clicking outside; the preview's left half reverts */
+            this.closePicker();
 
             return true;
         }
