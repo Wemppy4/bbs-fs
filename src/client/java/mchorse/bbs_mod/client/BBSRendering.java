@@ -1040,7 +1040,7 @@ public class BBSRendering
 
         if (BBSModClient.getCameraController().getCurrent() instanceof CameraWorkCameraController controller)
         {
-            T value = values.apply(controller.getContext()).get(key);
+            T value = values.apply(controller.getCurveContext()).get(key);
 
             if (value != null)
             {

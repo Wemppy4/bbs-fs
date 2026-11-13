@@ -54,6 +54,13 @@ public class SequenceCameraController extends CameraWorkCameraController
         return this.filmContext;
     }
 
+    /** The curves come from the live film: the sequence's own clips have none */
+    @Override
+    public CameraClipContext getCurveContext()
+    {
+        return this.filmContext;
+    }
+
     /**
      * The live film changed: what the previous one was playing (its sound, its videos) stops.
      */

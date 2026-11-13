@@ -29,6 +29,12 @@ public abstract class CameraWorkCameraController implements ICameraController
         return this.context;
     }
 
+    /** The clips whose curves (sun, brightness, weather...) set how the world looks */
+    public CameraClipContext getCurveContext()
+    {
+        return this.context;
+    }
+
     public Position getPosition()
     {
         return this.position;
