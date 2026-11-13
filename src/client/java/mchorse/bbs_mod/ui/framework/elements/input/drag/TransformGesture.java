@@ -174,11 +174,27 @@ public class TransformGesture implements DragContext
     /* Edit entry points. The mouse path (a gizmo handle pick) supplies the axes
      * directly; the keyboard path walks the user-configured hotkey orders. Both
      * funnel into startEdit, and both start their operation on the first press —
-     * the gizmo shows every element at once, so there is no display mode for a
-     * press to switch first. */
+     * unless the gizmo is split into modes (BBSSettings#gizmoModes): then a key whose
+     * mode isn't on screen switches the gizmo to it first, and only its next press
+     * starts the operation. A key pressed mid-edit switches the edit, as before, and
+     * takes the gizmo's mode along. */
 
     public void enableMode(TransformOp op)
     {
+        /* With the gizmo switched off there is no mode to see, so the key just starts. */
+        if (BBSSettings.gizmoModes.get() && BBSSettings.gizmos.get())
+        {
+            Gizmo gizmo = Gizmo.INSTANCE;
+            boolean switching = gizmo.getMode() != op;
+
+            gizmo.setMode(op);
+
+            if (switching && !this.isEditing())
+            {
+                return;
+            }
+        }
+
         GizmoDrag drag = BBSSettings.simpleKeyboardTransform.get() ? null : this.host.freshHotkeyDrag();
         boolean ray = drag != null;
 

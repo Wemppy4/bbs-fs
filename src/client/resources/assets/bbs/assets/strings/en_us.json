@@ -413,6 +413,8 @@
 	"bbs.config.transformation.rotate_3d_sphere_mode-comment": "Trackball follows the cursor; arcball rotates around the sphere.",
 	"bbs.config.transformation.hide_inactive_handles": "Hide inactive handles",
 	"bbs.config.transformation.hide_inactive_handles-comment": "Hide inactive handles while dragging.",
+	"bbs.config.transformation.gizmo_modes": "Split into modes",
+	"bbs.config.transformation.gizmo_modes-comment": "G, R and S switch the gizmo to move, rotate or scale; pressing the key of the current mode starts the transform.",
 	"bbs.config.transformation.pose_show_disabled_bones": "Show disabled bones",
 	"bbs.config.transformation.pose_show_disabled_bones-comment": "Keep factory-disabled bones selectable in pose editor and viewport.",
 	"bbs.config.transformation.snap_translate": "Move snap step",

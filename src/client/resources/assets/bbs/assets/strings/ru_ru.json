@@ -413,6 +413,8 @@
 	"bbs.config.transformation.rotate_3d_sphere_mode-comment": "Трекбол следует за курсором; аркбол вращает вокруг сферы.",
 	"bbs.config.transformation.hide_inactive_handles": "Скрывать неактивные элементы",
 	"bbs.config.transformation.hide_inactive_handles-comment": "Скрывать неактивные ручки при перетаскивании.",
+	"bbs.config.transformation.gizmo_modes": "Разделить на режимы",
+	"bbs.config.transformation.gizmo_modes-comment": "G, R и S переключают гизмо на перемещение, поворот или масштаб; клавиша текущего режима начинает трансформацию.",
 	"bbs.config.transformation.snap_translate": "Шаг привязки перемещения",
 	"bbs.config.transformation.snap_translate-comment": "Шаг привязки перемещения при зажатом Ctrl.",
 	"bbs.config.transformation.snap_rotate": "Шаг привязки вращения",

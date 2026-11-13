@@ -155,6 +155,11 @@ public class Gizmo
      *  drawn lit; {@code null} over nothing. */
     private Handle hoveredHandle;
 
+    /** The operation the gizmo shows while {@link BBSSettings#gizmoModes} splits it into modes;
+     *  G, R and S switch it ({@link TransformGesture#enableMode(TransformOp)}). For the session
+     *  only, and shared by every editor, like the gizmo itself. */
+    private TransformOp mode = TransformOp.TRANSLATE;
+
     private int index;
     private int mouseX;
     private int mouseY;
@@ -303,6 +308,19 @@ public class Gizmo
     public void setSphereHovered(boolean hovered)
     {
         this.sphereHovered = hovered;
+    }
+
+    public TransformOp getMode()
+    {
+        return this.mode;
+    }
+
+    public void setMode(TransformOp mode)
+    {
+        if (mode != null)
+        {
+            this.mode = mode;
+        }
     }
 
     /** The stencil id under the cursor, or anything outside the handle range for none. */
@@ -2074,31 +2092,41 @@ public class Gizmo
      */
     public static enum Element
     {
-        /** Move: the axis bars, the two-axis planes and the screen-plane centre cube. */
-        TRANSLATE(() -> BBSSettings.gizmoShowTranslate),
-        /** Scale: the cubes at the ends of the axes and the uniform-scale centre cube. */
-        SCALE(() -> BBSSettings.gizmoShowScale),
+        /** Move: the axis bars with their arrows, the two-axis planes and the centre circle. */
+        TRANSLATE(() -> BBSSettings.gizmoShowTranslate, TransformOp.TRANSLATE),
+        /** Scale: the cubes on the axes and, with move off, the uniform-scale centre circle. */
+        SCALE(() -> BBSSettings.gizmoShowScale, TransformOp.SCALE),
         /** The three axis rotation rings. */
-        ROTATE(() -> BBSSettings.gizmoShowRotate),
+        ROTATE(() -> BBSSettings.gizmoShowRotate, TransformOp.ROTATE),
         /** The camera-facing (billboard) rotation ring. */
-        VIEW_ROTATE(() -> BBSSettings.gizmoShowViewRotate),
+        VIEW_ROTATE(() -> BBSSettings.gizmoShowViewRotate, TransformOp.ROTATE),
         /** The free-rotation sphere in the middle (trackball / arcball). */
-        SPHERE(() -> BBSSettings.gizmoShowSphere);
+        SPHERE(() -> BBSSettings.gizmoShowSphere, TransformOp.ROTATE);
 
         /* A supplier rather than the value itself: this enum may well be initialised
          * before BBSSettings#register has filled its fields in. */
         private final Supplier<ValueBoolean> setting;
 
-        Element(Supplier<ValueBoolean> setting)
+        /** The gizmo mode the element belongs to, when the gizmo is split into modes. */
+        private final TransformOp mode;
+
+        Element(Supplier<ValueBoolean> setting, TransformOp mode)
         {
             this.setting = setting;
+            this.mode = mode;
         }
 
+        /** Switched on in the settings and, with the gizmo split into modes, part of the current one. */
         public boolean isVisible()
         {
             ValueBoolean value = this.setting.get();
 
-            return value == null || value.get();
+            if (value != null && !value.get())
+            {
+                return false;
+            }
+
+            return BBSSettings.gizmoModes == null || !BBSSettings.gizmoModes.get() || Gizmo.INSTANCE.mode == this.mode;
         }
     }
 

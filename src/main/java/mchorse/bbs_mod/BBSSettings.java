@@ -72,6 +72,8 @@ public class BBSSettings {
 	public static ValueFloat gizmoPlaneSize;
 	public static ValueInt rotate3dSphereMode;
 	public static ValueBoolean hideInactiveHandles;
+	/* G, R and S first switch the gizmo to one operation's handles, then start it; see Gizmo#getMode. */
+	public static ValueBoolean gizmoModes;
 	/* The gizmo always carries every one of its elements; these say which of them
 	 * reach the screen and the cursor. See mchorse.bbs_mod.ui.utils.Gizmo.Element. */
 	public static ValueBoolean gizmoShowTranslate;
@@ -826,6 +828,7 @@ public class BBSSettings {
 		gizmoShowSphere = builder.getBoolean("gizmo_show_sphere", true);
 		rotate3dSphereMode = builder.getInt("rotate_3d_sphere_mode", 0);
 		hideInactiveHandles = builder.getBoolean("hide_inactive_handles", true);
+		gizmoModes = builder.getBoolean("gizmo_modes", false);
 		snapTranslate = builder.getFloat("snap_translate", 1F, 0.001F, 100F);
 		snapRotate = builder.getFloat("snap_rotate", 5F, 0.001F, 90F);
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
