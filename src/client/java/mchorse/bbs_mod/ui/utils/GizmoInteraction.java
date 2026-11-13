@@ -243,10 +243,11 @@ public class GizmoInteraction
             ScreenOverlay.circle(context, area, center.x, center.y, ArcballDrag.ballScreenRadius(area.h), ARCBALL_CIRCLE);
         }
 
-        /* An axis turn, by its ring or by R and an axis key, runs a dashed line from the
-         * gizmo's centre to the cursor: what the angle is measured around and from. */
+        /* A turn about one axis — an axis ring, the screen ring, or R with an axis — runs a
+         * dashed line from the gizmo's centre to the cursor: what the angle is measured
+         * around and from. The free turns (trackball, arcball) have no such angle. */
         if (gesture != null && gesture.isEditing() && gesture.getOp() == TransformOp.ROTATE
-            && !gesture.isSphereRotate() && !gesture.isViewRotate() && gesture.getAxis() != null)
+            && !gesture.isSphereRotate() && (gesture.isViewRotate() || gesture.getAxis() != null))
         {
             ScreenOverlay.dashedLine(context, area, center.x, center.y, context.mouseX, context.mouseY, TURN_LINE);
         }
