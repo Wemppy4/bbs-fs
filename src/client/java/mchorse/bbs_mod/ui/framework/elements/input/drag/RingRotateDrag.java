@@ -13,14 +13,11 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Rotate around a single gizmo ring as if the ring itself were held: the turn is
- * the angle, in the ring's plane, between the points of that plane under the
- * cursor, so the pie's leading edge stays under the cursor however the ring is
- * tilted. A ring seen nearly edge-on has no usable plane (a pixel of cursor would
- * be a huge turn), so there — and on any frame whose cursor ray misses the
- * plane — the turn falls back to the angle the cursor sweeps around the projected
- * gizmo centre on screen. Either way the per-frame deltas are unwrapped and
- * accumulated without limit, so the user can wind several full turns.
+ * Rotate around a single gizmo ring by the angle the cursor sweeps around
+ * the projected gizmo center on screen. Unlike a ring-plane projection this
+ * stays accurate when the ring faces the camera (where the plane hit
+ * degenerates), and the per-frame deltas are unwrapped and accumulated
+ * without limit so the user can wind several full turns in either direction.
  *
  * <p>The rotation is rebuilt every frame as the FIXED grab pose plus the total
  * sweep — a pure function of the gesture. EVERY space turns about the axis the
@@ -35,10 +32,6 @@ import org.joml.Vector3f;
  */
 public class RingRotateDrag extends DragStrategy
 {
-    /** |cos| between the ring's axis and the line of sight below which the ring counts as
-     *  seen edge-on (about 15° from it) and the turn is measured on screen instead. */
-    private static final float RING_GRAB_MIN_FACING = 0.25F;
-
     /** World-space unit rotation axis of the grabbed ring, captured at drag start. */
     private final Vector3f axisDir = new Vector3f();
 
@@ -55,13 +48,6 @@ public class RingRotateDrag extends DragStrategy
     private float rotateSign = 1F;
 
     private float accumulatedDeg;
-
-    /** Whether the turn follows the ring-plane point under the cursor (the ring isn't edge-on). */
-    private boolean ringGrab;
-
-    /** The previous cursor point on the ring's plane, from the origin, and whether it is valid. */
-    private final Vector3f lastRingVec = new Vector3f();
-    private boolean hasLastRing;
 
     /** Start rotation (degrees) from the cache; the fixed base the sweep adds onto. */
     private final Vector3f startRotateDeg = new Vector3f();
@@ -127,7 +113,6 @@ public class RingRotateDrag extends DragStrategy
         if (this.hasStart)
         {
             this.lastScreenAngle = RotationDragMath.screenAngle(this.screenCenter, mouseX, mouseY);
-            this.hasLastRing = this.ringVecAt(mouseX, mouseY, this.lastRingVec);
 
             return;
         }
@@ -262,12 +247,6 @@ public class RingRotateDrag extends DragStrategy
             }
         }
 
-        /* Held by its plane unless the ring is seen nearly edge-on; the axis is final here
-         * (the channel path may have swapped it), and so is the camera for the drag. */
-        Vector3f sight = new Vector3f(intoScreen);
-
-        this.ringGrab = sight.lengthSquared() > 1.0E-12F && Math.abs(sight.normalize().dot(this.axisDir)) >= RING_GRAB_MIN_FACING;
-        this.hasLastRing = this.ringVecAt(mouseX, mouseY, this.lastRingVec);
         this.hasStart = true;
     }
 
@@ -280,32 +259,10 @@ public class RingRotateDrag extends DragStrategy
         }
 
         float current = RotationDragMath.screenAngle(this.screenCenter, mouseX, mouseY);
-        float delta = RotationDragMath.wrapSeamRad(current - this.lastScreenAngle) * this.rotateSign;
+        float delta = RotationDragMath.wrapSeamRad(current - this.lastScreenAngle);
 
         this.lastScreenAngle = current;
-
-        if (this.ringGrab)
-        {
-            Vector3f ring = new Vector3f();
-
-            if (this.ringVecAt(mouseX, mouseY, ring))
-            {
-                /* The signed angle about the axis from the last plane point to this one. */
-                if (this.hasLastRing)
-                {
-                    delta = (float) Math.atan2(this.axisDir.dot(new Vector3f(this.lastRingVec).cross(ring)), this.lastRingVec.dot(ring));
-                }
-
-                this.lastRingVec.set(ring);
-                this.hasLastRing = true;
-            }
-            else
-            {
-                this.hasLastRing = false;
-            }
-        }
-
-        this.accumulatedDeg += MathUtils.toDeg(delta);
+        this.accumulatedDeg += MathUtils.toDeg(delta) * this.rotateSign;
 
         /* Apply the swept turn about the ring's world axis as a parent-frame
          * delta onto the grab pose (gimbal-free, quat- and euler-aware through
@@ -433,30 +390,5 @@ public class RingRotateDrag extends DragStrategy
         float start = this.startRotateDeg.get(this.axis.ordinal());
 
         return (float) this.snapValue(start + this.accumulatedDeg) - start;
-    }
-
-    /**
-     * Where the cursor points on the ring's plane, as the vector from the gizmo origin
-     * with its along-axis part removed; false when the cursor ray misses the plane or
-     * points at the origin itself, where no angle can be read.
-     */
-    private boolean ringVecAt(int mouseX, int mouseY, Vector3f out)
-    {
-        GizmoDrag drag = this.ctx.drag();
-        Vector3d hit = new Vector3d();
-
-        if (drag == null || !drag.intersectPlane(mouseX, mouseY, this.axisDir, hit))
-        {
-            return false;
-        }
-
-        out.set(
-            (float) (hit.x - drag.gizmoOrigin.x),
-            (float) (hit.y - drag.gizmoOrigin.y),
-            (float) (hit.z - drag.gizmoOrigin.z)
-        );
-        out.sub(new Vector3f(this.axisDir).mul(out.dot(this.axisDir)));
-
-        return out.lengthSquared() > 1.0E-10F;
     }
 }
