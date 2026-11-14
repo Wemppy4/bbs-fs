@@ -20,7 +20,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -187,22 +186,17 @@ public class IrisShaderCurves
 
         MinecraftClient mc = MinecraftClient.getInstance();
 
-        mc.execute(() ->
+        /* Not right away: Iris is still handling the failed build, and after it returns it turns
+         * shaders off, which would throw away the pipeline a reload made in there */
+        ShaderOptions.reload(() ->
         {
             if (mc.player != null)
             {
                 mc.player.sendMessage(Text.literal((next == Mode.VALUES ? UIKeys.CAMERA_PANELS_SHADER_FALLBACK_VALUES : UIKeys.CAMERA_PANELS_SHADER_FALLBACK_OFF).get()), false);
             }
 
-            try
-            {
-                Iris.reload();
-            }
-            catch (IOException e)
-            {
-                LOGGER.error("Shader curves: couldn't reload the shader pack", e);
-            }
-        });
+            Iris.reload();
+        }, () -> LOGGER.error("Shader curves: couldn't reload the shader pack"));
 
         return true;
     }
