@@ -116,7 +116,7 @@ public class UIFilmPreview extends UIWorldPreview
         this.placementGizmo = new UIPlacementGizmo(() -> filmPanel.cameraEditor, filmPanel::getCursor);
 
         /* Preview buttons */
-        this.show = new UIIcon(Icons.CAMERA, (b) -> this.getContext().replaceContextMenu(this::fillShowMenu));
+        this.show = new UIIcon(Icons.VISIBLE, (b) -> this.getContext().replaceContextMenu(this::fillShowMenu));
         this.show.tooltip(UIKeys.FILM_PREVIEW_SHOW);
         this.frame = this.createFrameIcon();
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
