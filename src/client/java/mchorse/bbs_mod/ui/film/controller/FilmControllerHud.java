@@ -19,13 +19,13 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 
+import java.util.Locale;
+
 /**
  * The editor's overlay on the film preview. Split out of {@link UIFilmController} because it
  * only READS — every number on screen belongs to something else (the mouse control, the take,
  * the selection), and drawing them was the longest single stretch of the controller.
  */
-import java.util.Locale;
-
 public class FilmControllerHud
 {
     /** The side of the selected replay's form thumbnail. */
