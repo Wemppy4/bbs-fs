@@ -133,11 +133,13 @@ public class UIFilmController extends UIElement implements GizmoViewport
         this.markup.flush(context);
     }
 
-    /** Where the film's camera stands and looks, seen from outside it: its frustum's edges, the middle in blue. */
+    /** Where the film's camera stands and looks, seen from outside it: its frustum's edges, the middle in blue.
+     * Without a clip that places the camera there is no film camera, its position is just the view (orbit, free). */
     private void renderCameraFrustum()
     {
         if (this.editorController == null || this.getPovMode() == CAMERA_MODE_CAMERA
-            || !BBSSettings.recordingCameraPreview.get() || !BBSSettings.recordingOverlays.get())
+            || !BBSSettings.recordingCameraPreview.get() || !BBSSettings.recordingOverlays.get()
+            || !this.panel.getRunner().isPlaced())
         {
             return;
         }

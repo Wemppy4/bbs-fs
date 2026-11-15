@@ -72,6 +72,12 @@ public class KeyframeClip extends CameraClip
     }
 
     @Override
+    public boolean placesCamera()
+    {
+        return !this.additive.get();
+    }
+
+    @Override
     public void applyClip(ClipContext context, Position position)
     {
         this.underneath.set(position);

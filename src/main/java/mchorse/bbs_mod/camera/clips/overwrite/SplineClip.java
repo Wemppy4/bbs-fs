@@ -63,6 +63,12 @@ public class SplineClip extends EntityClip
     }
 
     @Override
+    public boolean placesCamera()
+    {
+        return true;
+    }
+
+    @Override
     protected void applyClip(ClipContext context, Position position)
     {}
 

@@ -84,6 +84,12 @@ public class PathClip extends CameraClip
     }
 
     @Override
+    public boolean placesCamera()
+    {
+        return true;
+    }
+
+    @Override
     public void applyClip(ClipContext context, Position position)
     {
         int duration = this.duration.get();

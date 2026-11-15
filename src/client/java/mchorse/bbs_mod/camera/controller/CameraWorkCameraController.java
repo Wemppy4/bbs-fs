@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.camera.controller;
 
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.camera.clips.CameraClip;
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
 import mchorse.bbs_mod.camera.data.Position;
@@ -11,6 +12,9 @@ public abstract class CameraWorkCameraController implements ICameraController
 {
     protected CameraClipContext context;
     protected Position position = new Position();
+    /* Whether a clip set where the camera stands on the last applied tick, rather than the
+     * position being only what the camera already was (no clip there, or only modifiers) */
+    protected boolean placed;
 
     public CameraWorkCameraController()
     {
@@ -40,6 +44,12 @@ public abstract class CameraWorkCameraController implements ICameraController
         return this.position;
     }
 
+    /** Whether the film has a camera of its own on the current tick, so {@link #getPosition()} is where it stands */
+    public boolean isPlaced()
+    {
+        return this.context.clips != null && this.placed;
+    }
+
     protected void apply(Camera camera, int ticks, float transition)
     {
         if (camera != null)
@@ -49,10 +59,14 @@ public abstract class CameraWorkCameraController implements ICameraController
 
         this.context.clipData.clear();
         this.context.setup(ticks, transition);
+        this.placed = false;
 
         for (Clip clip : this.context.clips.getClips(ticks))
         {
-            this.context.apply(clip, this.position);
+            if (this.context.apply(clip, this.position) && clip.enabled.get() && clip instanceof CameraClip cameraClip && cameraClip.placesCamera())
+            {
+                this.placed = true;
+            }
         }
 
         AudioClientClip.manageSounds(this.context);

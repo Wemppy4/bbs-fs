@@ -14,6 +14,15 @@ public abstract class CameraClip extends Clip
     public void fromCamera(Camera camera)
     {}
 
+    /**
+     * Whether this clip puts the camera somewhere on its own, so with it the film has a camera,
+     * rather than shifting the camera that is already there or doing something else entirely.
+     */
+    public boolean placesCamera()
+    {
+        return false;
+    }
+
     public void applyLast(ClipContext context, Position position)
     {
         int duration = this.duration.get();

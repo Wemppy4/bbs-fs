@@ -25,6 +25,12 @@ public class IdleClip extends CameraClip
     }
 
     @Override
+    public boolean placesCamera()
+    {
+        return true;
+    }
+
+    @Override
     public void applyClip(ClipContext context, Position position)
     {
         position.copy(this.position.get());
