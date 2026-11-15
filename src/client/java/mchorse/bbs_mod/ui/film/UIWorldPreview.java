@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.film;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -12,8 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.context.ContextAction;
-import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.VideoExportSettings;
@@ -24,29 +21,20 @@ import mchorse.bbs_mod.utils.joml.Vectors;
 import net.fabricmc.loader.api.FabricLoader;
 import org.joml.Vector2i;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
  * The world as BBS renders it for a recording, shown in an editor: the render fitted to its own
  * proportions in the middle of the element (the viewport), the framing guides over it, a bar of
  * icons along its bottom, and the frame's corners to put text in ({@link PreviewHud}).
  *
  * <p>It also decides how big the world is rendered while it is on screen ({@link #applySize()}),
- * by the preview size settings: at the export's size, at a size of the user's, or at its own
- * size on screen.
+ * by the preview size settings: at the export's size, or at its own size on screen times the
+ * resolution multiplier.
  *
  * <p>The film editor's preview builds on it ({@link UIFilmPreview}) with the film's tools.
  */
 public class UIWorldPreview extends UIElement
 {
-    private static final int SIZE_MODE_EXPORT = 0;
-    private static final int SIZE_MODE_CUSTOM = 1;
-    private static final int SIZE_MODE_AUTO = 2;
-
     public UIElement icons;
-
-    private final Map<UIIcon, ValueBoolean> iconSettings = new LinkedHashMap<>();
 
     /** Whether the icon bar is currently shown - see {@link #updateIconsVisibility(UIContext)} */
     protected boolean iconsVisible = true;
@@ -84,63 +72,28 @@ public class UIWorldPreview extends UIElement
         this.add(this.icons);
     }
 
-    /**
-     * Puts an icon on the bar, shown while the given setting is on.
-     */
-    public void addIcon(UIIcon icon, ValueBoolean setting)
+    /** Puts an icon on the bar. */
+    public void addIcon(UIIcon icon)
     {
-        this.iconSettings.put(icon, setting);
-        icon.setVisible(setting.get());
         this.icons.add(icon);
-    }
-
-    /**
-     * Puts every icon of the bar into a menu, hidden ones too, so a button taken off the bar in
-     * the settings is still a right click away. A row does what a left click on its icon does
-     * and is lit while the icon is; a right click on it opens the icon's own menu.
-     *
-     * @param separate whether a line parts these rows from the ones already in the menu
-     */
-    public void addIconActions(ContextMenuManager menu, boolean separate)
-    {
-        if (!this.canShowIcons())
-        {
-            return;
-        }
-
-        boolean first = true;
-
-        for (UIIcon icon : this.iconSettings.keySet())
-        {
-            /* Not isEnabled(): that is false for an icon hidden in the settings, and those are
-             * the very ones the menu is for. */
-            if (!icon.isEnabledWhenShown() || icon.tooltip == null)
-            {
-                continue;
-            }
-
-            ContextAction action = menu.action(icon.getIcon(), icon.tooltip.getLabel(), icon.isHighlighted(), () ->
-            {
-                if (icon.callback != null)
-                {
-                    icon.callback.accept(icon);
-                }
-            });
-
-            action.submenu(() -> icon.createContextMenu(this.getContext()));
-
-            if (first && separate)
-            {
-                action.separated();
-            }
-
-            first = false;
-        }
     }
 
     public boolean isIconBarVisible()
     {
         return this.iconsVisible;
+    }
+
+    /**
+     * The icon that opens the frame's settings at hand: the resolution, the export size, the
+     * framing guides ({@link UIPreviewFramePopup}).
+     */
+    protected UIIcon createFrameIcon()
+    {
+        UIIcon frame = new UIIcon(Icons.PICTURE, (b) -> this.getContext().replaceContextMenu(new UIPreviewFramePopup(this)));
+
+        frame.tooltip(UIKeys.FILM_PREVIEW_FRAME);
+
+        return frame;
     }
 
     /**
@@ -199,8 +152,7 @@ public class UIWorldPreview extends UIElement
      */
     protected boolean isShowingExportBands()
     {
-        return BBSSettings.editorPreviewSizeMode.get() != SIZE_MODE_EXPORT
-            && this.isFramingExport();
+        return !BBSSettings.editorPreviewExportSize.get() && this.isFramingExport();
     }
 
     /**
@@ -233,19 +185,13 @@ public class UIWorldPreview extends UIElement
 
         int w;
         int h;
-        int mode = BBSSettings.editorPreviewSizeMode.get();
 
-        if (mode == SIZE_MODE_EXPORT)
+        if (BBSSettings.editorPreviewExportSize.get())
         {
             VideoExportSettings export = this.getExportSettings();
 
             w = Math.max(2, export.width());
             h = Math.max(2, export.height());
-        }
-        else if (mode == SIZE_MODE_CUSTOM)
-        {
-            w = Math.max(2, BBSSettings.editorPreviewCustomWidth.get());
-            h = Math.max(2, BBSSettings.editorPreviewCustomHeight.get());
         }
         else
         {
@@ -347,21 +293,6 @@ public class UIWorldPreview extends UIElement
      */
     protected void updateIconsVisibility(UIContext context)
     {
-        boolean changed = false;
-
-        for (Map.Entry<UIIcon, ValueBoolean> entry : this.iconSettings.entrySet())
-        {
-            boolean visible = entry.getValue().get();
-
-            if (entry.getKey().isVisible() != visible)
-            {
-                entry.getKey().setVisible(visible);
-                changed = true;
-            }
-        }
-
-        if (changed) this.icons.resize();
-
         if (!BBSSettings.editorPreviewIconsAutoHide.get())
         {
             this.iconsVisible = true;
@@ -371,7 +302,6 @@ public class UIWorldPreview extends UIElement
             this.iconsVisible = this.area.isInside(context.mouseX, context.mouseY);
         }
 
-        this.iconsVisible &= this.icons.getChildren().stream().anyMatch(element -> element.isVisible());
         this.iconsVisible &= this.canShowIcons();
         this.icons.setVisible(this.iconsVisible);
     }
@@ -415,8 +345,8 @@ public class UIWorldPreview extends UIElement
     }
 
     /**
-     * The framing guides switched on in the settings: thirds, centre lines, crosshair, all in
-     * the export's frame, with the bands around it while they are up.
+     * The framing guides switched on in the settings: thirds, centre lines, crosshair, safe zones,
+     * all in the export's frame, with the bands around it while they are up.
      */
     protected void renderGuides(UIContext context, Area viewport)
     {
@@ -453,6 +383,26 @@ public class UIWorldPreview extends UIElement
             context.batcher.box(x - 4, y - 1, x + 3, y, Colors.setA(Colors.WHITE, 0.5F));
             context.batcher.box(x - 1, y - 4, x, y + 3, Colors.setA(Colors.WHITE, 0.5F));
         }
+
+        if (BBSSettings.editorSafeZones.get())
+        {
+            int guidesColor = BBSSettings.editorGuidesColor.get();
+
+            /* Action safe, then title safe: what may be cut by a screen's edge stays outside */
+            this.renderSafeZone(context, area, 0.9F, guidesColor);
+            this.renderSafeZone(context, area, 0.8F, guidesColor);
+        }
+    }
+
+    /** A one pixel frame of the given share of the area, in its middle. */
+    private void renderSafeZone(UIContext context, Area area, float share, int color)
+    {
+        int w = Math.round(area.w * share);
+        int h = Math.round(area.h * share);
+        int x = area.mx() - w / 2;
+        int y = area.my() - h / 2;
+
+        context.batcher.outline(x, y, x + w, y + h, color);
     }
 
     /** Shades the viewport outside the export's frame. */

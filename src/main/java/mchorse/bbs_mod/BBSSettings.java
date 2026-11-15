@@ -161,6 +161,8 @@ public class BBSSettings {
 	public static ValueBoolean editorCenterLines;
 	public static ValueBoolean editorSelectionOutline;
 	public static ValueBoolean editorCrosshair;
+	/** Frames inside the export's frame that keep action (90 %) and titles (80 %) clear of the edges. */
+	public static ValueBoolean editorSafeZones;
 	public static ValueBoolean editorSeconds;
 	public static ValueBoolean editorTimelineGrid;
 	public static ValueInt editorPeriodicSave;
@@ -218,25 +220,13 @@ public class BBSSettings {
 	public static ValueString keyframeDefaultInterpolation;
 	public static ValueBoolean keyframePreview;
 	public static ValueBoolean showMotionShiftHandles;
-	public static ValueInt editorPreviewSizeMode;
-	public static ValueInt editorPreviewCustomWidth;
-	public static ValueInt editorPreviewCustomHeight;
+	/** Whether the preview renders at the export's size rather than at its own size on screen. */
+	public static ValueBoolean editorPreviewExportSize;
 	public static ValueFloat editorPreviewResolutionScale;
 	public static ValueFloat editorPreviewExportBandsOpacity;
 	public static ValueBoolean editorClipAutoName;
 	public static ValueBoolean editorClipPaletteIcons;
 	public static ValueBoolean editorPreviewIconsAutoHide;
-	public static ValueBoolean previewIconOnionSkin;
-	public static ValueBoolean previewIconMotionPath;
-	public static ValueBoolean previewIconTeleport;
-	public static ValueBoolean previewIconFlight;
-	public static ValueBoolean previewIconPlayback;
-	public static ValueBoolean previewIconControl;
-	public static ValueBoolean previewIconPerspective;
-	public static ValueBoolean previewIconAutoKeyframe;
-	public static ValueBoolean previewIconShaders;
-	public static ValueBoolean previewIconRecordReplay;
-	public static ValueBoolean previewIconExport;
 
 	public static ValueBoolean editorPreviewSelectionHud;
 	public static ValueBoolean editorKeepFrameOnExit;
@@ -886,24 +876,12 @@ public class BBSSettings {
 		editorRuleOfThirds = builder.getBoolean("rule_of_thirds", false);
 		editorCenterLines = builder.getBoolean("center_lines", false);
 		editorCrosshair = builder.getBoolean("crosshair", false);
-		editorPreviewSizeMode = builder.getInt("preview_size_mode", 2, 0, 2);
-		editorPreviewCustomWidth = builder.getInt("preview_custom_width", 1280, 2, 16384);
-		editorPreviewCustomHeight = builder.getInt("preview_custom_height", 720, 2, 16384);
-		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 1F, 3F).slider();
+		editorSafeZones = builder.getBoolean("safe_zones", false);
+		editorPreviewExportSize = builder.getBoolean("preview_export_size", false);
+		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 0.5F, 3F).slider();
 		editorPreviewExportBandsOpacity = builder.getFloat("preview_export_bands_opacity", 0.5F, 0F, 1F).slider();
 		editorClipPreview = builder.getBoolean("clip_preview", true);
 		editorPreviewIconsAutoHide = builder.getBoolean("preview_icons_auto_hide", false);
-		previewIconOnionSkin = builder.getBoolean("preview_icon_onion_skin", true);
-		previewIconMotionPath = builder.getBoolean("preview_icon_motion_path", true);
-		previewIconTeleport = builder.getBoolean("preview_icon_teleport", true);
-		previewIconFlight = builder.getBoolean("preview_icon_flight", true);
-		previewIconPlayback = builder.getBoolean("preview_icon_playback", true);
-		previewIconControl = builder.getBoolean("preview_icon_control", true);
-		previewIconPerspective = builder.getBoolean("preview_icon_perspective", true);
-		previewIconAutoKeyframe = builder.getBoolean("preview_icon_auto_keyframe", true);
-		previewIconShaders = builder.getBoolean("preview_icon_shaders", true);
-		previewIconRecordReplay = builder.getBoolean("preview_icon_record_replay", true);
-		previewIconExport = builder.getBoolean("preview_icon_export", true);
 
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		editorSelectionOutline = builder.getBoolean("selection_outline", true);

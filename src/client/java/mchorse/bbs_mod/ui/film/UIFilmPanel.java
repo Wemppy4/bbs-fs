@@ -374,9 +374,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         };
         BBSSettings.videoWidth.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.videoHeight.postCallback(refreshPreviewOnVideoResolution);
-        BBSSettings.editorPreviewSizeMode.postCallback(refreshPreviewOnVideoResolution);
-        BBSSettings.editorPreviewCustomWidth.postCallback(refreshPreviewOnVideoResolution);
-        BBSSettings.editorPreviewCustomHeight.postCallback(refreshPreviewOnVideoResolution);
+        BBSSettings.editorPreviewExportSize.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
         this.mountLanding();

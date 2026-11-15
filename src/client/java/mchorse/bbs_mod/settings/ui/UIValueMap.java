@@ -60,7 +60,10 @@ public class UIValueMap
     {
         register(ValueBoolean.class, (value, ui) ->
         {
-            UIToggle toggle = UIValueFactory.booleanUI(value, null);
+            /* The export size hides the rows that only matter at the preview's own size */
+            UIToggle toggle = UIValueFactory.booleanUI(value, value == BBSSettings.editorPreviewExportSize && ui instanceof UISettingsOverlayPanel panel
+                ? (t) -> panel.refresh()
+                : null);
             toggle.resetFlex();
             return Arrays.asList(toggle);
         });
@@ -85,27 +88,6 @@ public class UIValueMap
 
         register(ValueInt.class, (value, ui) ->
         {
-            if (value == BBSSettings.editorPreviewSizeMode)
-            {
-                UICirculate button = new UICirculate(null);
-                button.addLabel(UIKeys.CONFIG_EDITOR_PREVIEW_MODE_EXPORT);
-                button.addLabel(UIKeys.CONFIG_EDITOR_PREVIEW_MODE_CUSTOM);
-                button.addLabel(UIKeys.CONFIG_EDITOR_PREVIEW_MODE_AUTO);
-                button.callback = (b) ->
-                {
-                    value.set(button.getValue());
-
-                    if (ui instanceof UISettingsOverlayPanel panel)
-                    {
-                        panel.refresh();
-                    }
-                };
-                button.valueBinding(() -> button.setValue(value.get()));
-                button.w(90);
-
-                return Arrays.asList(UIValueFactory.column(button, value));
-            }
-
             if (value.getSubtype() == ValueInt.Subtype.COLOR || value.getSubtype() == ValueInt.Subtype.COLOR_ALPHA)
             {
                 UIColor color = UIValueFactory.colorUI(value, null);

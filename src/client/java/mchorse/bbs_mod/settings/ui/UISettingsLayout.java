@@ -64,21 +64,7 @@ public class UISettingsLayout
             .add(BBSSettings.gizmoShowViewRotate, Icons.OUTLINE_SPHERE)
             .add(BBSSettings.gizmoShowSphere, Icons.SPHERE));
 
-        register(new ToggleStripRow(UIKeys.CONFIG_PREVIEW_ICONS).stacked()
-            .add(BBSSettings.previewIconOnionSkin, Icons.ONION_SKIN)
-            .add(BBSSettings.previewIconMotionPath, Icons.CURVES)
-            .add(BBSSettings.previewIconTeleport, Icons.MOVE_TO)
-            .add(BBSSettings.previewIconFlight, Icons.PLANE)
-            .add(BBSSettings.previewIconPlayback, Icons.PLAY)
-            .add(BBSSettings.previewIconControl, Icons.POSE)
-            .add(BBSSettings.previewIconPerspective, Icons.ORBIT)
-            .add(BBSSettings.previewIconAutoKeyframe, Icons.KEY)
-            .add(BBSSettings.previewIconShaders, Icons.SUN)
-            .add(BBSSettings.previewIconRecordReplay, Icons.SPHERE)
-            .add(BBSSettings.previewIconExport, Icons.VIDEO_CAMERA));
-
         register(new UIResolutionRow(BBSSettings.videoWidth, BBSSettings.videoHeight, true));
-        register(new UIResolutionRow(BBSSettings.editorPreviewCustomWidth, BBSSettings.editorPreviewCustomHeight, false));
         register(new UIExportPathRow(BBSSettings.videoExportPath));
         register(new UIEncoderPathRow(BBSSettings.videoEncoderPath));
 
@@ -116,19 +102,12 @@ public class UISettingsLayout
     public static class ToggleStripRow implements IValueRow
     {
         private final IKey label;
-        private boolean stacked;
         private final List<ValueBoolean> values = new ArrayList<>();
         private final List<Icon> icons = new ArrayList<>();
 
         public ToggleStripRow(IKey label)
         {
             this.label = label;
-        }
-
-        public ToggleStripRow stacked()
-        {
-            this.stacked = true;
-            return this;
         }
 
         public ToggleStripRow add(ValueBoolean value, Icon icon)
@@ -157,18 +136,12 @@ public class UISettingsLayout
                 toggles.add(
                     this.icons.get(i),
                     L10n.lang(UIValueFactory.getValueLabelKey(value)),
-                    this.stacked ? null : L10n.lang(UIValueFactory.getValueCommentKey(value)),
+                    L10n.lang(UIValueFactory.getValueCommentKey(value)),
                     () -> value
                 );
             }
 
             toggles.w(toggles.getPreferredWidth());
-
-            if (this.stacked)
-            {
-                toggles.resettable().stretch();
-                return List.of(UI.label(this.label, 0).labelAnchor(0, 0.5F), toggles);
-            }
 
             UIElement row = new UIElement();
 

@@ -16,6 +16,10 @@ import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.l10n.L10n;
+import mchorse.bbs_mod.settings.ui.UIValueFactory;
+import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
+import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -35,6 +39,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.Direction;
@@ -83,12 +88,10 @@ public class UIFilmPreview extends UIWorldPreview
     private UIFilmPanel panel;
     private UIPlacementGizmo placementGizmo;
 
-    public UIIcon onionSkin;
-    public UIIcon motionPath;
+    public UIIcon show;
+    public UIIcon frame;
     public UIIcon plause;
     public UIIcon teleport;
-    public UIIcon flight;
-    public UIIcon control;
     public UIIcon perspective;
     public UIIcon autoKeyframe;
     public UIIcon recordReplay;
@@ -113,12 +116,9 @@ public class UIFilmPreview extends UIWorldPreview
         this.placementGizmo = new UIPlacementGizmo(() -> filmPanel.cameraEditor, filmPanel::getCursor);
 
         /* Preview buttons */
-        this.onionSkin = new UIIcon(Icons.ONION_SKIN, (b) -> this.openOnionSkin());
-        this.onionSkin.highlight(() -> this.panel.getController().getOnionSkin().enabled.get(), Direction.BOTTOM);
-        this.onionSkin.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
-        this.motionPath = new UIIcon(Icons.CURVES, (b) -> this.openMotionPath());
-        this.motionPath.highlight(() -> this.panel.getController().getMotionPath().enabled.get(), Direction.BOTTOM);
-        this.motionPath.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
+        this.show = new UIIcon(Icons.CAMERA, (b) -> this.getContext().replaceContextMenu(this::fillShowMenu));
+        this.show.tooltip(UIKeys.FILM_PREVIEW_SHOW);
+        this.frame = this.createFrameIcon();
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
         this.plause.context((menu) ->
@@ -176,12 +176,6 @@ public class UIFilmPreview extends UIWorldPreview
                 });
             }
         });
-        this.flight = new UIIcon(Icons.PLANE, (b) -> this.panel.toggleFlight());
-        this.flight.highlight(this.panel::isFlying, Direction.BOTTOM);
-        this.flight.tooltip(UIKeys.CAMERA_EDITOR_KEYS_MODES_FLIGHT);
-        this.control = new UIIcon(Icons.POSE, (b) -> this.panel.getController().toggleControl());
-        this.control.highlight(() -> this.panel.getController().isControlling(), Direction.BOTTOM);
-        this.control.tooltip(UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_CONTROL);
         this.perspective = new UIIcon(this.panel.getController()::getOrbitModeIcon, (b) -> this.panel.getController().toggleOrbitMode());
         this.perspective.tooltip(UIKeys.FILM_CONTROLLER_KEYS_CHANGE_CAMERA_MODE);
         this.perspective.context((menu) ->
@@ -294,17 +288,16 @@ public class UIFilmPreview extends UIWorldPreview
             });
         });
 
-        this.addIcon(this.onionSkin, BBSSettings.previewIconOnionSkin);
-        this.addIcon(this.motionPath, BBSSettings.previewIconMotionPath);
-        this.addIcon(this.teleport, BBSSettings.previewIconTeleport);
-        this.addIcon(this.flight, BBSSettings.previewIconFlight);
-        this.addIcon(this.plause, BBSSettings.previewIconPlayback);
-        this.addIcon(this.control, BBSSettings.previewIconControl);
-        this.addIcon(this.perspective, BBSSettings.previewIconPerspective);
-        this.addIcon(this.autoKeyframe, BBSSettings.previewIconAutoKeyframe);
-        this.addIcon(this.shaders, BBSSettings.previewIconShaders);
-        this.addIcon(this.recordReplay, BBSSettings.previewIconRecordReplay);
-        this.addIcon(this.recordVideo, BBSSettings.previewIconExport);
+        /* Playback in the middle of the bar */
+        this.addIcon(this.show);
+        this.addIcon(this.frame);
+        this.addIcon(this.perspective);
+        this.addIcon(this.teleport);
+        this.addIcon(this.plause);
+        this.addIcon(this.autoKeyframe);
+        this.addIcon(this.shaders);
+        this.addIcon(this.recordReplay);
+        this.addIcon(this.recordVideo);
 
         for (Function<UIFilmPreview, UIElement> factory : OVERLAYS)
         {
@@ -328,14 +321,37 @@ public class UIFilmPreview extends UIWorldPreview
         BBSSettings.autoKeyframe.set(!BBSSettings.autoKeyframe.get());
     }
 
-    public void openOnionSkin()
+    /**
+     * What the preview draws over the world, each a row lit while it is on. The onion skin's and
+     * the motion path's own settings are a right click on their rows.
+     */
+    private void fillShowMenu(ContextMenuManager menu)
     {
-        this.getContext().replaceContextMenu(new UIOnionSkinContextMenu(this.panel, this.panel.getController().getOnionSkin()));
+        UIFilmController controller = this.panel.getController();
+        ValueOnionSkin onionSkin = controller.getOnionSkin();
+        ValueMotionPath motionPath = controller.getMotionPath();
+
+        menu.action(Icons.ONION_SKIN, UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE, onionSkin.enabled.get(), () -> onionSkin.enabled.set(!onionSkin.enabled.get()))
+            .submenu(() -> new UIOnionSkinContextMenu(this.panel, onionSkin));
+        menu.action(Icons.CURVES, UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE, motionPath.enabled.get(), () -> motionPath.enabled.set(!motionPath.enabled.get()))
+            .submenu(() -> new UIMotionPathContextMenu(this.panel, motionPath));
+        menu.action(Icons.OUTLINE, L10n.lang(UIValueFactory.getValueLabelKey(BBSSettings.editorSelectionOutline)), BBSSettings.editorSelectionOutline.get(), () -> BBSSettings.editorSelectionOutline.toggle());
+        menu.action(Icons.BONE, UIKeys.FILM_PREVIEW_SHOW_DEBUG, BBSSettings.debugOverlay.get(), () -> BBSSettings.debugOverlay.toggle());
     }
 
-    public void openMotionPath()
+    /**
+     * The preview's right click rows for what has no icon on the bar: flight and actor control,
+     * which are reached by their keys and are lit while they are on.
+     */
+    public void addPreviewActions(ContextMenuManager menu)
     {
-        this.getContext().replaceContextMenu(new UIMotionPathContextMenu(this.panel, this.panel.getController().getMotionPath()));
+        if (!this.canShowIcons())
+        {
+            return;
+        }
+
+        menu.action(Icons.PLANE, UIKeys.CAMERA_EDITOR_KEYS_MODES_FLIGHT, this.panel.isFlying(), this.panel::toggleFlight);
+        menu.action(Icons.POSE, UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_CONTROL, this.panel.getController().isControlling(), () -> this.panel.getController().toggleControl());
     }
 
     private void exportQueueFromTabs()
@@ -559,7 +575,7 @@ public class UIFilmPreview extends UIWorldPreview
          * that says how to leave control mode. */
         if (this.panel.getController().isControlling())
         {
-            String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
+            String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getKeyCombo()).get();
 
             this.hud.label(context, PreviewHud.Anchor.BOTTOM_CENTER, s, Colors.WHITE, Colors.A50);
         }

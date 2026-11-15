@@ -13,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -23,6 +24,8 @@ import mchorse.bbs_mod.utils.profiler.BBSProfiler;
  * only READS — every number on screen belongs to something else (the mouse control, the take,
  * the selection), and drawing them was the longest single stretch of the controller.
  */
+import java.util.Locale;
+
 public class FilmControllerHud
 {
     /** The side of the selected replay's form thumbnail. */
@@ -56,15 +59,7 @@ public class FilmControllerHud
             String tally = this.controller.getRecordingCountdown() <= 0
                 ? UIKeys.FILM_CONTROLLER_TICKS.format(this.controller.getTick()).get()
                 : String.valueOf(this.controller.getRecordingCountdown() / 20F);
-            int iconW = Icons.SPHERE.w;
-            int textY = context.batcher.getFont().getHeight() / 2;
-            Area block = hud.push(PreviewHud.Anchor.TOP_LEFT, iconW + PreviewHud.GAP + context.batcher.getFont().getWidth(tally), Icons.SPHERE.h);
-
-            hud.include(PreviewHud.Anchor.TOP_LEFT, block, (c) ->
-            {
-                c.batcher.icon(Icons.SPHERE, Colors.RED | Colors.A100, block.x, block.y);
-                c.batcher.text(tally, block.x + iconW + PreviewHud.GAP, block.my() - textY, Colors.WHITE, true);
-            });
+            this.iconLine(context, hud, Icons.SPHERE, Colors.RED | Colors.A100, tally);
         }
 
         if (BBSSettings.editorLoop.get())
@@ -72,11 +67,17 @@ public class FilmControllerHud
             hud.icon(context, PreviewHud.Anchor.TOP_LEFT, Icons.REFRESH, Colors.WHITE | Colors.A100);
         }
 
+        /* Flight and actor control have no buttons on the bar; the corner is where they show */
         if (this.controller.panel.isFlying())
         {
-            String label = UIKeys.FILM_CONTROLLER_SPEED.format(this.controller.panel.dashboard.orbit.speed.getValue()).get();
+            String speed = String.format(Locale.ROOT, "%.2f", this.controller.panel.dashboard.orbit.speed.getValue());
 
-            hud.text(context, PreviewHud.Anchor.TOP_LEFT, label, Colors.WHITE);
+            this.iconLine(context, hud, Icons.PLANE, Colors.WHITE | Colors.A100, speed);
+        }
+
+        if (this.controller.isControlling())
+        {
+            hud.icon(context, PreviewHud.Anchor.TOP_LEFT, Icons.POSE, Colors.WHITE | Colors.A100);
         }
 
         Replay replay = this.controller.panel.replayEditor.getReplay();
@@ -243,5 +244,18 @@ public class FilmControllerHud
 
         /* Nothing to ask (the track was rebuilt under us) — the path is still better than nothing. */
         return label != null ? label : StringUtils.fileName(target.bone());
+    }
+
+    /** An icon with a word after it, one line of the top left corner. */
+    private void iconLine(UIContext context, PreviewHud hud, Icon icon, int color, String text)
+    {
+        int textY = context.batcher.getFont().getHeight() / 2;
+        Area block = hud.push(PreviewHud.Anchor.TOP_LEFT, icon.w + PreviewHud.GAP + context.batcher.getFont().getWidth(text), icon.h);
+
+        hud.include(PreviewHud.Anchor.TOP_LEFT, block, (c) ->
+        {
+            c.batcher.icon(icon, color, block.x, block.y);
+            c.batcher.text(text, block.x + icon.w + PreviewHud.GAP, block.my() - textY, Colors.WHITE, true);
+        });
     }
 }

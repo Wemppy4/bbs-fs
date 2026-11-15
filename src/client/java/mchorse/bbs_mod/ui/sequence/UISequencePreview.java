@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.sequence;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.sequence.Sequence;
 import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -18,12 +17,13 @@ import java.io.File;
 
 /**
  * The sequence editor's preview: the world as the sequence is recorded, at its own export
- * settings, with the playback on its icon bar.
+ * settings, with the frame's settings, the playback, the shaders and the recording on its bar.
  */
 public class UISequencePreview extends UIWorldPreview
 {
     public final UISequencePanel panel;
 
+    public UIIcon frame;
     public UIIcon plause;
     public UIIcon shaders;
     public UIIcon record;
@@ -32,6 +32,7 @@ public class UISequencePreview extends UIWorldPreview
     {
         this.panel = panel;
 
+        this.frame = this.createFrameIcon();
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
         this.shaders = this.createShadersIcon();
@@ -60,9 +61,10 @@ public class UISequencePreview extends UIWorldPreview
             });
         });
 
-        this.addIcon(this.shaders, BBSSettings.previewIconShaders);
-        this.addIcon(this.plause, BBSSettings.previewIconPlayback);
-        this.addIcon(this.record, BBSSettings.previewIconExport);
+        this.addIcon(this.frame);
+        this.addIcon(this.plause);
+        this.addIcon(this.shaders);
+        this.addIcon(this.record);
     }
 
     @Override
