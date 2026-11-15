@@ -54,7 +54,7 @@
 	"bbs.ui.spline.missing": "Путь недоступен",
 	"bbs.ui.film.open_screenshots": "Открыть папку скриншотов",
 	"bbs.ui.film.toggle_shaders": "Включить / выключить шейдеры",
-	"bbs.ui.film.preview.show": "Показ",
+	"bbs.ui.film.preview.show": "Отображение",
 	"bbs.ui.film.preview.show.debug": "Отладка IK и физики",
 	"bbs.ui.film.preview.frame": "Кадр",
 	"bbs.ui.film.select_shader": "Сначала выберите шейдер в панели F6.",

@@ -54,7 +54,7 @@
 	"bbs.ui.spline.missing": "Path unavailable",
 	"bbs.ui.film.open_screenshots": "Open screenshots folder",
 	"bbs.ui.film.toggle_shaders": "Toggle shaders",
-	"bbs.ui.film.preview.show": "Show",
+	"bbs.ui.film.preview.show": "Display",
 	"bbs.ui.film.preview.show.debug": "IK and physics debug",
 	"bbs.ui.film.preview.frame": "Frame",
 	"bbs.ui.film.select_shader": "Select a shader pack in the F6 panel first.",

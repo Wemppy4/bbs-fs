@@ -60,6 +60,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import org.lwjgl.glfw.GLFW;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -2145,7 +2146,43 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     @Override
     public boolean handleKeyPressed(UIContext context)
     {
-        return this.controller.orbit.keyPressed(context, this.preview.area);
+        return this.leaveModeOnEscape(context) || this.controller.orbit.keyPressed(context, this.preview.area);
+    }
+
+    /** Asked after the panel's elements: an Escape nothing took still leaves flight or control first. */
+    @Override
+    protected boolean subKeyPressed(UIContext context)
+    {
+        return this.leaveModeOnEscape(context) || super.subKeyPressed(context);
+    }
+
+    /**
+     * Escape turns flight off, or gives the actor back, before it can close the editor: an Escape
+     * nobody takes closes the whole dashboard, which is never what it means while flying or controlling.
+     */
+    private boolean leaveModeOnEscape(UIContext context)
+    {
+        if (!context.isPressed(GLFW.GLFW_KEY_ESCAPE) || context.isFocused() || UIOverlay.has(context))
+        {
+            return false;
+        }
+
+        if (this.isFlying())
+        {
+            this.setFlight(false);
+        }
+        else if (this.controller.isControlling())
+        {
+            this.controller.toggleControl();
+        }
+        else
+        {
+            return false;
+        }
+
+        UIUtils.playClick();
+
+        return true;
     }
 
     @Override
