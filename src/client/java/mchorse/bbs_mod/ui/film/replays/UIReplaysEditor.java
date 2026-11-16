@@ -1333,7 +1333,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                     }
                 }
 
-                this.filmPanel.preview.addPreviewActions(menu);
+                this.filmPanel.preview.addIconActions(menu, hit != null);
             });
 
             return true;

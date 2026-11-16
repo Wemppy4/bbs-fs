@@ -1871,11 +1871,9 @@ public class UIKeys
     public static final IKey UTILITY_RELOAD_TERRAIN = L10n.lang("studio.ui.utility.reload_terrain");
     public static final IKey UTILITY_RELOAD_TEXTURES = L10n.lang("studio.ui.utility.reload_textures");
     public static final IKey UTILITY_TITLE = L10n.lang("studio.ui.utility.title");
+    public static final IKey CONFIG_PREVIEW_ICONS = L10n.lang("bbs.config.viewport.preview_icons");
     public static final IKey FILM_OPEN_SCREENSHOTS = L10n.lang("bbs.ui.film.open_screenshots");
     public static final IKey FILM_TOGGLE_SHADERS = L10n.lang("bbs.ui.film.toggle_shaders");
-    public static final IKey FILM_PREVIEW_SHOW = L10n.lang("bbs.ui.film.preview.show");
-    public static final IKey FILM_PREVIEW_SHOW_DEBUG = L10n.lang("bbs.ui.film.preview.show.debug");
-    public static final IKey FILM_PREVIEW_FRAME = L10n.lang("bbs.ui.film.preview.frame");
     public static final IKey FILM_SELECT_SHADER = L10n.lang("bbs.ui.film.select_shader");
 
     public static final IKey CONFIG_GIZMO_ELEMENTS = L10n.lang("bbs.config.transformation.gizmo_elements");
@@ -1884,6 +1882,9 @@ public class UIKeys
     public static final IKey CONFIG_PERSONALIZATION_PRESET_SAVE = L10n.lang("bbs.config.personalization.presets.save");
     public static final IKey CONFIG_PERSONALIZATION_PRESET_NAME = L10n.lang("bbs.config.personalization.presets.name");
     public static final IKey CONFIG_PERSONALIZATION_PRESET_DELETE = L10n.lang("bbs.config.personalization.presets.delete");
+    public static final IKey CONFIG_EDITOR_PREVIEW_MODE_EXPORT = L10n.lang("bbs.config.viewport.preview_size_mode.export");
+    public static final IKey CONFIG_EDITOR_PREVIEW_MODE_CUSTOM = L10n.lang("bbs.config.viewport.preview_size_mode.custom");
+    public static final IKey CONFIG_EDITOR_PREVIEW_MODE_AUTO = L10n.lang("bbs.config.viewport.preview_size_mode.auto");
     public static final IKey VALUE_RESET = L10n.lang("bbs.ui.value.reset");
     public static final IKey VIDEO_SETTINGS_HEIGHT = L10n.lang("bbs.ui.video_settings.height");
     public static final IKey VIDEO_SETTINGS_PRESETS_1080P = L10n.lang("bbs.ui.video_settings.presets.1080p");
